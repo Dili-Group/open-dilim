@@ -91,6 +91,7 @@ Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • id
 │   │   ├── provider.ts          #   interface LLMProvider { chat, stream } + type chung
 │   │   ├── registry.ts          #   chọn provider theo config (name → instance)
 │   │   ├── stream.ts            #   helper stream + get_final_message (provider-agnostic)
+│   │   ├── embedder.ts          #   interface Embedder; impl gemini-embedding-001 (dim 1536)
 │   │   └── providers/           #   1 file / provider
 │   │       ├── anthropic.ts     #     Claude (@anthropic-ai/sdk), resolve creds zero-arg
 │   │       └── gemini.ts        #     Gemini (@google/genai)
@@ -140,11 +141,11 @@ Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • id
 │   │       ├── messenger.ts
 │   │       └── web.ts
 │   │
-│   ├── state/                   # STATE — session, history, pending
+│   ├── state/                   # STATE — session, memory, pending
 │   │   ├── store.ts             #   interface Store (get/set theo conversationId)
-│   │   ├── session.ts           #   session + lịch sử hội thoại
-│   │   ├── memory.ts            #   memory dài hạn (cross-session)
-│   │   └── pending.ts           #   pending_action (write chờ confirm, idempotency key)
+│   │   ├── session.ts           #   NGẮN HẠN: buffer N turn + rolling summary (ephemeral)
+│   │   ├── memory.ts            #   DÀI HẠN: distill → embed (gemini) → pgvector, recall top-K theo user
+│   │   └── pending.ts           #   pending_action (write chờ confirm, idempotency + requesterId)
 │   │
 │   ├── auth/                    # AUTH — xác thực & tenancy
 │   │   ├── index.ts             #   verify request (chữ ký webhook / token)
@@ -174,13 +175,13 @@ Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • id
 | **broker** | Đệm & vận chuyển. `queue` = ingress (durable, retry, DLQ). `pubsub` = broadcast (fan-out). | Chọn Redis Streams / NATS / Kafka. Interface ẩn implementation. |
 | **worker** | PROCESSING. Consume queue → dedupe (idempotency) → order-lock theo `conversationId` → `registry.resolve(agentType)` → chạy root agent → emit AgentResult. | Scale ngang = thêm worker. 1 message/lúc/phòng (chống đua state group). Chạy được vài phút/msg. |
 | **agents** | `registry` map `agentType` → root agent (operation/partner/...). Root agent chạy loop `while(tool_use)`; orchestrator quyết định gọi sub-agent/workflow. | Thêm agent = 1 file `roots/` + 1 dòng register. Type sai/thiếu → default agent. Sub-agent trả kết quả gọn, song song. |
-| **llm** | Tách lời gọi model khỏi loop. `LLMProvider` interface + registry chọn provider theo config; mỗi provider (Claude, Gemini) 1 file. | Agent loop KHÔNG biết provider nào — chỉ gọi `provider.chat/stream`. Thêm provider = 1 file + 1 dòng register. Mỗi provider tự chuẩn hóa tool-call về format chung. |
+| **llm** | Tách lời gọi model khỏi loop. `LLMProvider` interface + registry chọn provider theo config; mỗi provider (Claude, Gemini) 1 file. `Embedder` interface (gemini-embedding-001) cho memory dài hạn. | Agent loop KHÔNG biết provider nào — chỉ gọi `provider.chat/stream`. Thêm provider = 1 file + 1 dòng register. `Embedder` swap Gemini↔self-host không sửa memory core. |
 | **tools** | Hàm agent gọi. Registry + JSON schema + runner. Phân loại READ (auto) / WRITE (confirm) / ESCALATE. | `user_id` KHÔNG nằm trong schema — backend inject từ session. |
 | **workflows** | SOP nhiều bước = state machine. intake → check → propose → **confirm gate** → execute. | Dùng cho quy trình cứng (refund/hủy...), khác agent loop hỏi-đáp. |
 | **approvals** | Human-in-the-loop. Gate suspend workflow → lưu pending → phát yêu cầu duyệt → resume khi có reply. | Async: KHÔNG block. 2 tầng: customer-confirm & staff-approve. |
 | **skills** | Mỗi skill 1 folder: `SKILL.md` (frontmatter+body) + `references/**`. Selector chọn theo intent, loader inject. | Progressive disclosure: chỉ `description` ở context mặc định; body/references load khi cần. Non-dev sửa, không deploy. |
 | **broadcast** | OUTPUT. `publisher` push AgentResult lên topic. `factory` chọn broadcaster theo channel subscriber. `subscribers` cho fan-out. | Broadcast theo channel của SUBSCRIBER. Direct → DM user; group → topic phòng (mọi member), @ lại người hỏi. |
-| **state** | Session/history/memory/pending theo `conversationId` (=phòng). History mỗi turn gắn `senderId` (group đa speaker). | `pending_action` giữ write chờ confirm + idempotency key + `requesterId` (group: chỉ requester/staff resume được). |
+| **state** | NGẮN HẠN: session buffer N turn + rolling summary theo `conversationId` (turn gắn `senderId`). DÀI HẠN: memory distill→embed(gemini)→pgvector, recall top-K theo `user_id`. Pending theo phòng. | Xem mục 7 Memory. Long-term filter `user_id` (tenancy). `pending_action` giữ write chờ confirm + idempotency + `requesterId`. |
 | **auth** | Verify webhook/token. Tenancy inject `identity` (user_id/tenant) từ session. Check `identity` được phép `agentType` (map allowed-types). Permission gate tool nguy hiểm. | Tenancy KHÔNG để LLM/client tự quyết → chống bypass. `agentType` client gửi phải qua check này trước khi route. |
 | **observability** | Audit log bắt buộc: conversations, tool_calls, pending_actions, handoffs. | + logger + metrics. |
 
@@ -331,7 +332,55 @@ Cả 2 dùng chung cơ chế suspend/resume — khác ở: ai duyệt, auth chec
 
 ---
 
-## 7. Nguyên tắc thiết kế (chốt)
+## 7. Memory (ngắn hạn & dài hạn)
+
+Hai tầng, khác bản chất — không nhét chung.
+
+| | Ngắn hạn (working) | Dài hạn (persistent) |
+|---|---|---|
+| Phạm vi | 1 `conversationId` (phòng) | cross-session, theo `userId`/tenant |
+| Nội dung | N turn gần nhất **verbatim** + rolling summary | **fact đã chưng cất** (không phải log thô) |
+| Store | session store (ephemeral, bounded, evict) | **Postgres + pgvector** |
+| Module | `state/session.ts` | `state/memory.ts` |
+| Recall | đọc thẳng theo `conversationId` | semantic search top-K theo embedding |
+
+### Ngắn hạn
+
+Buffer hội thoại: giữ N turn gần nhất verbatim; tràn context → tóm tắt cuộn (rolling summary),
+đẩy phần cũ ra. Group: mỗi turn gắn `senderId` (đa speaker). KHÔNG cần vector/embedding.
+
+### Dài hạn — pattern claude-mem (distill → index → recall → prime)
+
+**Write path** (sau turn/hội thoại): distiller rút fact bền → record, embed bằng
+**`gemini-embedding-001`** → lưu pgvector. KHÔNG lưu log thô.
+
+**Read path** (bước STATE của life cycle): embed câu hỏi → semantic search top-K memory
+**của CHÍNH user này** → inject bản gọn vào context (progressive disclosure; chi tiết fetch khi cần).
+
+**Prime**: bootstrap hội thoại nạp profile khách compact (giống SessionStart hook claude-mem).
+
+```sql
+-- record: { id, user_id, type, text, embedding vector(1536), source_msg_id, confidence, ts }
+-- gemini-embedding-001: output dim = 1536 (Matryoshka) → ≤2000, HNSW index thẳng, không halfvec
+CREATE INDEX ON memory USING hnsw (embedding vector_cosine_ops);
+
+SELECT text, ts FROM memory
+WHERE user_id = $1                 -- TENANCY: cứng, không lọt cross-user
+ORDER BY embedding <=> $2          -- cosine, top-K liên quan
+LIMIT 8;
+```
+
+`Embedder` interface (giống `LLMProvider`) → swap Gemini ↔ self-host không sửa memory core.
+
+### 3 rào bắt buộc
+
+1. **Tenancy partition.** Mọi read/write memory filter `user_id`/tenant. Memory khách A không lọt sang B. `WHERE user_id` là bắt buộc, không phải logic app tự nhớ.
+2. **DB-first — memory ≠ fact động.** KHÔNG lưu trạng thái động (tình trạng đơn, số dư, tồn kho) vào memory — thiu. Cái đó query DB lúc chạy. Memory chỉ giữ: sở thích, ngữ cảnh bền, tóm tắt episode.
+3. **Memory informs, không authorizes.** Recalled memory có thể cũ/sai. Agent làm WRITE thật (refund/hủy) không được dựa memory → re-verify từ DB + qua approval.
+
+---
+
+## 8. Nguyên tắc thiết kế (chốt)
 
 1. **ACK ≠ answer.** Ingress trả 202 ngay, câu trả lời đến sau qua broadcast.
 2. **Correlation-id xuyên suốt.** `msgId` + `conversationId` đi từ ingress → egress để map response ↔ request.
@@ -345,12 +394,14 @@ Cả 2 dùng chung cơ chế suspend/resume — khác ở: ai duyệt, auth chec
 10. **`agentType` route, không cấp quyền.** Client gửi `agentType` chỉ chọn root agent; quyền luôn theo `identity` backend inject. Whitelist enum + map identity→allowed-type + agent tự gate tool.
 11. **Quyền theo `senderId`, không theo phòng.** `conversationId`=phòng, `senderId`=người gửi từng message. Group không có "quyền group" — mỗi câu quyền theo người gửi câu đó.
 12. **Group chỉ chạy khi mention.** `isGroup` + mention @agent mới trigger loop; câu khác nuốt vào history làm ngữ cảnh. Nhiều message/phòng → serialize theo `conversationId`.
+13. **Memory 2 tầng, informs≠authorizes.** Ngắn hạn = session buffer/phòng; dài hạn = pgvector theo `user_id`. Memory chỉ giữ fact bền (không lưu fact động → DB-first), gợi ý chứ không cấp quyền — WRITE thật phải re-verify DB + approval.
 
 ---
 
-## 8. Chưa quyết (cần chốt để scaffold code)
+## 9. Chưa quyết (cần chốt để scaffold code)
 
 - **Broker**: Redis Streams / NATS JetStream / Kafka?
 - **Broadcast fan-out**: 1 subscriber (chính user) hay nhiều?
 - **Delivery về user**: WebSocket/SSE hay webhook callback tới channel?
-- **State store**: Redis / Postgres / cả hai?
+- **State store**: dài hạn ✅ **Postgres + pgvector** (đã chốt). Ngắn hạn (session buffer) chạy đâu — Redis hay cùng Postgres?
+- **Embedding**: ✅ **gemini-embedding-001** (dim 1536). Sau chuyển self-host `bge-m3` nếu siết PII (interface `Embedder` đã cho phép swap).
