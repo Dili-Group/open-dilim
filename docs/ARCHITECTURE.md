@@ -31,6 +31,8 @@ Stack: **Bun + TypeScript**. LLM đa provider (**Anthropic Claude + Google Gemin
        delivery     │  topic theo conversationId / channel  │
        qua factory  └───────────────────────────────────────┘
 
+  Scheduler (cron) ──tick(leader-lock)──▶ Broker (ingress q)   [Envelope source=cron; KHÔNG qua gateway/ACK]
+
 Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • idempotency • DLQ
 ```
 
@@ -116,7 +118,14 @@ Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • id
 │   │   ├── gate.ts              #   approval gate đặt trong workflow (điểm suspend)
 │   │   ├── resolver.ts          #   nhận approval reply → match pending → resume
 │   │   ├── policy.ts            #   rule: khi nào cần duyệt, ai duyệt, ngưỡng giá trị
-│   │   └── timeout.ts           #   job quét pending hết hạn → auto-deny/escalate
+│   │   └── timeout.ts           #   quét pending hết hạn → auto-deny/escalate (chạy như 1 scheduler job)
+│   │
+│   ├── scheduler/               # CRON — trigger agent theo lịch (periodic check)
+│   │   ├── poller.ts            #   tick leader-locked: quét job đến hạn → dựng Envelope → push broker
+│   │   ├── store.ts             #   job def: Postgres (durable) + Redis ZSET (due-index theo nextRunAt)
+│   │   ├── registry.ts          #   map jobId → task builder (system job code-defined)
+│   │   └── defs/                #   job code-defined (approval-timeout, health-check); business job ở DB
+│   │       └── approval-timeout.ts
 │   │
 │   ├── skills/                  # SKILLS — mỗi skill 1 folder (chuẩn SKILL.md)
 │   │   ├── loader.ts            #   đọc SKILL.md (parse frontmatter), versioned
@@ -179,6 +188,7 @@ Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • id
 | **tools** | Hàm agent gọi. Registry + JSON schema + runner. Phân loại READ (auto) / WRITE (confirm) / ESCALATE. | `user_id` KHÔNG nằm trong schema — backend inject từ session. |
 | **workflows** | SOP nhiều bước = state machine. intake → check → propose → **confirm gate** → execute. | Dùng cho quy trình cứng (refund/hủy...), khác agent loop hỏi-đáp. |
 | **approvals** | Human-in-the-loop. Gate suspend workflow → lưu pending → phát yêu cầu duyệt → resume khi có reply. | Async: KHÔNG block. 2 tầng: customer-confirm & staff-approve. |
+| **scheduler** | CRON. Poller leader-locked quét job đến hạn (Redis ZSET) → dựng Envelope `source=cron` → push broker ingress → tái dùng pipeline. Job def ở Postgres + `defs/` code. | Không path xử lý mới. Fire-once (lock + idempotent `msgId`). KHÔNG bypass quyền. Gộp approval-timeout sweep. |
 | **skills** | Mỗi skill 1 folder: `SKILL.md` (frontmatter+body) + `references/**`. Selector chọn theo intent, loader inject. | Progressive disclosure: chỉ `description` ở context mặc định; body/references load khi cần. Non-dev sửa, không deploy. |
 | **broadcast** | OUTPUT. `publisher` push AgentResult lên topic. `factory` chọn broadcaster theo channel subscriber. `subscribers` cho fan-out. | Broadcast theo channel của SUBSCRIBER. Direct → DM user; group → topic phòng (mọi member), @ lại người hỏi. |
 | **state** | NGẮN HẠN: Redis buffer N turn + rolling summary theo `conversationId` (turn gắn `senderId`). DÀI HẠN: memory distill→embed(gemini)→pgvector, recall top-K theo `user_id`. Pending theo phòng. | Xem mục 7 Memory. Long-term filter `user_id` (tenancy). `pending_action` giữ write chờ confirm + idempotency + `requesterId`. |
@@ -404,7 +414,60 @@ Cap token block memory. Ngắn hạn thắng dài hạn khi tràn. Không nhồi
 
 ---
 
-## 8. Nguyên tắc thiết kế (chốt)
+## 8. Scheduler (cron — kiểm tra định kỳ)
+
+Nguồn trigger theo **thời gian**, không phải người dùng. Cron **tái dùng nguyên pipeline**: tự sinh
+Envelope (`source=cron`) → đẩy thẳng **broker ingress** → worker/agent/broadcast y hệt message thường.
+KHÔNG path xử lý mới. Không qua gateway/ACK (không có caller ngoài — scheduler là producer nội bộ tin
+cậy, dựng Envelope trực tiếp).
+
+Dùng cho: quét đơn treo, nhắc hạn, health-check, báo cáo định kỳ — và **gộp cả approval-timeout sweep**
+(mục 6): timeout job = 1 cron job, không còn quét ad-hoc rải rác.
+
+```
+job def (Postgres, durable) ──▶ Redis ZSET (due-index theo nextRunAt)
+                                      ▲
+        poller tick (leader-lock) ────┘
+          ZRANGEBYSCORE now → mỗi job đến hạn:
+            1. dựng Envelope (dưới) → push broker ingress
+            2. tính nextRunAt → ZADD lại (reschedule)
+```
+
+Envelope cron:
+```
+Envelope {
+  msgId:  `cron:{jobId}:{scheduledTs}`,   // ◀ idempotent — chống double-fire
+  conversationId: job.target,             // đích broadcast (staff channel / phòng)
+  senderId: 'system:cron',
+  agentType: job.agentType,               // validate whitelist NHƯ message thường
+  identity:  job.identity,                // service/user cấu hình — auth gate NHƯ thường
+  source:   'cron',                       // ◀ phân biệt nguồn (vs message / approval)
+  addressedToAgent: true,
+  payload:  { task: job.task }            // "kiểm tra gì" — prompt hệ thống sinh
+}
+```
+
+Job def: `{ id, schedule (cron/interval), agentType, identity, tenant, task, target, enabled, nextRunAt, lastRunAt }`.
+System job (approval-timeout, health-check) code-defined trong `defs/`; business check data-defined trong
+DB (non-dev thêm, giống skills).
+
+### 4 chốt
+
+1. **Fire-once.** Nhiều instance/worker → 2 poller không được cùng bắn 1 job. Leader-lock (Redis) HOẶC
+   pop atomic (`ZPOPMIN`/Lua) + idempotent `msgId` dedupe ở worker. Trùng tick → dedupe nuốt.
+2. **Cron KHÔNG bypass quyền.** `agentType` validate whitelist, `identity` qua `auth` y hệt message. Job
+   chạy dưới identity service/user cấu hình — không phải "quyền root". Tool WRITE vẫn gate theo identity.
+3. **Execute idempotent.** Job làm WRITE (gửi cảnh báo, tạo ticket) → idempotent theo `msgId`; retry/tick
+   trùng không nhân đôi. Write thật rủi ro vẫn qua `pending_action` (mục 6).
+4. **Output có đích rõ.** Không ai "hỏi" → không reply-về-người-hỏi. Job def chỉ định `target` broadcast
+   (staff channel / conversationId). Agent/recall như thường, chỉ khác điểm đến.
+
+**Miss-fire:** instance down qua giờ chạy → khi lên, poller thấy `nextRunAt < now` → chạy **bù 1 lần**
+(không replay mọi lần lỡ). Job nhạy thời điểm set cờ skip-to-next thay vì catch-up.
+
+---
+
+## 9. Nguyên tắc thiết kế (chốt)
 
 1. **ACK ≠ answer.** Ingress trả 202 ngay, câu trả lời đến sau qua broadcast.
 2. **Correlation-id xuyên suốt.** `msgId` + `conversationId` đi từ ingress → egress để map response ↔ request.
@@ -419,3 +482,4 @@ Cap token block memory. Ngắn hạn thắng dài hạn khi tràn. Không nhồi
 11. **Quyền theo `senderId`, không theo phòng.** `conversationId`=phòng, `senderId`=người gửi từng message. Group không có "quyền group" — mỗi câu quyền theo người gửi câu đó.
 12. **Group chỉ chạy khi mention.** `isGroup` + mention @agent mới trigger loop; câu khác nuốt vào history làm ngữ cảnh. Nhiều message/phòng → serialize theo `conversationId`.
 13. **Memory 2 tầng, informs≠authorizes.** Ngắn hạn = session buffer/phòng; dài hạn = pgvector theo `user_id`. Memory chỉ giữ fact bền (không lưu fact động → DB-first), gợi ý chứ không cấp quyền — WRITE thật phải re-verify DB + approval.
+14. **Cron = ingress theo thời gian.** Scheduler tự sinh Envelope `source=cron` → tái dùng nguyên pipeline (không path mới). Fire-once (leader-lock + idempotent `msgId`); không bypass quyền (`agentType` whitelist + `identity` auth); output có `target` rõ. Approval-timeout sweep = 1 cron job.
