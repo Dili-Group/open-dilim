@@ -4,7 +4,7 @@ Async, event-driven AI agent. Input qua **message-ingest** (gateway), xử lý *
 worker pool, output qua **broadcast** (pub/sub fan-out). Request tới được ACK ngay, **không trả lời
 tức thì** — kết quả đến sau qua broadcast bus.
 
-Stack: **Bun + TypeScript + Anthropic SDK (claude-opus-5)**.
+Stack: **Bun + TypeScript**. LLM đa provider (**Anthropic Claude + Google Gemini**) sau một interface chung, chọn qua config.
 
 ---
 
@@ -76,16 +76,24 @@ Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • id
 │   │   ├── handler.ts           #   xử lý 1 Envelope: dedupe → run agent → emit
 │   │   └── idempotency.ts       #   dedupe theo msgId (chống xử lý trùng)
 │   │
-│   ├── agents/                  # AGENT LOOP + SUB-AGENTS
+│   ├── agents/                  # AGENT LOOP + ROOT AGENTS + SUB-AGENTS
+│   │   ├── registry.ts          #   AgentRegistry: map agentType → root agent (+ default)
 │   │   ├── loop.ts              #   vòng lặp chính: LLM ⇄ tools tới khi xong
-│   │   ├── orchestrator.ts      #   agent gốc, quyết định gọi sub-agent/workflow
+│   │   ├── roots/               #   1 file / root agent (chọn theo agentType)
+│   │   │   ├── operation.ts     #     agentType=operation
+│   │   │   └── partner.ts       #     agentType=partner
+│   │   ├── orchestrator.ts      #   trong 1 root agent: quyết định gọi sub-agent/workflow
 │   │   └── sub/                 #   sub-agent (context riêng, chạy song song)
-│   │       ├── researcher.ts    #   ví dụ: agent tra cứu
-│   │       └── coder.ts         #   ví dụ: agent viết code
+│   │       ├── researcher.ts    #     ví dụ: agent tra cứu
+│   │       └── coder.ts         #     ví dụ: agent viết code
 │   │
-│   ├── llm/                     # tầng gọi model (tách khỏi agent loop)
-│   │   ├── client.ts            #   Anthropic client (zero-arg, resolve creds)
-│   │   └── stream.ts            #   helper stream + get_final_message
+│   ├── llm/                     # tầng gọi model — ĐA PROVIDER, sau interface chung
+│   │   ├── provider.ts          #   interface LLMProvider { chat, stream } + type chung
+│   │   ├── registry.ts          #   chọn provider theo config (name → instance)
+│   │   ├── stream.ts            #   helper stream + get_final_message (provider-agnostic)
+│   │   └── providers/           #   1 file / provider
+│   │       ├── anthropic.ts     #     Claude (@anthropic-ai/sdk), resolve creds zero-arg
+│   │       └── gemini.ts        #     Gemini (@google/genai)
 │   │
 │   ├── tools/                   # TOOLS — hàm agent gọi được
 │   │   ├── index.ts             #   ToolRegistry: đăng ký + JSON schema
@@ -160,25 +168,75 @@ Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • id
 | Folder | Vai trò | Ghi chú quan trọng |
 |--------|---------|--------------------|
 | **bootstrap** | Composition root. Nạp env, dựng DI, register adapter/tool/skill, khởi động gateway + worker pool. | Nơi DUY NHẤT wiring. Đổi broker/adapter chỉ sửa ở đây. |
-| **config** | Hằng số: model, effort, maxTokens, số worker, prompt gốc. | `claude-opus-5`, `effort=high`, stream + maxTokens 64000. |
-| **types** | Type chung: `Envelope`, `AgentResult`, `Tool`, `ChannelAdapter`. | Core chỉ làm việc với Envelope, không biết channel gì. |
-| **message-ingest** | INPUT. Gateway nhận raw → `factory.create(channel).ingestor.parse()` → Envelope → ACK 202 → push queue. | ACK ≠ answer. Không đụng LLM ở đây. |
+| **config** | Hằng số: provider, model, effort, maxTokens, số worker, prompt gốc. | `PROVIDER` (anthropic\|gemini) + `MODEL` chọn model của provider đó. `effort=high`, stream + maxTokens 64000. |
+| **types** | Type chung: `Envelope` (có `agentType` + `identity`), `AgentResult`, `Tool`, `ChannelAdapter`. | Core chỉ làm việc với Envelope, không biết channel gì. |
+| **message-ingest** | INPUT. Gateway nhận raw → `factory.create(channel).ingestor.parse()` → Envelope → ACK 202 → push queue. Đọc `agentType` client gửi, validate thuộc whitelist enum. | ACK ≠ answer. Không đụng LLM ở đây. `agentType` chỉ là routing hint, chưa cấp quyền. |
 | **broker** | Đệm & vận chuyển. `queue` = ingress (durable, retry, DLQ). `pubsub` = broadcast (fan-out). | Chọn Redis Streams / NATS / Kafka. Interface ẩn implementation. |
-| **worker** | PROCESSING. Consume queue → dedupe (idempotency) → chạy agent → emit AgentResult. | Scale ngang = thêm worker. Chạy được vài phút/msg. |
-| **agents** | Agent loop `while(tool_use)`. Orchestrator quyết định gọi sub-agent/workflow. Sub-agent có context riêng. | Sub-agent trả kết quả gọn, chạy song song được. |
-| **llm** | Tách lời gọi model khỏi loop. Anthropic client + stream helper. | Zero-arg client resolve creds (API key / `ant auth`). |
+| **worker** | PROCESSING. Consume queue → dedupe (idempotency) → `registry.resolve(agentType)` → chạy root agent → emit AgentResult. | Scale ngang = thêm worker. Chạy được vài phút/msg. |
+| **agents** | `registry` map `agentType` → root agent (operation/partner/...). Root agent chạy loop `while(tool_use)`; orchestrator quyết định gọi sub-agent/workflow. | Thêm agent = 1 file `roots/` + 1 dòng register. Type sai/thiếu → default agent. Sub-agent trả kết quả gọn, song song. |
+| **llm** | Tách lời gọi model khỏi loop. `LLMProvider` interface + registry chọn provider theo config; mỗi provider (Claude, Gemini) 1 file. | Agent loop KHÔNG biết provider nào — chỉ gọi `provider.chat/stream`. Thêm provider = 1 file + 1 dòng register. Mỗi provider tự chuẩn hóa tool-call về format chung. |
 | **tools** | Hàm agent gọi. Registry + JSON schema + runner. Phân loại READ (auto) / WRITE (confirm) / ESCALATE. | `user_id` KHÔNG nằm trong schema — backend inject từ session. |
 | **workflows** | SOP nhiều bước = state machine. intake → check → propose → **confirm gate** → execute. | Dùng cho quy trình cứng (refund/hủy...), khác agent loop hỏi-đáp. |
 | **approvals** | Human-in-the-loop. Gate suspend workflow → lưu pending → phát yêu cầu duyệt → resume khi có reply. | Async: KHÔNG block. 2 tầng: customer-confirm & staff-approve. |
 | **skills** | Mỗi skill 1 folder: `SKILL.md` (frontmatter+body) + `references/**`. Selector chọn theo intent, loader inject. | Progressive disclosure: chỉ `description` ở context mặc định; body/references load khi cần. Non-dev sửa, không deploy. |
 | **broadcast** | OUTPUT. `publisher` push AgentResult lên topic. `factory` chọn broadcaster theo channel subscriber. `subscribers` cho fan-out. | Broadcast theo channel của SUBSCRIBER, không phải request gốc. |
 | **state** | Session/history/memory/pending theo `conversationId`. | `pending_action` giữ write chờ confirm + idempotency key. |
-| **auth** | Verify webhook/token. Tenancy inject user_id từ session. Permission gate tool nguy hiểm. | Tenancy KHÔNG để LLM tự quyết → chống bypass. |
+| **auth** | Verify webhook/token. Tenancy inject `identity` (user_id/tenant) từ session. Check `identity` được phép `agentType` (map allowed-types). Permission gate tool nguy hiểm. | Tenancy KHÔNG để LLM/client tự quyết → chống bypass. `agentType` client gửi phải qua check này trước khi route. |
 | **observability** | Audit log bắt buộc: conversations, tool_calls, pending_actions, handoffs. | + logger + metrics. |
 
 ---
 
-## 4. Human-in-the-loop (approval)
+## 4. Agent routing theo type
+
+Mỗi message mang `agentType` (client gửi kèm) → định tuyến tới **root agent** tương ứng.
+`operation` → ops agent, `partner` → partner agent, v.v. Thêm nghiệp vụ = thêm 1 root agent,
+core không đổi (giống factory cho channel).
+
+```
+Envelope {
+  msgId, conversationId,
+  agentType,     // ◀ client gửi — ROUTING HINT (không phải quyền)
+  identity,      // ◀ backend inject từ session — nguồn sự thật cho QUYỀN
+  channel, payload, meta
+}
+
+ingest:  nhận agentType từ client → validate ∈ whitelist enum  (sai → default/reject)
+auth:    verify identity ĐƯỢC phép agentType này               (không → reject)
+worker:  agent = registry.resolve(agentType) ?? defaultAgent → agent.run(envelope)
+agent:   vẫn gate TỪNG tool theo identity (defense-in-depth)
+```
+
+### Luật cốt lõi: `type` ≠ authorization
+
+`agentType` client gửi **chỉ chọn luồng chạy**, KHÔNG tự cấp quyền. Dù client khai
+`type=operation`, quyền vẫn quyết bởi `identity` backend inject.
+
+- Client khai type sai → cùng lắm route nhầm luồng, **không leo thang quyền**.
+- Partner account gửi `type=operation` → `auth` chặn ở bước "identity được phép type?"
+  (map allowed-types theo tenant). Có lọt qua → tool nhạy cảm vẫn gate theo identity partner.
+
+Hai tầng tách rời (route ≠ quyền) → client gửi type an toàn.
+
+### 3 rào bắt buộc
+
+1. **Whitelist enum** — `agentType ∈ {operation, partner, ...}`. Ngoài list → default agent / reject, không route mù theo chuỗi client tự đặt.
+2. **Map identity → allowed types** — tenant/tài khoản nào dùng type nào. Chặn ngay tầng `auth`, trước khi tới agent.
+3. **Agent đích tự enforce quyền** — không tin "type đã đúng nên bỏ check". Mọi tool WRITE/nhạy cảm gate theo identity.
+
+### Quan hệ với orchestrator
+
+- **`agentType` route (ingest/worker)** = chọn ROOT agent — thô, theo domain/tenant.
+- **orchestrator (trong 1 root agent)** = chọn sub-agent/workflow — mịn, theo task.
+
+Hai tầng khác nhau, không chồng. State (`conversationId`) nên lưu `agentType` hiện tại →
+tin nhắn sau cùng hội thoại route đúng root agent, không cần suy lại.
+
+> Chưa hỗ trợ handoff cross-agent (root A tự đẩy sang B). Ngoài phạm vi hiện tại — mỗi
+> hội thoại gắn 1 `agentType`.
+
+---
+
+## 5. Human-in-the-loop (approval)
 
 Async → human loop **KHÔNG block-chờ**, mà **suspend → resume**. Workflow tới approval gate thì lưu
 state + phát yêu cầu duyệt + worker thoát. Người duyệt trả lời → tin nhắn đi ngược qua chính
@@ -223,7 +281,7 @@ Cả 2 dùng chung cơ chế suspend/resume — khác ở: ai duyệt, auth chec
 
 ---
 
-## 5. Nguyên tắc thiết kế (chốt)
+## 6. Nguyên tắc thiết kế (chốt)
 
 1. **ACK ≠ answer.** Ingress trả 202 ngay, câu trả lời đến sau qua broadcast.
 2. **Correlation-id xuyên suốt.** `msgId` + `conversationId` đi từ ingress → egress để map response ↔ request.
@@ -233,10 +291,12 @@ Cả 2 dùng chung cơ chế suspend/resume — khác ở: ai duyệt, auth chec
 6. **Tenancy do backend inject.** `user_id` không nằm trong tool schema.
 7. **Write không tự thực thi.** Tạo `pending_action` → confirm mới execute.
 8. **Sub-agent context riêng.** Chạy song song, trả kết quả gọn về orchestrator.
+9. **LLM đa provider sau interface.** Agent loop gọi `LLMProvider` chung, không bind Anthropic/Gemini. Đổi provider = đổi config; thêm provider = 1 file trong `llm/providers/` + 1 dòng register.
+10. **`agentType` route, không cấp quyền.** Client gửi `agentType` chỉ chọn root agent; quyền luôn theo `identity` backend inject. Whitelist enum + map identity→allowed-type + agent tự gate tool.
 
 ---
 
-## 6. Chưa quyết (cần chốt để scaffold code)
+## 7. Chưa quyết (cần chốt để scaffold code)
 
 - **Broker**: Redis Streams / NATS JetStream / Kafka?
 - **Broadcast fan-out**: 1 subscriber (chính user) hay nhiều?

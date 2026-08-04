@@ -4,7 +4,8 @@ Coding agent kiểu Claude Code, chạy trong terminal. Async, event-driven: inp
 message-ingest → worker pool (agent loop LLM ⇄ tools) → broadcast pub/sub. Request được
 ACK ngay (202), kết quả đến sau qua broadcast bus.
 
-**Stack:** Bun + TypeScript + Anthropic SDK (`@anthropic-ai/sdk`), model mặc định `claude-opus-5`.
+**Stack:** Bun + TypeScript. LLM đa provider (Anthropic Claude + Google Gemini) sau interface
+chung — xem thiết kế `llm/` trong `docs/ARCHITECTURE.md`. Code hiện mới scaffold client Anthropic.
 
 ## Layout
 
@@ -31,8 +32,9 @@ Chưa có test runner. Khi thêm test: dùng `bun test`.
 
 ## Config
 
-- Credentials: `ANTHROPIC_API_KEY` env, hoặc `ant auth login` (để trống key).
-- Override qua env: `MODEL`, `EFFORT` (low|medium|high|xhigh|max).
+- Provider: `PROVIDER` (anthropic|gemini) chọn LLM backend; `MODEL` chọn model của provider đó.
+- Credentials: `ANTHROPIC_API_KEY` / `ant auth login` cho Claude, `GEMINI_API_KEY` cho Gemini.
+- Override qua env: `PROVIDER`, `MODEL`, `EFFORT` (low|medium|high|xhigh|max).
 - Agent sandbox tới `CONFIG.workdir` (= cwd). Không đụng ngoài root.
 
 ## Quy ước
