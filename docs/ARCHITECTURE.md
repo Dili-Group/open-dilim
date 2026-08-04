@@ -403,6 +403,12 @@ tràn context → tóm tắt cuộn (rolling summary), đẩy phần cũ ra. Gro
 **Write path** (sau turn/hội thoại): distiller rút fact bền → record, embed bằng
 **`gemini-embedding-001`** → lưu pgvector. KHÔNG lưu log thô.
 
+> **Model của distiller.** Distiller (và rolling summary ngắn hạn) là việc nhẹ — rút gọn/phân
+> loại — nhưng chạy ngầm sau *mỗi* turn, tần suất cao. Nên KHÔNG dùng con mạnh của agent loop mà
+> dùng **con nhẹ riêng**: `CONFIG.memoryModel` (env `MEMORY_MODEL`, mặc định = `MODEL`), cùng
+> provider với agent qua `LLMProvider`. `Embedder` thì luôn `gemini-embedding-001`, độc lập lựa
+> chọn này. Chạy async, ngoài critical path → không bắt khách chờ.
+
 **Read path** (bước STATE của life cycle): embed câu hỏi → semantic search top-K memory
 **của CHÍNH user này** → inject bản gọn vào context (progressive disclosure; chi tiết fetch khi cần).
 
