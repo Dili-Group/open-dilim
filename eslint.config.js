@@ -65,4 +65,16 @@ export default tseslint.config(
     files: ["src/db/gen-migration.ts"],
     rules: { "no-console": "off" },
   },
+
+  // Entrypoint + composition root: log lifecycle (start/shutdown) ra stdout là vận hành.
+  {
+    files: ["src/index.ts", "src/bootstrap/index.ts"],
+    rules: { "no-console": "off" },
+  },
+
+  // Broadcaster dev: in reply ra stdout là chủ đích (egress giả lập), không phải debug.
+  {
+    files: ["src/broadcast/console.ts"],
+    rules: { "no-console": "off" },
+  },
 );

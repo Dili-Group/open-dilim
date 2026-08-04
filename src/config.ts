@@ -62,6 +62,37 @@ const channels = {
   zalo: zaloChannel(),
 } as const;
 
+// Cổng HTTP gateway. Optional — mặc định 3000. Ép integer hợp lệ (fail fast nếu sai).
+const DEFAULT_PORT = 3000;
+const MAX_PORT = 65535;
+function portFromEnv(): number {
+  const raw = optional("PORT");
+  if (raw === undefined) return DEFAULT_PORT;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > MAX_PORT) {
+    throw new Error(`Invalid env PORT=${raw}. Expected integer 1-${MAX_PORT}.`);
+  }
+  return parsed;
+}
+
+/** Env integer dương optional với fallback. Sai kiểu → throw (fail fast). */
+function positiveIntEnv(name: string, fallback: number): number {
+  const raw = optional(name);
+  if (raw === undefined) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid env ${name}=${raw}. Expected positive integer.`);
+  }
+  return parsed;
+}
+
+// Trần output token/lần gọi LLM. Non-streaming → giữ ~16k tránh timeout HTTP (xem claude-api).
+const DEFAULT_MAX_TOKENS = 16000;
+// Số worker chạy song song trong pool.
+const DEFAULT_WORKER_COUNT = 4;
+// Trần vòng lặp agent (LLM⇄tools) — chặn loop vô hạn nếu model cứ gọi tool.
+const DEFAULT_AGENT_MAX_ITERATIONS = 8;
+
 const provider = oneOf("PROVIDER", PROVIDERS, "anthropic");
 
 // Credential khớp provider đang chọn. Provider khác không cần key → optional.
@@ -78,6 +109,9 @@ export const CONFIG = {
   databaseUrl: required("DATABASE_URL"),
   redisUrl: required("REDIS_URL"),
 
+  // HTTP gateway (ingress webhook) nghe cổng này.
+  port: portFromEnv(),
+
   // Kênh chat — message-ingest verify webhook + gate mention theo agentUid per kênh.
   channels,
 
@@ -90,9 +124,17 @@ export const CONFIG = {
   // LLM
   provider,
   model: required("MODEL"),
+  // Con nhẹ cho việc tóm-rút ghi nhớ (distill + rolling summary) — chạy ngầm, tần suất cao.
+  // Cùng provider với agent; mặc định = model chính nếu không set MEMORY_MODEL.
+  memoryModel: optional("MEMORY_MODEL") ?? required("MODEL"),
   effort: oneOf("EFFORT", EFFORTS, "medium"),
+  maxTokens: positiveIntEnv("MAX_TOKENS", DEFAULT_MAX_TOKENS),
   anthropicApiKey,
   geminiApiKey,
+
+  // Worker pool + agent loop
+  workerCount: positiveIntEnv("WORKER_COUNT", DEFAULT_WORKER_COUNT),
+  agentMaxIterations: DEFAULT_AGENT_MAX_ITERATIONS,
 } as const;
 
 export type Config = typeof CONFIG;
