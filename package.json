@@ -24,5 +24,8 @@
     "globals": "^17.9.0",
     "typescript": "^5",
     "typescript-eslint": "^8.66.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0"
   }
 }
