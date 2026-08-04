@@ -1,0 +1,227 @@
+// Test tầng state/memory: parse fact (untrusted output), transcript, vector literal, và
+// PgMemoryStore (idempotency + near-dup + narrow rows) + distiller qua fake — KHÔNG network/DB.
+// Import THẲNG từng module, KHÔNG qua index.ts (index → db/client → config.ts fail-fast env).
+
+import { describe, expect, test } from "bun:test";
+import type { ChatRequest, ChatResult, Embedder, EmbedRequest, LLMProvider } from "../llm/types.ts";
+import { LlmDistiller, parseFacts, renderTranscript } from "./distiller.ts";
+import { PgMemoryStore } from "./memory.ts";
+import { toVectorLiteral } from "./vector.ts";
+import { customerSupportSpec } from "./specs.ts";
+import { MemoryType, type DistillSpec, type MemoryScope, type SqlExecutor } from "./types.ts";
+
+const SCOPE: MemoryScope = { customerId: "cus1", endUserId: "eu1" };
+// Spec khách-hàng: vocab = preference|context|episode, default context.
+const SPEC = customerSupportSpec;
+
+// ─── fakes ──────────────────────────────────────────────────────────────────
+
+class FakeEmbedder implements Embedder {
+  readonly name = "fake";
+  readonly dim = 3;
+  readonly requests: EmbedRequest[] = [];
+  embed(req: EmbedRequest): Promise<number[][]> {
+    this.requests.push(req);
+    return Promise.resolve(req.texts.map((_, i) => [i + 1, 0, 0]));
+  }
+}
+
+/** Exec giả: responder quyết định trả gì theo query. Ghi lại mọi call để assert. */
+class FakeExec implements SqlExecutor {
+  readonly calls: { text: string; params: readonly unknown[] }[] = [];
+  constructor(private readonly responder: (text: string) => unknown = () => []) {}
+  query(text: string, params: readonly unknown[]): Promise<unknown> {
+    this.calls.push({ text, params });
+    return Promise.resolve(this.responder(text));
+  }
+  inserts(): { text: string; params: readonly unknown[] }[] {
+    return this.calls.filter((c) => c.text.startsWith("INSERT"));
+  }
+}
+
+class ScriptedProvider implements LLMProvider {
+  readonly name = "scripted";
+  constructor(private readonly reply: ChatResult | Error) {}
+  chat(_req: ChatRequest): Promise<ChatResult> {
+    if (this.reply instanceof Error) return Promise.reject(this.reply);
+    return Promise.resolve(this.reply);
+  }
+}
+
+function textResult(text: string): ChatResult {
+  return { content: [{ type: "text", text }], stopReason: "end_turn" };
+}
+
+// ─── parseFacts ─────────────────────────────────────────────────────────────
+
+describe("parseFacts", () => {
+  test("mảng JSON thuần", () => {
+    const facts = parseFacts('[{"type":"preference","text":"Khách thích giao sáng","confidence":0.9}]', SPEC);
+    expect(facts).toEqual([
+      { type: "preference", text: "Khách thích giao sáng", confidence: 0.9 },
+    ]);
+  });
+
+  test("model bọc văn xuôi quanh JSON vẫn rút được", () => {
+    const facts = parseFacts('Đây là kết quả:\n[{"text":"Khách tên An"}]\nHết.', SPEC);
+    expect(facts).toHaveLength(1);
+    expect(facts[0]?.text).toBe("Khách tên An");
+    expect(facts[0]?.type).toBe(MemoryType.Context); // thiếu type → default của spec
+    expect(facts[0]?.confidence).toBe(0.5); // thiếu confidence → mặc định
+  });
+
+  test("type ngoài vocab → defaultType; confidence ngoài [0,1] → clamp", () => {
+    const facts = parseFacts('[{"type":"xyz","text":"a","confidence":5},{"type":"episode","text":"b","confidence":-1}]', SPEC);
+    expect(facts[0]).toEqual({ type: MemoryType.Context, text: "a", confidence: 1 });
+    expect(facts[1]).toEqual({ type: MemoryType.Episode, text: "b", confidence: 0 });
+  });
+
+  test("phần tử thiếu/empty text bị bỏ", () => {
+    const facts = parseFacts('[{"text":""},{"foo":1},{"text":"giữ"}]', SPEC);
+    expect(facts).toEqual([{ type: MemoryType.Context, text: "giữ", confidence: 0.5 }]);
+  });
+
+  test("không phải JSON array → []", () => {
+    expect(parseFacts("xin lỗi tôi không rõ", SPEC)).toEqual([]);
+    expect(parseFacts('{"text":"không phải array"}', SPEC)).toEqual([]);
+  });
+
+  test("spec khác → vocab/default khác (chưng cất tuỳ agent)", () => {
+    const salesSpec: DistillSpec = { system: "s", allowedTypes: ["need", "budget"], defaultType: "need" };
+    const facts = parseFacts('[{"type":"budget","text":"tối đa 5tr"},{"type":"context","text":"lạ"}]', salesSpec);
+    expect(facts[0]).toEqual({ type: "budget", text: "tối đa 5tr", confidence: 0.5 });
+    expect(facts[1]?.type).toBe("need"); // "context" không thuộc vocab sales → default "need"
+  });
+
+  test("allowedTypes rỗng → chấp nhận mọi type (chỉ trim)", () => {
+    const anySpec: DistillSpec = { system: "s", allowedTypes: [], defaultType: "misc" };
+    const facts = parseFacts('[{"type":"  whatever ","text":"x"},{"text":"y"}]', anySpec);
+    expect(facts[0]?.type).toBe("whatever");
+    expect(facts[1]?.type).toBe("misc"); // thiếu type → default
+  });
+});
+
+describe("renderTranscript", () => {
+  test("assistant → agent, user → senderId", () => {
+    const out = renderTranscript([
+      { senderId: "An", role: "user", text: "cho hỏi giá" },
+      { senderId: "bot", role: "assistant", text: "dạ 10k" },
+    ]);
+    expect(out).toBe("[An] cho hỏi giá\n[agent] dạ 10k");
+  });
+});
+
+describe("toVectorLiteral", () => {
+  test("format literal pgvector", () => {
+    expect(toVectorLiteral([1, 2.5, -3])).toBe("[1,2.5,-3]");
+  });
+  test("rỗng / không hữu hạn → throw", () => {
+    expect(() => toVectorLiteral([])).toThrow();
+    expect(() => toVectorLiteral([1, NaN])).toThrow();
+    expect(() => toVectorLiteral([Infinity])).toThrow();
+  });
+});
+
+// ─── PgMemoryStore.write ────────────────────────────────────────────────────
+
+describe("PgMemoryStore.write", () => {
+  const FACTS = [{ type: MemoryType.Context, text: "Khách tên An", confidence: 0.8 }];
+
+  test("facts rỗng → 0, không đụng DB/embed", async () => {
+    const exec = new FakeExec();
+    const embedder = new FakeEmbedder();
+    const store = new PgMemoryStore(exec, embedder);
+    expect(await store.write(SCOPE, [])).toBe(0);
+    expect(exec.calls).toHaveLength(0);
+    expect(embedder.requests).toHaveLength(0);
+  });
+
+  test("sourceMsgId đã tồn tại → idempotent, không insert", async () => {
+    const exec = new FakeExec((t) => (t.includes("source_msg_id") ? [{ "?column?": 1 }] : []));
+    const store = new PgMemoryStore(exec, new FakeEmbedder());
+    expect(await store.write(SCOPE, FACTS, "msg-1")).toBe(0);
+    expect(exec.inserts()).toHaveLength(0);
+  });
+
+  test("near-dup → bỏ, không insert", async () => {
+    // Dedup query chứa "<=>" và "< $4"; trả hit → coi là trùng.
+    const exec = new FakeExec((t) => (t.includes("<=>") && t.includes("< $4") ? [{ "?column?": 1 }] : []));
+    const store = new PgMemoryStore(exec, new FakeEmbedder());
+    expect(await store.write(SCOPE, FACTS)).toBe(0);
+    expect(exec.inserts()).toHaveLength(0);
+  });
+
+  test("fact mới → insert, count đúng, vector cast + params đúng", async () => {
+    const exec = new FakeExec(() => []); // không trùng, không idempotent-hit
+    const store = new PgMemoryStore(exec, new FakeEmbedder());
+    const n = await store.write(SCOPE, FACTS, "msg-9");
+    expect(n).toBe(1);
+    const ins = exec.inserts();
+    expect(ins).toHaveLength(1);
+    expect(ins[0]?.text).toContain("$5::vector");
+    // params: [customerId, endUserId, type, text, vecLiteral, sourceMsgId, confidence]
+    expect(ins[0]?.params).toEqual(["cus1", "eu1", "context", "Khách tên An", "[1,0,0]", "msg-9", 0.8]);
+  });
+
+  test("embed trả sai số vector → throw", async () => {
+    const badEmbedder: Embedder = {
+      name: "bad",
+      dim: 3,
+      embed: () => Promise.resolve([]), // 0 vector cho 1 fact
+    };
+    const store = new PgMemoryStore(new FakeExec(), badEmbedder);
+    await expect(store.write(SCOPE, FACTS)).rejects.toThrow();
+  });
+});
+
+// ─── PgMemoryStore.recall ───────────────────────────────────────────────────
+
+describe("PgMemoryStore.recall", () => {
+  test("query rỗng → [], không embed", async () => {
+    const embedder = new FakeEmbedder();
+    const store = new PgMemoryStore(new FakeExec(), embedder);
+    expect(await store.recall(SCOPE, "  ", 8)).toEqual([]);
+    expect(embedder.requests).toHaveLength(0);
+  });
+
+  test("trả fact đã narrow, bỏ row hỏng", async () => {
+    const created = new Date("2026-08-04T00:00:00Z");
+    const exec = new FakeExec(() => [
+      { text: "Khách tên An", type: "context", created_at: created },
+      { text: 123, type: "context", created_at: created }, // hỏng → bỏ
+    ]);
+    const store = new PgMemoryStore(exec, new FakeEmbedder());
+    const facts = await store.recall(SCOPE, "khách tên gì", 8);
+    expect(facts).toEqual([{ text: "Khách tên An", type: "context", createdAt: created }]);
+  });
+
+  test("recall embed dùng taskType query", async () => {
+    const embedder = new FakeEmbedder();
+    const store = new PgMemoryStore(new FakeExec(() => []), embedder);
+    await store.recall(SCOPE, "hỏi gì đó", 5);
+    expect(embedder.requests[0]?.taskType).toBe("query");
+  });
+});
+
+// ─── LlmDistiller ───────────────────────────────────────────────────────────
+
+describe("LlmDistiller", () => {
+  test("provider trả JSON → facts", async () => {
+    const provider = new ScriptedProvider(textResult('[{"type":"context","text":"Khách ở HN","confidence":0.7}]'));
+    const distiller = new LlmDistiller(provider, SPEC);
+    const facts = await distiller.distill([{ senderId: "An", role: "user", text: "tôi ở Hà Nội" }]);
+    expect(facts).toEqual([{ type: "context", text: "Khách ở HN", confidence: 0.7 }]);
+  });
+
+  test("turns rỗng → [], không gọi model", async () => {
+    const provider = new ScriptedProvider(new Error("không được gọi"));
+    const distiller = new LlmDistiller(provider, SPEC);
+    expect(await distiller.distill([])).toEqual([]);
+  });
+
+  test("provider lỗi → [] (cô lập, không throw)", async () => {
+    const provider = new ScriptedProvider(new Error("model chết"));
+    const distiller = new LlmDistiller(provider, SPEC);
+    expect(await distiller.distill([{ senderId: "An", role: "user", text: "x" }])).toEqual([]);
+  });
+});
