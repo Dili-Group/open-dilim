@@ -1,0 +1,46 @@
+# Local dev infra cho dilim-agent.
+# Postgres+pgvector = memory dài hạn (§7) + scheduler_jobs durable (§8).
+# Redis = broker (Streams), short-term memory, order-lock, due-index ZSET, leader-lock.
+# App (Bun) chạy trên host, nối 2 service này qua localhost.
+
+services:
+  postgres:
+    # pgvector kèm sẵn extension `vector`; pg16 > pg13 yêu cầu (gen_random_uuid built-in).
+    image: pgvector/pgvector:pg16
+    container_name: dilim-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dilim}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dilim}
+      POSTGRES_DB: ${POSTGRES_DB:-dilim}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Chạy migration 1 lần khi init volume rỗng (thứ tự alphabet).
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dilim} -d ${POSTGRES_DB:-dilim}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: dilim-redis
+    restart: unless-stopped
+    # AOF bật → broker/short-term/lock sống qua restart, không mất PEL.
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  redisdata:
