@@ -66,10 +66,10 @@ Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • id
 │   │       ├── messenger.ts
 │   │       └── web.ts
 │   │
-│   ├── broker/                  # hàng đợi + pub/sub (Redis Streams / NATS / Kafka)
+│   ├── broker/                  # hàng đợi + pub/sub — Redis Streams
 │   │   ├── index.ts             #   interface Broker (publish/consume/ack)
-│   │   ├── queue.ts             #   ingress queue (durable, retry, DLQ)
-│   │   └── pubsub.ts            #   broadcast bus (fan-out topic)
+│   │   ├── queue.ts             #   ingress: Redis Stream + consumer group (ack, retry, DLQ qua PEL)
+│   │   └── pubsub.ts            #   broadcast bus: Redis pub/sub, topic theo conversationId
 │   │
 │   ├── worker/                  # PROCESSING — consumer chạy agent
 │   │   ├── pool.ts              #   spawn N worker, quản lý lifecycle
@@ -172,7 +172,7 @@ Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • id
 | **config** | Hằng số: provider, model, effort, maxTokens, số worker, prompt gốc. | `PROVIDER` (anthropic\|gemini) + `MODEL` chọn model của provider đó. `effort=high`, stream + maxTokens 64000. |
 | **types** | Type chung: `Envelope` (có `agentType` + `identity`), `AgentResult`, `Tool`, `ChannelAdapter`. | Core chỉ làm việc với Envelope, không biết channel gì. |
 | **message-ingest** | INPUT. Gateway nhận raw → `factory.create(channel).ingestor.parse()` → Envelope → ACK 202 → push queue. Đọc `agentType` (validate enum) + `isGroup`; group thì set `addressedToAgent` = có mention @agent. | ACK ≠ answer. Không đụng LLM ở đây. `agentType`/`isGroup` là routing hint, chưa cấp quyền. Group không mention → chỉ ghi history, không chạy agent. |
-| **broker** | Đệm & vận chuyển. `queue` = ingress (durable, retry, DLQ). `pubsub` = broadcast (fan-out). | Chọn Redis Streams / NATS / Kafka. Interface ẩn implementation. |
+| **broker** | Đệm & vận chuyển — **Redis Streams**. `queue` = ingress (consumer group: ack, retry, DLQ qua PEL). `pubsub` = broadcast fan-out. | Interface ẩn implementation → đổi sang Kafka/NATS sau không sửa core. Dùng chung Redis với short-term memory + order-lock. |
 | **worker** | PROCESSING. Consume queue → dedupe (idempotency) → order-lock theo `conversationId` → `registry.resolve(agentType)` → chạy root agent → emit AgentResult. | Scale ngang = thêm worker. 1 message/lúc/phòng (chống đua state group). Chạy được vài phút/msg. |
 | **agents** | `registry` map `agentType` → root agent (operation/partner/...). Root agent chạy loop `while(tool_use)`; orchestrator quyết định gọi sub-agent/workflow. | Thêm agent = 1 file `roots/` + 1 dòng register. Type sai/thiếu → default agent. Sub-agent trả kết quả gọn, song song. |
 | **llm** | Tách lời gọi model khỏi loop. `LLMProvider` interface + registry chọn provider theo config; mỗi provider (Claude, Gemini) 1 file. `Embedder` interface (gemini-embedding-001) cho memory dài hạn. | Agent loop KHÔNG biết provider nào — chỉ gọi `provider.chat/stream`. Thêm provider = 1 file + 1 dòng register. `Embedder` swap Gemini↔self-host không sửa memory core. |
@@ -419,13 +419,3 @@ Cap token block memory. Ngắn hạn thắng dài hạn khi tràn. Không nhồi
 11. **Quyền theo `senderId`, không theo phòng.** `conversationId`=phòng, `senderId`=người gửi từng message. Group không có "quyền group" — mỗi câu quyền theo người gửi câu đó.
 12. **Group chỉ chạy khi mention.** `isGroup` + mention @agent mới trigger loop; câu khác nuốt vào history làm ngữ cảnh. Nhiều message/phòng → serialize theo `conversationId`.
 13. **Memory 2 tầng, informs≠authorizes.** Ngắn hạn = session buffer/phòng; dài hạn = pgvector theo `user_id`. Memory chỉ giữ fact bền (không lưu fact động → DB-first), gợi ý chứ không cấp quyền — WRITE thật phải re-verify DB + approval.
-
----
-
-## 9. Chưa quyết (cần chốt để scaffold code)
-
-- **Broker**: Redis Streams / NATS JetStream / Kafka?
-- **Broadcast fan-out**: 1 subscriber (chính user) hay nhiều?
-- **Delivery về user**: WebSocket/SSE hay webhook callback tới channel?
-- **State store**: ✅ dài hạn **Postgres + pgvector**, ngắn hạn **Redis** (session buffer, TTL). Đã chốt.
-- **Embedding**: ✅ **gemini-embedding-001** (dim 1536). Sau chuyển self-host `bge-m3` nếu siết PII (interface `Embedder` đã cho phép swap).

@@ -66,14 +66,15 @@ Credentials: `ANTHROPIC_API_KEY` / `ant auth` cho Claude, `GEMINI_API_KEY` cho G
 
 ## Trạng thái
 
-🚧 **Đang scaffold.** Kiến trúc đã chốt (`docs/ARCHITECTURE.md`), code đang dựng.
+🚧 **Đang scaffold.** Kiến trúc + hạ tầng đã chốt (`docs/ARCHITECTURE.md`), code đang dựng.
 
-Còn cần quyết trước khi build đầy đủ:
+Hạ tầng chốt:
 
-- **Broker**: Redis Streams / NATS JetStream / Kafka?
-- **Broadcast fan-out**: một subscriber hay nhiều?
-- **Delivery về user**: WebSocket/SSE hay webhook callback?
-- **State store**: Redis / Postgres / cả hai?
+- **LLM**: đa provider — Anthropic Claude + Google Gemini (sau `LLMProvider`).
+- **Broker**: Redis Streams (ingress queue: consumer group, ack, retry, DLQ).
+- **Memory**: ngắn hạn Redis (session buffer, TTL) • dài hạn Postgres + pgvector.
+- **Embedding**: gemini-embedding-001 (dim 1536).
+- **Delivery**: per-channel adapter — web WebSocket/SSE, Zalo/Messenger webhook callback.
 
 ---
 
