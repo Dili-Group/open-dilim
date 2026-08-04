@@ -158,7 +158,7 @@ Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • id
 │   │
 │   ├── auth/                    # AUTH — xác thực & tenancy
 │   │   ├── index.ts             #   verify request (chữ ký webhook / token)
-│   │   ├── tenancy.ts           #   inject user_id/tenant từ session (KHÔNG để LLM tự set)
+│   │   ├── identity.ts          #   resolve senderId→vai, inject identity struct (KHÔNG để LLM tự set)
 │   │   └── permissions.ts       #   gate tool WRITE/DESTRUCTIVE
 │   │
 │   └── observability/           # AUDIT + LOG + METRIC
@@ -179,20 +179,20 @@ Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • id
 |--------|---------|--------------------|
 | **bootstrap** | Composition root. Nạp env, dựng DI, register adapter/tool/skill, khởi động gateway + worker pool. | Nơi DUY NHẤT wiring. Đổi broker/adapter chỉ sửa ở đây. |
 | **config** | Hằng số: provider, model, effort, maxTokens, số worker, prompt gốc. | `PROVIDER` (anthropic\|gemini) + `MODEL` chọn model của provider đó. `effort=high`, stream + maxTokens 64000. |
-| **types** | Type chung: `Envelope` (có `agentType` + `identity`), `AgentResult`, `Tool`, `ChannelAdapter`. | Core chỉ làm việc với Envelope, không biết channel gì. |
+| **types** | Type chung: `Envelope` (có `agentType` + `identity`), `AgentResult`, `Tool`, `ChannelAdapter`. `identity` = struct `{channel, senderId, role, userId?, customerId?}`, KHÔNG string. | Core chỉ làm việc với Envelope, không biết channel gì. `userId` (nhân viên) / `customerId` (đại lý) = handle act-as, optional theo vai. |
 | **message-ingest** | INPUT. Gateway nhận raw → `factory.create(channel).ingestor.parse()` → Envelope → ACK 202 → push queue. Đọc `agentType` (validate enum) + `isGroup`; group thì set `addressedToAgent` = có mention @agent. | ACK ≠ answer. Không đụng LLM ở đây. `agentType`/`isGroup` là routing hint, chưa cấp quyền. Group không mention → chỉ ghi history, không chạy agent. |
 | **broker** | Đệm & vận chuyển — **Redis Streams**. `queue` = ingress (consumer group: ack, retry, DLQ qua PEL). `pubsub` = broadcast fan-out. | Interface ẩn implementation → đổi sang Kafka/NATS sau không sửa core. Dùng chung Redis với short-term memory + order-lock. |
 | **worker** | PROCESSING. Consume queue → dedupe (idempotency) → order-lock theo `conversationId` → `registry.resolve(agentType)` → chạy root agent → emit AgentResult. | Scale ngang = thêm worker. 1 message/lúc/phòng (chống đua state group). Chạy được vài phút/msg. |
 | **agents** | `registry` map `agentType` → root agent (operation/partner/...). Root agent chạy loop `while(tool_use)`; orchestrator quyết định gọi sub-agent/workflow. | Thêm agent = 1 file `roots/` + 1 dòng register. Type sai/thiếu → default agent. Sub-agent trả kết quả gọn, song song. |
 | **llm** | Tách lời gọi model khỏi loop. `LLMProvider` interface + registry chọn provider theo config; mỗi provider (Claude, Gemini) 1 file. `Embedder` interface (gemini-embedding-001) cho memory dài hạn. | Agent loop KHÔNG biết provider nào — chỉ gọi `provider.chat/stream`. Thêm provider = 1 file + 1 dòng register. `Embedder` swap Gemini↔self-host không sửa memory core. |
-| **tools** | Hàm agent gọi. Registry + JSON schema + runner. Phân loại READ (auto) / WRITE (confirm) / ESCALATE. | `user_id` KHÔNG nằm trong schema — backend inject từ session. |
+| **tools** | Hàm agent gọi. Registry + JSON schema + runner. Phân loại READ (auto) / WRITE (confirm) / ESCALATE. Agent = deputy gọi hệ vận hành THAY user. | **Danh tính KHÔNG vào schema.** Tool chỉ nhận tham số nghiệp vụ (mã đơn, ngày...). Act-as handle (`user_id` nhân viên / `customer_id` đại lý) bind từ `identity` server-side (closure lúc dựng tool cho request), KHÔNG từ tham số LLM sinh → chống confused-deputy (xem mục 4). |
 | **workflows** | SOP nhiều bước = state machine. intake → check → propose → **confirm gate** → execute. | Dùng cho quy trình cứng (refund/hủy...), khác agent loop hỏi-đáp. |
 | **approvals** | Human-in-the-loop. Gate suspend workflow → lưu pending → phát yêu cầu duyệt → resume khi có reply. | Async: KHÔNG block. 2 tầng: customer-confirm & staff-approve. |
 | **scheduler** | CRON. Poller leader-locked quét job đến hạn (Redis ZSET) → dựng Envelope `source=cron` → push broker ingress → tái dùng pipeline. Job def ở Postgres + `defs/` code. | Không path xử lý mới. Fire-once (lock + idempotent `msgId`). KHÔNG bypass quyền. Gộp approval-timeout sweep. |
 | **skills** | Mỗi skill 1 folder: `SKILL.md` (frontmatter+body) + `references/**`. Selector chọn theo intent, loader inject. | Progressive disclosure: chỉ `description` ở context mặc định; body/references load khi cần. Non-dev sửa, không deploy. |
 | **broadcast** | OUTPUT. `publisher` push AgentResult lên topic. `factory` chọn broadcaster theo channel subscriber. `subscribers` cho fan-out. | Broadcast theo channel của SUBSCRIBER. Direct → DM user; group → topic phòng (mọi member), @ lại người hỏi. |
 | **state** | NGẮN HẠN: Redis buffer N turn + rolling summary theo `conversationId` (turn gắn `senderId`). DÀI HẠN: memory distill→embed(gemini)→pgvector, recall top-K theo `user_id`. Pending theo phòng. | Xem mục 7 Memory. Long-term filter `user_id` (tenancy). `pending_action` giữ write chờ confirm + idempotency + `requesterId`. |
-| **auth** | Verify webhook/token. Tenancy inject `identity` (user_id/tenant) từ session. Check `identity` được phép `agentType` (map allowed-types). Permission gate tool nguy hiểm. | Tenancy KHÔNG để LLM/client tự quyết → chống bypass. `agentType` client gửi phải qua check này trước khi route. |
+| **auth** | Verify webhook/token. Resolve `senderId` → vai (nhân viên/đại lý/guest) → dựng `identity` struct (`userId` từ `user_binding`, `customerId` derive `group_map`). Check `identity` được phép `agentType`. Permission gate tool nguy hiểm. | `identity` KHÔNG để LLM/client tự quyết → chống bypass. Resolve vai (mục 5) LUÔN chạy trước agent. `agentType` client gửi qua check này trước khi route. |
 | **observability** | Audit log bắt buộc: conversations, tool_calls, pending_actions, handoffs. | + logger + metrics. |
 
 ---
@@ -227,19 +227,19 @@ agent:   vẫn gate TỪNG tool theo identity (defense-in-depth)
 
 - Client khai type sai → cùng lắm route nhầm luồng, **không leo thang quyền**.
 - Partner account gửi `type=operation` → `auth` chặn ở bước "identity được phép type?"
-  (map allowed-types theo tenant). Có lọt qua → tool nhạy cảm vẫn gate theo identity partner.
+  (map allowed-types theo vai/tài khoản). Có lọt qua → tool nhạy cảm vẫn gate theo identity partner.
 
 Hai tầng tách rời (route ≠ quyền) → client gửi type an toàn.
 
 ### 3 rào bắt buộc
 
 1. **Whitelist enum** — `agentType ∈ {operation, partner, ...}`. Ngoài list → default agent / reject, không route mù theo chuỗi client tự đặt.
-2. **Map identity → allowed types** — tenant/tài khoản nào dùng type nào. Chặn ngay tầng `auth`, trước khi tới agent.
+2. **Map identity → allowed types** — vai/tài khoản nào dùng type nào. Chặn ngay tầng `auth`, trước khi tới agent.
 3. **Agent đích tự enforce quyền** — không tin "type đã đúng nên bỏ check". Mọi tool WRITE/nhạy cảm gate theo identity.
 
 ### Quan hệ với orchestrator
 
-- **`agentType` route (ingest/worker)** = chọn ROOT agent — thô, theo domain/tenant.
+- **`agentType` route (ingest/worker)** = chọn ROOT agent — thô, theo domain/vai.
 - **orchestrator (trong 1 root agent)** = chọn sub-agent/workflow — mịn, theo task.
 
 Hai tầng khác nhau, không chồng. State (`conversationId`) nên lưu `agentType` hiện tại →
@@ -279,6 +279,44 @@ KHÔNG cấp quyền. Group trigger = **mention @agent** (chỉ mention, không 
                group  → publish topic phòng (fan-out mọi member), @ lại người hỏi
 10. AUDIT      log msgId + senderId + tool_calls + result
 ```
+
+### Định danh: `senderId` → vai (bước 6 AUTH)
+
+`senderId` (webhook đã ký → tin được) resolve thành **1 trong 3 vai**. Vai quyết quyền +
+data scope, KHÔNG do client khai.
+
+| Vai | Là ai | Resolve từ | Data scope |
+|-----|-------|-----------|-----------|
+| **nhân viên** | Sales Admin / quản lý / giám đốc Dili | `user_binding(channel, senderId)` active → `user_id` hệ vận hành | Theo quyền `user_id` (có thể nhiều đại lý) |
+| **đại lý** | Kế toán đại lý | `group_member(channel, groupId, senderId)` role=`dai_ly` active | Đúng đại lý của group (derive từ `group_map`) |
+| **guest** | Còn lại | Không match 2 cái trên (default đóng) | Không data nội bộ; hỏi chung |
+
+**Thứ tự resolve (dừng ở match đầu):**
+```
+1. user_binding(channel, senderId) active?        → nhân viên  (định danh TOÀN CỤC, không theo group)
+2. group_member(channel, groupId, senderId)=dai_ly? → đại lý   (theo group)
+3. else                                            → guest      (mặc định)
+```
+
+`customer_id` (đại lý nào) **derive runtime** từ `group_map(channel, groupId)` — KHÔNG lưu trong
+`group_member`. Vận hành sở hữu quan hệ group→đại lý (single source of truth); cache lại sẽ stale
+khi re-map. Group không có trong `group_map` → lookup miss → fail sạch, không gán treo.
+
+**Lệnh `/ketnoi-dilim @mention` — gán vai đại lý:**
+```
+nhân viên gõ /ketnoi-dilim @A  (trong group G)
+  1. verify sender = nhân viên (user_binding active)        — guest/đại lý gõ → reject
+  2. lấy uid A từ MENTION ENTITY của payload (uid, offset)   — KHÔNG regex tên (trùng/đổi → sai người)
+  3. validate A chưa phải nhân viên                          — tránh phong nhầm nhân viên thành đại lý
+  4. upsert group_member(channel, G, A, role=dai_ly, assigned_by=user_id nhân viên)
+```
+- `customer_id` KHÔNG nhập tay: suy từ `group_map(G)` lúc runtime.
+- Gỡ vai (kế toán nghỉ): `/huy-ketnoi @A` → set `group_member.revoked_at`.
+- `assigned_by` lưu vết ai phong ai (audit).
+
+> **Lỗ dễ sai:** đừng coi "mọi người trong group = đại lý". Group trộn nhân viên Dili + kế toán
+> đại lý + người lạ. Không resolve vai trước → guest/nhân viên thấy nhầm data nội bộ đại lý, hoặc
+> đại lý A thấy data đại lý B. Resolve `senderId` → vai LUÔN chạy trước khi agent trả lời.
 
 ### Delta của group (so với direct)
 
@@ -348,7 +386,7 @@ Hai tầng, khác bản chất — không nhét chung.
 
 | | Ngắn hạn (working) | Dài hạn (persistent) |
 |---|---|---|
-| Phạm vi | 1 `conversationId` (phòng) | cross-session, theo `userId`/tenant |
+| Phạm vi | 1 `conversationId` (phòng) | cross-session, theo `(customer_id, end_user_id)` |
 | Nội dung | N turn gần nhất **verbatim** + rolling summary | **fact đã chưng cất** (không phải log thô) |
 | Store | **Redis** (ephemeral, bounded, TTL/evict) | **Postgres + pgvector** |
 | Module | `state/session.ts` | `state/memory.ts` |
@@ -408,7 +446,7 @@ Cap token block memory. Ngắn hạn thắng dài hạn khi tràn. Không nhồi
 
 ### 3 rào bắt buộc
 
-1. **Tenancy partition.** Mọi read/write memory filter `user_id`/tenant. Memory khách A không lọt sang B. `WHERE user_id` là bắt buộc, không phải logic app tự nhớ.
+1. **Partition khách.** Mọi read/write memory filter `(customer_id, end_user_id)`. Memory khách A không lọt sang B (cả cross-đại-lý lẫn cross-người trong group). `WHERE customer_id AND end_user_id` là bắt buộc, không phải logic app tự nhớ.
 2. **DB-first — memory ≠ fact động.** KHÔNG lưu trạng thái động (tình trạng đơn, số dư, tồn kho) vào memory — thiu. Cái đó query DB lúc chạy. Memory chỉ giữ: sở thích, ngữ cảnh bền, tóm tắt episode.
 3. **Memory informs, không authorizes.** Recalled memory có thể cũ/sai. Agent làm WRITE thật (refund/hủy) không được dựa memory → re-verify từ DB + qua approval.
 
@@ -447,7 +485,7 @@ Envelope {
 }
 ```
 
-Job def: `{ id, schedule (cron/interval), agentType, identity, tenant, task, target, enabled, nextRunAt, lastRunAt }`.
+Job def: `{ id, schedule (cron/interval), agentType, identity, task, target, enabled, nextRunAt, lastRunAt }`.
 System job (approval-timeout, health-check) code-defined trong `defs/`; business check data-defined trong
 DB (non-dev thêm, giống skills).
 
@@ -474,7 +512,7 @@ DB (non-dev thêm, giống skills).
 3. **Idempotency bắt buộc.** Broker retry → msg tới 2 lần → dedupe theo `msgId`.
 4. **Factory cho ingest & broadcast.** Thêm channel = thêm 1 adapter + 1 dòng register, core 0 đổi.
 5. **Interface ẩn implementation.** Broker/Store/LLM đều sau interface → thay được không sửa core.
-6. **Tenancy do backend inject.** `user_id` không nằm trong tool schema.
+6. **Danh tính do backend inject — act-as bind từ `identity`, không từ LLM.** Agent gọi hệ vận hành thay user → act-as handle (`user_id` nhân viên / `customer_id` đại lý) lấy từ `identity` resolve server-side (bước 6 AUTH), KHÔNG nằm trong tool schema, KHÔNG từ tham số LLM sinh. Message người dùng = untrusted → tool nhận danh tính qua closure sẽ bị prompt-injection chiếm quyền (confused-deputy): đại lý A rút data đại lý B. Tool chỉ nhận tham số nghiệp vụ.
 7. **Write không tự thực thi.** Tạo `pending_action` → confirm mới execute.
 8. **Sub-agent context riêng.** Chạy song song, trả kết quả gọn về orchestrator.
 9. **LLM đa provider sau interface.** Agent loop gọi `LLMProvider` chung, không bind Anthropic/Gemini. Đổi provider = đổi config; thêm provider = 1 file trong `llm/providers/` + 1 dòng register.

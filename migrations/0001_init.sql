@@ -96,4 +96,23 @@ CREATE INDEX IF NOT EXISTS user_binding_user
   ON user_binding (user_id)
   WHERE revoked_at IS NULL;
 
+-- group_member — (channel, group_id, sender_id) → role. Set qua /ketnoi-dilim @mention.
+-- customer_id KHÔNG ở đây: derive từ group_map lúc runtime. guest = KHÔNG có row.
+CREATE TABLE IF NOT EXISTS group_member (
+  channel     text        NOT NULL,                 -- zalo | fb | ...
+  group_id     text        NOT NULL,                 -- nhóm chứa người được gán
+  sender_id    text        NOT NULL,                 -- uid người được mention
+  role        text        NOT NULL,                 -- GroupRole: dai_ly | guest
+  assigned_by  text        NOT NULL,                 -- user_id nhân viên gán (audit)
+  assigned_at  timestamptz NOT NULL DEFAULT now(),
+  revoked_at   timestamptz,                          -- null = active; set khi /huy-ketnoi
+  PRIMARY KEY (channel, group_id, sender_id),
+  CONSTRAINT group_member_role_chk CHECK (role IN ('dai_ly', 'guest'))
+);
+
+-- liệt kê thành viên active theo role trong 1 group (resolve runtime, admin).
+CREATE INDEX IF NOT EXISTS group_member_role
+  ON group_member (channel, group_id, role)
+  WHERE revoked_at IS NULL;
+
 COMMIT;

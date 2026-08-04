@@ -1,0 +1,100 @@
+// registry.ts — parse + dispatch flash command. Open/closed: thêm lệnh không sửa file này.
+//
+// Luồng: text → parseCommand → resolve tên → guard vai → handler. Mọi lỗi (không phải lệnh,
+// tên lạ, thiếu quyền, handler ném) trả về structured, KHÔNG crash caller (cô lập per-message).
+
+import { fail, type FlashCommand, type FlashContext, type FlashResult, type Identity, type Mention, type OpsPort, type IdentityRepo } from "./types.ts";
+
+const COMMAND_PREFIX = "/";
+
+/** Phần đã tách khỏi text: tên lệnh (không `/`, viết thường) + args. */
+export type ParsedCommand = { name: string; args: string[] };
+
+/**
+ * Tách text thành lệnh. null = KHÔNG phải flash command → caller cho agent (LLM) xử lý.
+ * Chỉ nhận diện, không validate tên tồn tại (việc của dispatch).
+ */
+export function parseCommand(text: string): ParsedCommand | null {
+  const trimmed = text.trimStart();
+  if (!trimmed.startsWith(COMMAND_PREFIX)) return null;
+
+  const tokens = trimmed.slice(COMMAND_PREFIX.length).split(/\s+/).filter((t) => t.length > 0);
+  const name = tokens[0];
+  // "/" trơ hoặc "/   " → không có tên → không coi là lệnh.
+  if (name === undefined) return null;
+
+  return { name: name.toLowerCase(), args: tokens.slice(1) };
+}
+
+/**
+ * Dữ liệu ngoài `args` (đã có trong ParsedCommand) mà dispatch cần để dựng FlashContext.
+ * Ingest cấp phần này sau khi AUTH resolve identity.
+ */
+export type DispatchInput = {
+  readonly identity: Identity;
+  readonly channel: string;
+  readonly groupId: string | undefined;
+  readonly mentions: readonly Mention[];
+  readonly repo: IdentityRepo;
+  readonly ops: OpsPort;
+};
+
+export class FlashRegistry {
+  readonly #commands = new Map<string, FlashCommand>();
+
+  /** Đăng ký 1 lệnh. Trùng tên → throw (lỗi lập trình, phát hiện lúc khởi động). */
+  register(command: FlashCommand): this {
+    const key = command.name.toLowerCase();
+    if (this.#commands.has(key)) {
+      throw new Error(`Flash command trùng tên: ${key}`);
+    }
+    this.#commands.set(key, command);
+    return this;
+  }
+
+  get(name: string): FlashCommand | undefined {
+    return this.#commands.get(name.toLowerCase());
+  }
+
+  /** Liệt kê lệnh (help / introspection). */
+  list(): readonly FlashCommand[] {
+    return [...this.#commands.values()];
+  }
+
+  /**
+   * Chạy text như flash command.
+   * - null  → text KHÔNG phải lệnh (để agent xử lý).
+   * - FlashResult → đã xử lý (kể cả lỗi tên/quyền/handler — luôn có reply).
+   */
+  async dispatch(text: string, input: DispatchInput): Promise<FlashResult | null> {
+    const parsed = parseCommand(text);
+    if (parsed === null) return null;
+
+    const command = this.get(parsed.name);
+    if (command === undefined) {
+      return fail(`Lệnh không tồn tại: /${parsed.name}`);
+    }
+
+    if (command.allowedRoles && !command.allowedRoles.includes(input.identity.role)) {
+      return fail(`Không đủ quyền chạy /${parsed.name}`);
+    }
+
+    const ctx: FlashContext = {
+      identity: input.identity,
+      channel: input.channel,
+      groupId: input.groupId,
+      args: parsed.args,
+      mentions: input.mentions,
+      repo: input.repo,
+      ops: input.ops,
+    };
+
+    try {
+      return await command.handler(ctx);
+    } catch (err) {
+      // Cô lập: 1 lệnh lỗi không được làm sập worker. Log gốc, trả lỗi chung cho người dùng.
+      console.error(`Flash command /${parsed.name} lỗi:`, err);
+      return fail(`Lỗi xử lý lệnh /${parsed.name}. Thử lại sau.`);
+    }
+  }
+}

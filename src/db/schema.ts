@@ -21,6 +21,16 @@ export const PendingStatus = {
 export type PendingStatus = (typeof PendingStatus)[keyof typeof PendingStatus];
 export const PENDING_STATUS_VALUES: readonly number[] = Object.values(PendingStatus);
 
+// Role trong group. nhan_vien KHÔNG ở đây — nhận diện qua user_binding (định danh toàn cục,
+// không theo group). group_member chỉ lưu grant dai_ly; guest = KHÔNG có row (default đóng).
+// guest lưu tường minh chỉ khi cần demote 1 người từng là dai_ly mà không xoá vết.
+export const GroupRole = {
+  DaiLy: "dai_ly",
+  Guest: "guest",
+} as const;
+export type GroupRole = (typeof GroupRole)[keyof typeof GroupRole];
+export const GROUP_ROLE_VALUES: readonly string[] = Object.values(GroupRole);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // memory — DÀI HẠN (§7). Fact chưng cất. Partition (customer_id, end_user_id).
 // end_user_id = NGƯỜI DÙNG CUỐI trong group, KHÔNG phải nhân viên vận hành.
@@ -132,6 +142,30 @@ export const USER_BINDING = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// group_member — (channel, group_id, sender_id) → role trong group. Set lúc nhân viên
+// gõ /ketnoi-dilim @mention. Chỉ nhân viên (verify qua user_binding) được gán.
+// customer_id KHÔNG lưu ở đây → derive từ group_map lúc runtime (single source of truth,
+// tránh stale khi vận hành re-map group sang đại lý khác).
+// Resolve role: user_binding(nhân viên) → group_member(đại lý) → else guest.
+// ─────────────────────────────────────────────────────────────────────────────
+export const GROUP_MEMBER = {
+  table: "group_member",
+  col: {
+    channel: "channel",
+    groupId: "group_id",
+    senderId: "sender_id",     // id người được mention (từ mention entity uid, KHÔNG parse tên)
+    role: "role",              // GroupRole — dai_ly | guest
+    assignedBy: "assigned_by", // user_id nhân viên gán (audit: ai phong ai)
+    assignedAt: "assigned_at",
+    revokedAt: "revoked_at",   // null = active; set khi /huy-ketnoi (kế toán nghỉ)
+  },
+  idx: {
+    role: "group_member_role",       // liệt kê thành viên theo role trong 1 group
+    roleChk: "group_member_role_chk",
+  },
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // DDL builder — generate init migration từ constants trên.
 // Idempotent (IF NOT EXISTS), bọc BEGIN/COMMIT. Chạy lại an toàn.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,7 +175,9 @@ export function buildInitSql(): string {
   const p = PENDING_ACTIONS;
   const g = GROUP_MAP;
   const b = USER_BINDING;
+  const gm = GROUP_MEMBER;
   const statusList = PENDING_STATUS_VALUES.join(", ");
+  const roleList = GROUP_ROLE_VALUES.map((r) => `'${r}'`).join(", ");
 
   return `-- GENERATED từ src/db/schema.ts qua gen-migration.ts — KHÔNG sửa tay.
 -- Chạy: psql "$DATABASE_URL" -f migrations/0001_init.sql
@@ -240,6 +276,25 @@ CREATE TABLE IF NOT EXISTS ${b.table} (
 CREATE INDEX IF NOT EXISTS ${b.idx.user}
   ON ${b.table} (${b.col.userId})
   WHERE ${b.col.revokedAt} IS NULL;
+
+-- group_member — (channel, group_id, sender_id) → role. Set qua /ketnoi-dilim @mention.
+-- customer_id KHÔNG ở đây: derive từ group_map lúc runtime. guest = KHÔNG có row.
+CREATE TABLE IF NOT EXISTS ${gm.table} (
+  ${gm.col.channel}     text        NOT NULL,                 -- zalo | fb | ...
+  ${gm.col.groupId}     text        NOT NULL,                 -- nhóm chứa người được gán
+  ${gm.col.senderId}    text        NOT NULL,                 -- uid người được mention
+  ${gm.col.role}        text        NOT NULL,                 -- GroupRole: dai_ly | guest
+  ${gm.col.assignedBy}  text        NOT NULL,                 -- user_id nhân viên gán (audit)
+  ${gm.col.assignedAt}  timestamptz NOT NULL DEFAULT now(),
+  ${gm.col.revokedAt}   timestamptz,                          -- null = active; set khi /huy-ketnoi
+  PRIMARY KEY (${gm.col.channel}, ${gm.col.groupId}, ${gm.col.senderId}),
+  CONSTRAINT ${gm.idx.roleChk} CHECK (${gm.col.role} IN (${roleList}))
+);
+
+-- liệt kê thành viên active theo role trong 1 group (resolve runtime, admin).
+CREATE INDEX IF NOT EXISTS ${gm.idx.role}
+  ON ${gm.table} (${gm.col.channel}, ${gm.col.groupId}, ${gm.col.role})
+  WHERE ${gm.col.revokedAt} IS NULL;
 
 COMMIT;
 `;
