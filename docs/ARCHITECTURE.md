@@ -170,17 +170,17 @@ Xuyên suốt: correlation-id (msgId, conversationId) • state • audit • id
 | **bootstrap** | Composition root. Nạp env, dựng DI, register adapter/tool/skill, khởi động gateway + worker pool. | Nơi DUY NHẤT wiring. Đổi broker/adapter chỉ sửa ở đây. |
 | **config** | Hằng số: provider, model, effort, maxTokens, số worker, prompt gốc. | `PROVIDER` (anthropic\|gemini) + `MODEL` chọn model của provider đó. `effort=high`, stream + maxTokens 64000. |
 | **types** | Type chung: `Envelope` (có `agentType` + `identity`), `AgentResult`, `Tool`, `ChannelAdapter`. | Core chỉ làm việc với Envelope, không biết channel gì. |
-| **message-ingest** | INPUT. Gateway nhận raw → `factory.create(channel).ingestor.parse()` → Envelope → ACK 202 → push queue. Đọc `agentType` client gửi, validate thuộc whitelist enum. | ACK ≠ answer. Không đụng LLM ở đây. `agentType` chỉ là routing hint, chưa cấp quyền. |
+| **message-ingest** | INPUT. Gateway nhận raw → `factory.create(channel).ingestor.parse()` → Envelope → ACK 202 → push queue. Đọc `agentType` (validate enum) + `isGroup`; group thì set `addressedToAgent` = có mention @agent. | ACK ≠ answer. Không đụng LLM ở đây. `agentType`/`isGroup` là routing hint, chưa cấp quyền. Group không mention → chỉ ghi history, không chạy agent. |
 | **broker** | Đệm & vận chuyển. `queue` = ingress (durable, retry, DLQ). `pubsub` = broadcast (fan-out). | Chọn Redis Streams / NATS / Kafka. Interface ẩn implementation. |
-| **worker** | PROCESSING. Consume queue → dedupe (idempotency) → `registry.resolve(agentType)` → chạy root agent → emit AgentResult. | Scale ngang = thêm worker. Chạy được vài phút/msg. |
+| **worker** | PROCESSING. Consume queue → dedupe (idempotency) → order-lock theo `conversationId` → `registry.resolve(agentType)` → chạy root agent → emit AgentResult. | Scale ngang = thêm worker. 1 message/lúc/phòng (chống đua state group). Chạy được vài phút/msg. |
 | **agents** | `registry` map `agentType` → root agent (operation/partner/...). Root agent chạy loop `while(tool_use)`; orchestrator quyết định gọi sub-agent/workflow. | Thêm agent = 1 file `roots/` + 1 dòng register. Type sai/thiếu → default agent. Sub-agent trả kết quả gọn, song song. |
 | **llm** | Tách lời gọi model khỏi loop. `LLMProvider` interface + registry chọn provider theo config; mỗi provider (Claude, Gemini) 1 file. | Agent loop KHÔNG biết provider nào — chỉ gọi `provider.chat/stream`. Thêm provider = 1 file + 1 dòng register. Mỗi provider tự chuẩn hóa tool-call về format chung. |
 | **tools** | Hàm agent gọi. Registry + JSON schema + runner. Phân loại READ (auto) / WRITE (confirm) / ESCALATE. | `user_id` KHÔNG nằm trong schema — backend inject từ session. |
 | **workflows** | SOP nhiều bước = state machine. intake → check → propose → **confirm gate** → execute. | Dùng cho quy trình cứng (refund/hủy...), khác agent loop hỏi-đáp. |
 | **approvals** | Human-in-the-loop. Gate suspend workflow → lưu pending → phát yêu cầu duyệt → resume khi có reply. | Async: KHÔNG block. 2 tầng: customer-confirm & staff-approve. |
 | **skills** | Mỗi skill 1 folder: `SKILL.md` (frontmatter+body) + `references/**`. Selector chọn theo intent, loader inject. | Progressive disclosure: chỉ `description` ở context mặc định; body/references load khi cần. Non-dev sửa, không deploy. |
-| **broadcast** | OUTPUT. `publisher` push AgentResult lên topic. `factory` chọn broadcaster theo channel subscriber. `subscribers` cho fan-out. | Broadcast theo channel của SUBSCRIBER, không phải request gốc. |
-| **state** | Session/history/memory/pending theo `conversationId`. | `pending_action` giữ write chờ confirm + idempotency key. |
+| **broadcast** | OUTPUT. `publisher` push AgentResult lên topic. `factory` chọn broadcaster theo channel subscriber. `subscribers` cho fan-out. | Broadcast theo channel của SUBSCRIBER. Direct → DM user; group → topic phòng (mọi member), @ lại người hỏi. |
+| **state** | Session/history/memory/pending theo `conversationId` (=phòng). History mỗi turn gắn `senderId` (group đa speaker). | `pending_action` giữ write chờ confirm + idempotency key + `requesterId` (group: chỉ requester/staff resume được). |
 | **auth** | Verify webhook/token. Tenancy inject `identity` (user_id/tenant) từ session. Check `identity` được phép `agentType` (map allowed-types). Permission gate tool nguy hiểm. | Tenancy KHÔNG để LLM/client tự quyết → chống bypass. `agentType` client gửi phải qua check này trước khi route. |
 | **observability** | Audit log bắt buộc: conversations, tool_calls, pending_actions, handoffs. | + logger + metrics. |
 
@@ -194,9 +194,12 @@ core không đổi (giống factory cho channel).
 
 ```
 Envelope {
-  msgId, conversationId,
-  agentType,     // ◀ client gửi — ROUTING HINT (không phải quyền)
-  identity,      // ◀ backend inject từ session — nguồn sự thật cho QUYỀN
+  msgId, conversationId,           // phòng (direct | group)
+  isGroup,                         // ◀ cờ group — client/channel gửi kèm
+  senderId,                        // ◀ người gửi message NÀY
+  agentType,                       // ◀ client gửi — ROUTING HINT (không phải quyền)
+  identity,                        // ◀ backend inject từ senderId — nguồn sự thật cho QUYỀN
+  addressedToAgent,                // ◀ group: có mention @agent không (ingest set)
   channel, payload, meta
 }
 
@@ -236,7 +239,54 @@ tin nhắn sau cùng hội thoại route đúng root agent, không cần suy l�
 
 ---
 
-## 5. Human-in-the-loop (approval)
+## 5. Message life cycle (direct & group)
+
+Hai loại session: **direct** (1 user ↔ agent) và **group** (nhiều người ↔ agent trong 1 phòng).
+Một life cycle chung; group cắm thêm trigger-gate + ordering-per-phòng + attribution + broadcast-to-room.
+
+Hai trục:
+- **`conversationId`** = phòng. State/history gắn theo đây (group = shared history nhiều speaker).
+- **`senderId`** = người gửi từng message. Direct luôn 1 người; group đổi theo message.
+  **Quyền luôn theo `senderId`, KHÔNG theo phòng** — group không có "quyền group".
+
+`isGroup` do client/channel gửi kèm (giống `agentType`): chỉ đổi **hành vi** (trigger, broadcast),
+KHÔNG cấp quyền. Group trigger = **mention @agent** (chỉ mention, không dùng reply/command).
+
+```
+1. INGEST      normalize → conversationId, isGroup, senderId
+               isGroup=true  → set addressedToAgent = có mention @agent trong payload?
+               isGroup=false → addressedToAgent = true (direct luôn nhắm agent)
+2. TRIGGER     addressedToAgent=false → CHỈ ghi vào history (passive context), KHÔNG chạy agent → DONE
+               addressedToAgent=true  → tiếp
+3. ACK 202     push queue
+4. DEDUPE      idempotency theo msgId
+5. ORDER-LOCK  serialize theo conversationId (1 message/lúc/phòng — chống đua state)
+6. AUTH        identity từ senderId → verify quyền + agentType được phép
+7. STATE       load history phòng; mỗi turn gắn {senderId, text} (group đa speaker)
+8. AGENT       registry.resolve(agentType).run() — context biết AI đang hỏi
+9. BROADCAST   direct → DM về user
+               group  → publish topic phòng (fan-out mọi member), @ lại người hỏi
+10. AUDIT      log msgId + senderId + tool_calls + result
+```
+
+### Delta của group (so với direct)
+
+| Bước | Direct | Group |
+|------|--------|-------|
+| 1–2 Trigger | Luôn nhắm agent | Chỉ chạy khi **mention @agent**; câu khác → nuốt vào history làm ngữ cảnh (chống spam + tốn LLM) |
+| 5 Ordering | Ít đua (1 người) | **Bắt buộc** serialize theo `conversationId` — nhiều người gõ cùng lúc, không khóa thì đè state/history |
+| 7 History | 1 speaker | Đa speaker, mỗi entry gắn `senderId`; prompt render "An: … / Bình: …" để agent trả đúng người |
+| 9 Broadcast | DM 1 user | Publish topic phòng → mọi member thấy; @ lại người hỏi |
+
+### Ăn khớp approval (mục 6)
+
+Group + human-loop: `pending_action` gắn **`requesterId`**. Lúc resume, `resolver` check người
+reply đúng là requester (hoặc staff có quyền) — không thì bất kỳ ai trong group cũng "xác nhận
+hủy đơn" hộ người khác. Lỗ hổng dễ sai nhất ở group.
+
+---
+
+## 6. Human-in-the-loop (approval)
 
 Async → human loop **KHÔNG block-chờ**, mà **suspend → resume**. Workflow tới approval gate thì lưu
 state + phát yêu cầu duyệt + worker thoát. Người duyệt trả lời → tin nhắn đi ngược qua chính
@@ -281,7 +331,7 @@ Cả 2 dùng chung cơ chế suspend/resume — khác ở: ai duyệt, auth chec
 
 ---
 
-## 6. Nguyên tắc thiết kế (chốt)
+## 7. Nguyên tắc thiết kế (chốt)
 
 1. **ACK ≠ answer.** Ingress trả 202 ngay, câu trả lời đến sau qua broadcast.
 2. **Correlation-id xuyên suốt.** `msgId` + `conversationId` đi từ ingress → egress để map response ↔ request.
@@ -293,10 +343,12 @@ Cả 2 dùng chung cơ chế suspend/resume — khác ở: ai duyệt, auth chec
 8. **Sub-agent context riêng.** Chạy song song, trả kết quả gọn về orchestrator.
 9. **LLM đa provider sau interface.** Agent loop gọi `LLMProvider` chung, không bind Anthropic/Gemini. Đổi provider = đổi config; thêm provider = 1 file trong `llm/providers/` + 1 dòng register.
 10. **`agentType` route, không cấp quyền.** Client gửi `agentType` chỉ chọn root agent; quyền luôn theo `identity` backend inject. Whitelist enum + map identity→allowed-type + agent tự gate tool.
+11. **Quyền theo `senderId`, không theo phòng.** `conversationId`=phòng, `senderId`=người gửi từng message. Group không có "quyền group" — mỗi câu quyền theo người gửi câu đó.
+12. **Group chỉ chạy khi mention.** `isGroup` + mention @agent mới trigger loop; câu khác nuốt vào history làm ngữ cảnh. Nhiều message/phòng → serialize theo `conversationId`.
 
 ---
 
-## 7. Chưa quyết (cần chốt để scaffold code)
+## 8. Chưa quyết (cần chốt để scaffold code)
 
 - **Broker**: Redis Streams / NATS JetStream / Kafka?
 - **Broadcast fan-out**: 1 subscriber (chính user) hay nhiều?
