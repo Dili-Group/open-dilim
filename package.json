@@ -1,9 +1,13 @@
 {
-  "name": "dilim-agent",
-  "version": "0.0.0",
+  "name": "open-dilim",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "module": "src/index.ts",
+  "author": {
+    "name": "Nguyen Cong Gioi",
+    "email": "conggioi.dev@gmail.com"
+  },
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun --watch run src/index.ts",
