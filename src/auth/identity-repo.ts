@@ -7,9 +7,14 @@
 
 import { sql } from "../db/client.ts";
 import type { IdentityRepo } from "../flash-command/types.ts";
+import type { RedisCommand } from "../redis/types.ts";
+import { authCacheKey } from "./cached-resolver.ts";
 import { firstString } from "./rows.ts";
 
 export class SqlIdentityRepo implements IdentityRepo {
+  // Gán/gỡ đại lý đổi vai → xoá cache auth để CachedIdentityResolver không trả vai cũ tới hết TTL.
+  constructor(private readonly send: RedisCommand) {}
+
   /** Upsert (channel, sender_id) → user_id + op_token, clear revoked_at (bind lại sau đổi máy/token). */
   async bindUser(p: {
     channel: string;
@@ -74,6 +79,7 @@ export class SqlIdentityRepo implements IdentityRepo {
                     assigned_by = EXCLUDED.assigned_by,
                     assigned_at = now(),
                     revoked_at = NULL`;
+    await this.send("DEL", [authCacheKey(p.channel, p.senderId, p.groupId)]);
   }
 
   /** Set group_member.revoked_at = now() (kế toán nghỉ). No-op nếu không có row dai_ly active. */
@@ -83,5 +89,6 @@ export class SqlIdentityRepo implements IdentityRepo {
               WHERE channel = ${p.channel} AND group_id = ${p.groupId}
                 AND sender_id = ${p.senderId} AND role = 'dai_ly'
                 AND revoked_at IS NULL`;
+    await this.send("DEL", [authCacheKey(p.channel, p.senderId, p.groupId)]);
   }
 }

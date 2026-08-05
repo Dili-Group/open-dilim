@@ -8,7 +8,7 @@ import { startGateway, type IngestDeps } from "../message-ingest/index.ts";
 import { buildSkillRegistry } from "../skills/index.ts";
 import { flashRegistry } from "../flash-command/index.ts";
 import { closeDb } from "../db/client.ts";
-import { closeRedis } from "../redis/client.ts";
+import { closeRedis, commandOf, redis } from "../redis/client.ts";
 import { buildBroker } from "../broker/index.ts";
 import { buildLlmProvider } from "../llm/index.ts";
 import { buildAgentRegistry } from "../agents/index.ts";
@@ -20,7 +20,12 @@ import {
   ZaloBroadcaster,
   ZaloTypingSender,
 } from "../broadcast/index.ts";
-import { SqlGroupCustomerLookup, SqlIdentityRepo, SqlIdentityResolver } from "../auth/index.ts";
+import {
+  CachedIdentityResolver,
+  SqlGroupCustomerLookup,
+  SqlIdentityRepo,
+  SqlIdentityResolver,
+} from "../auth/index.ts";
 import { OperationalOpsPort } from "../operational/ops-port.ts";
 import {
   buildDedupe,
@@ -80,9 +85,10 @@ export async function bootstrap(): Promise<Services> {
     console.warn("[bootstrap] thiếu ZALO_BRIDGE_URL/SECRET → egress Zalo dùng console (dev).");
   }
   const groupCustomer = new SqlGroupCustomerLookup();
-  const identity = new SqlIdentityResolver(groupCustomer);
+  // Cache-aside Redis (session 8h) chặn trước Postgres; chỉ cache nhân_viên/đại_lý.
+  const identity = new CachedIdentityResolver(new SqlIdentityResolver(groupCustomer), commandOf(redis));
   // Port flash command: ghi định danh (Postgres) + gọi hệ vận hành (verify token, tra đại lý).
-  const identityRepo = new SqlIdentityRepo();
+  const identityRepo = new SqlIdentityRepo(commandOf(redis));
   const ops = new OperationalOpsPort();
 
   return {
