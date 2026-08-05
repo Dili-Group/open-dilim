@@ -42,14 +42,14 @@ export interface OpsPort {
   /** null = token không hợp lệ / hết hạn. Không throw cho case "sai token" — đó là input hợp lệ. */
   resolveUserByToken(token: string): Promise<{ userId: string } | null>;
   /**
-   * Tra thông tin đại lý ứng với người được mention, gọi act-as nhân viên bằng `token` của họ.
-   * `senderId` = uid người được mention (khoá đại lý ở hệ vận hành). customer_id trả về inject
-   * server-side (không tin payload). null = hệ vận hành không nhận diện người này là đại lý.
+   * Tra đại lý gắn với NHÓM (hệ vận hành: dealers.zalo_group_id), gọi bằng `token` nhân viên đã
+   * verify. `groupId` = id nhóm chat (khoá đại lý). customerId inject server-side (không tin
+   * payload). null = hệ vận hành chưa gắn đại lý nào với nhóm này.
    */
   fetchDealerInfo(p: {
     token: string;
     channel: string;
-    senderId: string;
+    groupId: string;
   }): Promise<{ customerId: string } | null>;
 }
 

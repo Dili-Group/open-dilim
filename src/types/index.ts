@@ -32,12 +32,23 @@ export interface Envelope {
  * 1 lượt ghi vào history phòng (short-term, §7). Append MỌI tin tại ingest theo giờ nhận →
  * group đa speaker giữ đúng trình tự (không phụ thuộc lúc worker chạy).
  */
+/** Ai nói lượt này: người dùng, hay chính agent (flash reply / lượt agent). Quyết định render. */
+export type HistoryRole = "user" | "agent";
+
+/**
+ * senderId placeholder cho lượt agent trong history: `role="agent"` đã phân biệt vai, render lượt
+ * agent bỏ qua senderId (không prefix speaker) → giá trị chỉ để lấp field bắt buộc.
+ */
+export const AGENT_SENDER_ID = "agent";
+
 export interface HistoryEntry {
   readonly conversationId: string;
   readonly msgId: string;
   readonly senderId: string;
   readonly text: string;
   readonly isGroup: boolean;
+  /** Người dùng gõ (ingest) hay agent trả (flash reply / lượt agent). Thiếu ở entry cũ → coi là user. */
+  readonly role: HistoryRole;
   readonly ts: number;
 }
 

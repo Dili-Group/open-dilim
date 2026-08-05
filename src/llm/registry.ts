@@ -25,7 +25,7 @@ function buildProviderForModel(config: Config, model: string): LLMProvider {
       if (config.anthropicApiKey === undefined) {
         throw new Error("PROVIDER=anthropic nhưng thiếu ANTHROPIC_API_KEY");
       }
-      return new AnthropicProvider(config.anthropicApiKey, model);
+      return new AnthropicProvider(config.anthropicApiKey, model, config.anthropicBaseUrl);
     }
     case "gemini":
       throw new Error("Provider 'gemini' chưa được cài đặt (llm/providers/gemini.ts).");

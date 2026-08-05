@@ -8,11 +8,12 @@ import type { Config } from "../config.ts";
 import type { IngestDeps } from "../message-ingest/index.ts";
 import type { SkillRegistry } from "../skills/index.ts";
 import type { FlashRegistry } from "../flash-command/index.ts";
+import type { IdentityRepo, OpsPort } from "../flash-command/types.ts";
 import type { LLMProvider } from "../llm/index.ts";
 import type { AgentRegistry } from "../agents/index.ts";
 import type { Broadcaster, TypingFactory } from "../broadcast/index.ts";
 import type { GroupCustomerLookup, IdentityResolver } from "../auth/index.ts";
-import type { BrokerConsumer, HistoryReader } from "../worker/index.ts";
+import type { BrokerConsumer, HistoryReader, HistoryWriter } from "../worker/index.ts";
 
 /** Mọi service dựng lúc boot, share cho các tầng downstream (worker/gateway). */
 export interface Services {
@@ -23,6 +24,10 @@ export interface Services {
   readonly skills: SkillRegistry;
   /** Flash-command registry (stateless, share toàn app). */
   readonly flash: FlashRegistry;
+  /** Ghi định danh cho flash command (user_binding/group_map/group_member). */
+  readonly identityRepo: IdentityRepo;
+  /** Port hệ vận hành cho flash command (verify token, tra đại lý). */
+  readonly ops: OpsPort;
   /** LLM provider (chọn theo config). */
   readonly llm: LLMProvider;
   /** Root agent registry (worker resolve+run). */
@@ -39,6 +44,8 @@ export interface Services {
   readonly broker: BrokerConsumer;
   /** Đọc history — CÙNG instance với ingestDeps.history. */
   readonly historyReader: HistoryReader;
+  /** Ghi history (flash reply) — CÙNG instance với historyReader/ingestDeps.history. */
+  readonly historyWriter: HistoryWriter;
 }
 
 /** Hệ thống ĐANG CHẠY: service + HTTP server + hook shutdown sạch. */

@@ -20,7 +20,8 @@ import {
   ZaloBroadcaster,
   ZaloTypingSender,
 } from "../broadcast/index.ts";
-import { SqlGroupCustomerLookup, SqlIdentityResolver } from "../auth/index.ts";
+import { SqlGroupCustomerLookup, SqlIdentityRepo, SqlIdentityResolver } from "../auth/index.ts";
+import { OperationalOpsPort } from "../operational/ops-port.ts";
 import { buildDedupe, buildHistoryStore, buildMemoryStore } from "../state/index.ts";
 import { startWorkers } from "../worker/index.ts";
 import { checkInfra, loadConfig } from "./env.ts";
@@ -68,12 +69,17 @@ export async function bootstrap(): Promise<Services> {
   }
   const groupCustomer = new SqlGroupCustomerLookup();
   const identity = new SqlIdentityResolver(groupCustomer);
+  // Port flash command: ghi định danh (Postgres) + gọi hệ vận hành (verify token, tra đại lý).
+  const identityRepo = new SqlIdentityRepo();
+  const ops = new OperationalOpsPort();
 
   return {
     config,
     ingestDeps,
     skills,
     flash: flashRegistry,
+    identityRepo,
+    ops,
     llm,
     agents,
     broadcaster,
@@ -82,6 +88,7 @@ export async function bootstrap(): Promise<Services> {
     groupCustomer,
     broker,
     historyReader: history,
+    historyWriter: history,
   };
 }
 
@@ -95,7 +102,11 @@ export async function start(): Promise<RunningSystem> {
   const workers = startWorkers({
     broker: services.broker,
     history: services.historyReader,
+    historyWriter: services.historyWriter,
     identity: services.identity,
+    flash: services.flash,
+    identityRepo: services.identityRepo,
+    ops: services.ops,
     groupCustomer: services.groupCustomer,
     agents: services.agents,
     broadcaster: services.broadcaster,

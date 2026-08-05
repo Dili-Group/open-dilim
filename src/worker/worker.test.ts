@@ -3,7 +3,8 @@
 
 import { describe, expect, test } from "bun:test";
 import type { ChatRequest, ChatResult, LLMProvider } from "../llm/types.ts";
-import type { Identity } from "../flash-command/types.ts";
+import type { Identity, IdentityRepo, OpsPort } from "../flash-command/types.ts";
+import { FlashRegistry, flashRegistry, ok } from "../flash-command/index.ts";
 import type { Envelope } from "../types/index.ts";
 import type { GroupCustomerLookup, GroupLookupInput, IdentityResolver } from "../auth/types.ts";
 import type { MemoryRecall, MemoryScope, RecalledFact } from "../state/types.ts";
@@ -24,6 +25,21 @@ const CFG: AgentConfig = { maxTokens: 100, effort: "low", agentMaxIterations: 4 
 const SKILLS = new SkillRegistry();
 // Typing factory rỗng (fallback noop): test không assert typing, chỉ cần thoả kiểu WorkerContext.
 const TYPING = new TypingFactory();
+
+// Port flash-command rỗng: các test dưới gửi text thường (không phải `/lệnh`) → dispatch trả null,
+// không chạm repo/ops. Chỉ cần thoả kiểu WorkerContext.
+const NOOP_REPO: IdentityRepo = {
+  bindUser: () => Promise.resolve(),
+  isBoundUser: () => Promise.resolve(false),
+  getOpToken: () => Promise.resolve(null),
+  upsertGroupMap: () => Promise.resolve(),
+  assignDealer: () => Promise.resolve(),
+  revokeDealer: () => Promise.resolve(),
+};
+const NOOP_OPS: OpsPort = {
+  resolveUserByToken: () => Promise.resolve(null),
+  fetchDealerInfo: () => Promise.resolve(null),
+};
 
 function makeEnvelope(over: Partial<Envelope> = {}): Envelope {
   return {
@@ -164,6 +180,10 @@ describe("handleEnvelope", () => {
     const broadcaster = new CapturingBroadcaster();
     const ctx: WorkerContext = {
       history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
       identity: new FakeResolver(identity),
       agents: buildAgentRegistry({ provider, config: CFG, skills: SKILLS }),
       broadcaster,
@@ -180,6 +200,7 @@ describe("handleEnvelope", () => {
       senderId: "u1",
       text: "chào",
       isGroup: false,
+      role: "user",
       ts: 1,
     });
     const provider = new ScriptedProvider([
@@ -203,6 +224,7 @@ describe("handleEnvelope", () => {
       senderId: "u1",
       text: "chào",
       isGroup: false,
+      role: "user",
       ts: 1,
     });
     const long = "a".repeat(5000);
@@ -236,6 +258,10 @@ describe("handleEnvelope", () => {
     // Script rỗng: nếu loop chạy tới LLM thì test sẽ hỏng ở bước agent, không phải auth.
     const ctx: WorkerContext = {
       history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
       identity: new ThrowingResolver(),
       agents: buildAgentRegistry({
         provider: new ScriptedProvider([]),
@@ -261,10 +287,15 @@ describe("handleEnvelope", () => {
       senderId: "u1",
       text: "chào",
       isGroup: false,
+      role: "user",
       ts: 1,
     });
     const ctx: WorkerContext = {
       history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
       identity: new FakeResolver({ role: "guest", senderId: "u1" }),
       agents: buildAgentRegistry({
         provider: new ScriptedProvider([
@@ -282,6 +313,37 @@ describe("handleEnvelope", () => {
     expect(result.status).toBe("failed");
     if (result.status === "failed") expect(result.step).toBe("broadcast");
   });
+
+  test("flash command → dispatch, KHÔNG chạy LLM, broadcast + lưu history lượt agent", async () => {
+    const history = new MemoryHistoryStore();
+    const flash = new FlashRegistry().register({
+      name: "ping",
+      description: "test",
+      handler: () => Promise.resolve(ok("pong")),
+    });
+    const broadcaster = new CapturingBroadcaster();
+    const ctx: WorkerContext = {
+      history,
+      historyWriter: history,
+      identity: new FakeResolver({ role: "guest", senderId: "u1" }),
+      flash,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
+      // Script LLM rỗng: nếu handler chạy tới bước agent thì hỏng ở đó, không trả "pong".
+      agents: buildAgentRegistry({ provider: new ScriptedProvider([]), config: CFG, skills: SKILLS }),
+      broadcaster,
+      typing: TYPING,
+    };
+
+    const result = await handleEnvelope(ctx, makeEnvelope({ text: "/ping" }));
+
+    expect(result).toEqual({ status: "reply", text: "pong" });
+    expect(broadcaster.sent).toHaveLength(1);
+    expect(broadcaster.sent[0]!.text).toBe("pong");
+    // Reply lưu vào history như lượt agent (role=agent) để LLM turn sau thấy.
+    const recent = await history.recent("c1", 10);
+    expect(recent.at(-1)).toMatchObject({ role: "agent", text: "pong" });
+  });
 });
 
 // Memory thuộc PHÒNG: scope derive từ group_map + envelope, KHÔNG từ Identity người gõ.
@@ -298,11 +360,16 @@ describe("handleEnvelope — MemoryScope", () => {
       senderId: envelope.senderId,
       text: "khách hỏi gì đó",
       isGroup: envelope.isGroup,
+      role: "user",
       ts: 1,
     });
     const memory = new RecordingMemory();
     const ctx: WorkerContext = {
       history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
       identity: new FakeResolver(identity),
       groupCustomer,
       agents: buildAgentRegistry({

@@ -5,7 +5,7 @@
 
 import type { MemoryScope } from "../state/types.ts";
 import { capForChannel, type TypingTarget } from "../broadcast/index.ts";
-import type { AgentResult, Envelope, LifecycleStep } from "../types/index.ts";
+import { AGENT_SENDER_ID, type AgentResult, type Envelope, type LifecycleStep } from "../types/index.ts";
 import type { WorkerContext } from "./types.ts";
 
 // N turn history nạp vào context mỗi lần chạy agent.
@@ -25,6 +25,40 @@ export async function handleEnvelope(
       senderId: envelope.senderId,
       groupId: envelope.isGroup ? envelope.conversationId : undefined,
     });
+
+    // 6b. FLASH — tin `/lệnh` chạy side-effect (bind/gán/gỡ), KHÔNG qua LLM. dispatch trả null nếu
+    // không phải lệnh → rơi xuống agent. Có kết quả (kể cả lỗi tên/quyền/handler — luôn có reply):
+    // broadcast reply + lưu history (lượt agent) rồi thoát, không nạp history/chạy LLM.
+    const flash = await ctx.flash.dispatch(envelope.text, {
+      identity,
+      channel: envelope.channel,
+      groupId: envelope.isGroup ? envelope.conversationId : undefined,
+      mentions: envelope.mentions,
+      repo: ctx.identityRepo,
+      ops: ctx.ops,
+    });
+    if (flash !== null) {
+      step = "broadcast";
+      await ctx.historyWriter.append({
+        conversationId: envelope.conversationId,
+        msgId: `${envelope.msgId}#flash`,
+        senderId: AGENT_SENDER_ID,
+        text: flash.reply,
+        isGroup: envelope.isGroup,
+        role: "agent",
+        ts: Date.now(),
+      });
+      await ctx.broadcaster.send(
+        {
+          channel: envelope.channel,
+          conversationId: envelope.conversationId,
+          isGroup: envelope.isGroup,
+          replyToSenderId: envelope.senderId,
+        },
+        capForChannel(envelope.channel, flash.reply),
+      );
+      return { status: "reply", text: flash.reply };
+    }
 
     // 7. STATE — nạp history phòng (đã gồm chính message này do ingest append trước khi publish).
     step = "state";

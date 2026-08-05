@@ -22,7 +22,7 @@ const huyKetnoi: FlashCommand = {
       senderId: targetUid,
     });
 
-    return ok("Đã gỡ vai đại lý.");
+    return ok("Đã gỡ vai trò đại lý.");
   },
 };
 

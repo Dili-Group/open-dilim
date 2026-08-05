@@ -115,6 +115,10 @@ const anthropicApiKey =
 const geminiApiKey =
   provider === "gemini" ? required("GEMINI_API_KEY") : optional("GEMINI_API_KEY");
 
+// Endpoint Anthropic-compatible thay api.anthropic.com (gateway/proxy nội bộ, model non-Claude).
+// undefined = dùng endpoint mặc định của SDK.
+const anthropicBaseUrl = optional("ANTHROPIC_BASE_URL");
+
 export const CONFIG = {
   // Sandbox root — mọi file/shell op giới hạn trong đây.
   workdir: process.cwd(),
@@ -147,6 +151,7 @@ export const CONFIG = {
   effort: oneOf("EFFORT", EFFORTS, "medium"),
   maxTokens: positiveIntEnv("MAX_TOKENS", DEFAULT_MAX_TOKENS),
   anthropicApiKey,
+  anthropicBaseUrl,
   geminiApiKey,
 
   // Worker pool + agent loop

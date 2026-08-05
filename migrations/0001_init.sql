@@ -86,7 +86,8 @@ CREATE INDEX IF NOT EXISTS group_map_customer
 CREATE TABLE IF NOT EXISTS user_binding (
   channel      text        NOT NULL,                 -- zalo | fb | ...
   sender_id     text        NOT NULL,                 -- id gửi tin từ kênh
-  user_id       text        NOT NULL,                 -- id hệ vận hành (từ token /ketnoi-dilim)
+  user_id       text        NOT NULL,                 -- id hệ vận hành (từ token /ketnoi-hethong)
+  op_token      text,                                 -- bearer hệ vận hành; KHÔNG log; null khi revoke
   bound_at      timestamptz NOT NULL DEFAULT now(),
   revoked_at    timestamptz,                          -- null = active
   PRIMARY KEY (channel, sender_id)

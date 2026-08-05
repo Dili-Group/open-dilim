@@ -29,6 +29,7 @@ const historyEntry: HistoryEntry = {
   senderId: "u1",
   text: "hi",
   isGroup: false,
+  role: "user",
   ts: 1,
 };
 

@@ -1,0 +1,146 @@
+# Production stack dilim-agent: agent (Bun) + Postgres/pgvector + Redis.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build --wait
+#
+# Khác bản dev (docker-compose.yml): agent chạy TRONG mạng compose, Postgres/Redis KHÔNG
+# publish port ra host, secret bắt buộc (`:?` fail nếu thiếu), có resource limit + log rotate.
+
+# Project name riêng → volume/network KHÔNG dùng chung với docker-compose.yml (dev) dù
+# cùng thư mục. Dev và prod chạy song song được, `down -v` bên này không xoá data bên kia.
+name: dilim-agent-prod
+
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dilim-agent:${IMAGE_TAG:-latest}
+    container_name: dilim-agent-prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # env_file = phần còn lại (LLM key, Zalo, operational). `environment` ghi đè env_file:
+    # URL hạ tầng phải trỏ DNS service name, không phải localhost như file dev.
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?set POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+    networks:
+      - dilim-net-prod
+    # Chỉ mở webhook ingress ra host. Đặt sau reverse proxy (TLS) — bind loopback mặc định.
+    ports:
+      - "${AGENT_BIND:-127.0.0.1}:${AGENT_PORT:-3000}:3000"
+    # Gateway chỉ nhận POST /webhook/* → GET bất kỳ trả 405. 405 = process sống + port nghe.
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "const r = await fetch('http://127.0.0.1:3000/'); process.exit(r.status === 405 ? 0 : 1)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "${AGENT_CPUS:-2}"
+          memory: ${AGENT_MEMORY:-1g}
+
+  postgres:
+    # pgvector kèm sẵn extension `vector`; pg16 cho gen_random_uuid built-in.
+    image: pgvector/pgvector:pg16
+    container_name: dilim-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      # scram-sha-256 thay md5 mặc định cho connection ngoài socket.
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    command:
+      - postgres
+      - -c
+      - max_connections=${PG_MAX_CONNECTIONS:-100}
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS:-256MB}
+    networks:
+      - dilim-net-prod
+    # KHÔNG publish port: chỉ agent trong mạng compose truy cập.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Chạy migration 1 lần khi volume rỗng (thứ tự alphabet). Volume đã có data → bỏ qua.
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: ${PG_MEMORY:-2g}
+
+  redis:
+    image: redis:7-alpine
+    container_name: dilim-redis-prod
+    restart: unless-stopped
+    # AOF everysec → broker Stream/PEL, short-term memory, lock sống qua restart.
+    # noeviction: dữ liệu broker KHÔNG được phép bị evict khi chạm maxmemory (mất message).
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-512mb}
+      - --maxmemory-policy
+      - noeviction
+    networks:
+      - dilim-net-prod
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: ${REDIS_MEMORY:-1g}
+
+networks:
+  dilim-net-prod:
+    name: dilim-net-prod
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:

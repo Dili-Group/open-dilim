@@ -17,12 +17,13 @@ export class AnthropicProvider implements LLMProvider {
   private readonly client: Anthropic;
   private readonly model: string;
 
-  constructor(apiKey: string, model: string) {
-    this.client = new Anthropic({ apiKey });
+  constructor(apiKey: string, model: string, baseURL?: string) {
+    this.client = new Anthropic({ apiKey, ...(baseURL === undefined ? {} : { baseURL }) });
     this.model = model;
   }
 
   async chat(req: ChatRequest, signal?: AbortSignal): Promise<ChatResult> {
+    console.log('req:: ', req)
     const message = await this.client.messages.create(
       {
         model: this.model,

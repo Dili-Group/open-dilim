@@ -2,3 +2,4 @@ node_modules/**
 taxlegal/**
 .claude/**
 .env
+.env.prod

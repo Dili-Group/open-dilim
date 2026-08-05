@@ -28,7 +28,7 @@ class ScriptedProvider implements LLMProvider {
 
 const GUEST: Identity = { role: "guest", senderId: "u1" };
 const HISTORY: HistoryEntry[] = [
-  { conversationId: "c1", msgId: "m1", senderId: "u1", text: "bạn là ai", isGroup: false, ts: 1 },
+  { conversationId: "c1", msgId: "m1", senderId: "u1", text: "bạn là ai", isGroup: false, role: "user", ts: 1 },
 ];
 const CFG: AgentConfig = { maxTokens: 100, effort: "low", agentMaxIterations: 4 };
 

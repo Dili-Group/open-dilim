@@ -42,15 +42,19 @@ export async function assembleTurnContext(
 }
 
 /**
- * History → message. Giữ nguyên hành vi hiện có: mọi entry là lượt người dùng (HistoryEntry chưa
- * có `role` — lưu lượt agent là bước sau, và khi tới thì CHỈ file này đổi).
- * Group đa speaker: gắn senderId để model trả đúng người.
+ * History → message. Lượt agent (flash reply / lượt agent) → assistant, KHÔNG prefix speaker.
+ * Lượt người dùng → user; group đa speaker gắn senderId để model trả đúng người.
  */
 function toMessages(history: readonly HistoryEntry[]): LlmMessage[] {
-  return history.map((entry) => ({
-    role: "user" as const,
-    content: [{ type: "text" as const, text: entry.isGroup ? `${entry.senderId}: ${entry.text}` : entry.text }],
-  }));
+  return history.map((entry) => {
+    if (entry.role === "agent") {
+      return { role: "assistant" as const, content: [{ type: "text" as const, text: entry.text }] };
+    }
+    return {
+      role: "user" as const,
+      content: [{ type: "text" as const, text: entry.isGroup ? `${entry.senderId}: ${entry.text}` : entry.text }],
+    };
+  });
 }
 
 /** Câu hỏi đi tra memory = lượt người dùng gần nhất. History rỗng → không tra. */

@@ -31,14 +31,15 @@ const ketnoiDaily: FlashCommand = {
       return fail("Bạn chưa kết nối tài khoản hệ vận hành. Gõ /ketnoi-hethong <token> trước.");
     }
 
-    // customer_id KHÔNG nhập tay → hệ vận hành trả về, gọi act-as bằng token nhân viên.
+    // customer_id KHÔNG nhập tay → hệ vận hành tra theo NHÓM (dealers.zalo_group_id), act-as bằng
+    // token nhân viên. Người @mention chỉ quyết AI được group_member dai_ly, KHÔNG quyết customerId.
     const dealer = await ctx.ops.fetchDealerInfo({
       token: opToken,
       channel: ctx.channel,
-      senderId: targetUid,
+      groupId,
     });
     if (dealer === null) {
-      return fail("Hệ vận hành không nhận diện người này là đại lý.");
+      return fail("Hệ vận hành chưa gắn đại lý nào với nhóm này.");
     }
 
     // Ghi group_map TRƯỚC assignDealer: resolve vai đại lý cần cả group_member lẫn group_map.

@@ -272,6 +272,7 @@ const ENTRY: HistoryEntry = {
   senderId: "u1",
   text: "chào",
   isGroup: false,
+  role: "user",
   ts: 1,
 };
 

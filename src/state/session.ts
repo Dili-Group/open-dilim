@@ -4,7 +4,7 @@
 // (mất buffer = mất ngữ cảnh ngắn, không mất sự thật — trí nhớ dài hạn nằm ở pgvector).
 // LIST + LTRIM giữ ĐÚNG thứ tự append (giờ nhận) mà không cần sort; TTL tự dọn phòng nguội.
 
-import type { HistoryEntry } from "../types/index.ts";
+import type { HistoryEntry, HistoryRole } from "../types/index.ts";
 import type { HistoryStore } from "../message-ingest/index.ts";
 import type { HistoryReader } from "../worker/index.ts";
 import type { RedisCommand } from "../redis/types.ts";
@@ -32,14 +32,16 @@ export function parseHistoryEntry(json: string): HistoryEntry | null {
     return null;
   }
   if (!isRecord(raw)) return null;
-  const { conversationId, msgId, senderId, text, isGroup, ts } = raw;
+  const { conversationId, msgId, senderId, text, isGroup, ts, role } = raw;
   if (typeof conversationId !== "string" || conversationId === "") return null;
   if (typeof msgId !== "string" || typeof senderId !== "string" || typeof text !== "string") {
     return null;
   }
   if (typeof isGroup !== "boolean") return null;
   if (typeof ts !== "number" || !Number.isFinite(ts)) return null;
-  return { conversationId, msgId, senderId, text, isGroup, ts };
+  // Back-compat: entry cũ chưa có `role` → coi là lượt người dùng (giá trị lạ cũng về "user").
+  const historyRole: HistoryRole = role === "agent" ? "agent" : "user";
+  return { conversationId, msgId, senderId, text, isGroup, role: historyRole, ts };
 }
 
 /** History phòng trên Redis. Ingest ghi (append), worker đọc (recent) — cùng 1 key. */

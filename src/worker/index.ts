@@ -10,4 +10,5 @@ export type {
   BrokerConsumer,
   Delivery,
   HistoryReader,
+  HistoryWriter,
 } from "./types.ts";

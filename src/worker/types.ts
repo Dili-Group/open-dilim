@@ -6,6 +6,8 @@ import type { GroupCustomerLookup, IdentityResolver } from "../auth/types.ts";
 import type { AgentRegistry } from "../agents/registry.ts";
 import type { Broadcaster } from "../broadcast/types.ts";
 import type { TypingFactory } from "../broadcast/typing-factory.ts";
+import type { FlashRegistry } from "../flash-command/registry.ts";
+import type { IdentityRepo, OpsPort } from "../flash-command/types.ts";
 
 /**
  * 1 message đã giao cho worker, kèm quyền định đoạt: `ack` = xong, gỡ khỏi queue; `retryLater` =
@@ -30,10 +32,23 @@ export interface HistoryReader {
   recent(conversationId: string, limit: number): Promise<HistoryEntry[]>;
 }
 
+/** Ghi history phòng — flash reply append lượt agent. CÙNG instance với HistoryReader (append+recent). */
+export interface HistoryWriter {
+  append(entry: HistoryEntry): Promise<void>;
+}
+
 /** Service 1 worker cần để xử lý 1 envelope. */
 export interface WorkerContext {
   readonly history: HistoryReader;
+  /** Ghi flash reply vào history (lượt agent). CÙNG instance với `history`. */
+  readonly historyWriter: HistoryWriter;
   readonly identity: IdentityResolver;
+  /** Nhận diện + chạy flash command (`/lệnh`) TRƯỚC agent — side-effect, không qua LLM. */
+  readonly flash: FlashRegistry;
+  /** Port ghi định danh (user_binding/group_map/group_member) cho flash command. */
+  readonly identityRepo: IdentityRepo;
+  /** Port hệ vận hành (verify token, tra đại lý) cho flash command. */
+  readonly ops: OpsPort;
   /**
    * Tra chủ sở hữu phòng để dựng MemoryScope (memory thuộc PHÒNG, không thuộc người gõ).
    * undefined = chưa nối tầng memory → lượt chạy không có trí nhớ dài hạn, không phải lỗi.

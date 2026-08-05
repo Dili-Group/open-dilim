@@ -39,7 +39,7 @@ const ops: OpsPort = {
     return token === "GOOD" ? { userId: "NV_042" } : null;
   },
   async fetchDealerInfo(p) {
-    return p.senderId === "U_A" ? { customerId: "CUS_9" } : null; // chỉ U_A là đại lý
+    return p.groupId === GROUP ? { customerId: "CUS_9" } : null; // đại lý gắn với nhóm G1
   },
 };
 
@@ -117,9 +117,13 @@ describe("/ketnoi-daily", () => {
     expect(r?.ok).toBe(false);
     expect(calls).toEqual([]);
   });
-  test("hệ vận hành không nhận đại lý → fail, không map/assign", async () => {
+  test("nhóm chưa gắn đại lý ở hệ vận hành → fail, không map/assign", async () => {
     const { repo, calls } = makeRepo();
-    const r = await flashRegistry.dispatch("/ketnoi-daily @B", input({ repo, mentions: [{ uid: "U_B" }] }));
+    // Nhóm khác G1 → hệ vận hành không có đại lý gắn với nhóm này.
+    const r = await flashRegistry.dispatch(
+      "/ketnoi-daily @B",
+      input({ repo, mentions: [{ uid: "U_B" }], groupId: "G_KHONG_DAI_LY" }),
+    );
     expect(r?.ok).toBe(false);
     expect(calls).toEqual([]);
   });

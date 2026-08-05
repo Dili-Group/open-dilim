@@ -21,6 +21,7 @@ function entry(over: Partial<HistoryEntry> = {}): HistoryEntry {
     senderId: "u1",
     text: "khách hỏi gì đó",
     isGroup: false,
+    role: "user",
     ts: 1,
     ...over,
   };
