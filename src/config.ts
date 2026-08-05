@@ -62,6 +62,20 @@ const channels = {
   zalo: zaloChannel(),
 } as const;
 
+// Egress Zalo qua bridge HTTP nội bộ (send text + typing). Tách khỏi ingest channel config:
+// ingest = verify webhook đến; bridge = gọi ra. undefined = chưa cấu hình → egress Zalo tắt
+// (dev fallback console). Cả 2 env phải có cùng nhau (URL vô nghĩa nếu thiếu secret auth).
+export interface ZaloBridgeConfig {
+  readonly baseUrl: string;
+  readonly secret: string;
+}
+function zaloBridge(): ZaloBridgeConfig | undefined {
+  const baseUrl = optional("ZALO_BRIDGE_URL");
+  const secret = optional("ZALO_BRIDGE_SECRET");
+  if (baseUrl === undefined || secret === undefined) return undefined;
+  return { baseUrl, secret };
+}
+
 // Cổng HTTP gateway. Optional — mặc định 3000. Ép integer hợp lệ (fail fast nếu sai).
 const DEFAULT_PORT = 3000;
 const MAX_PORT = 65535;
@@ -114,6 +128,9 @@ export const CONFIG = {
 
   // Kênh chat — message-ingest verify webhook + gate mention theo agentUid per kênh.
   channels,
+
+  // Egress Zalo qua bridge nội bộ. undefined = chưa cấu hình (dev fallback console).
+  zaloBridge: zaloBridge(),
 
   // Hệ thống vận hành — mọi request kèm header service-token (xem operational/client.ts).
   operational: {

@@ -72,9 +72,9 @@ export default tseslint.config(
     rules: { "no-console": "off" },
   },
 
-  // Broadcaster dev: in reply ra stdout là chủ đích (egress giả lập), không phải debug.
+  // Egress dev (broadcaster + typing): in ra stdout là chủ đích (giả lập kênh), không phải debug.
   {
-    files: ["src/broadcast/console.ts"],
+    files: ["src/broadcast/console.ts", "src/broadcast/typing-console.ts"],
     rules: { "no-console": "off" },
   },
 );
