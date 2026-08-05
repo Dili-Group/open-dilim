@@ -6,9 +6,15 @@
 
 import { sql } from "../db/client.ts";
 import type { Identity } from "../flash-command/types.ts";
-import type { IdentityResolver, ResolveInput } from "./types.ts";
+import { SqlGroupCustomerLookup } from "./group-customer.ts";
+import { firstString } from "./rows.ts";
+import type { GroupCustomerLookup, IdentityResolver, ResolveInput } from "./types.ts";
 
 export class SqlIdentityResolver implements IdentityResolver {
+  // Cùng phép tra nhóm→khách mà worker dùng để dựng MemoryScope → một nguồn sự thật, không hai
+  // query group_map lệch nhau về điều kiện `enabled`.
+  constructor(private readonly groups: GroupCustomerLookup = new SqlGroupCustomerLookup()) {}
+
   async resolve({ channel, senderId, groupId }: ResolveInput): Promise<Identity> {
     const userId = firstString(
       await sql`SELECT user_id FROM user_binding
@@ -29,12 +35,7 @@ export class SqlIdentityResolver implements IdentityResolver {
         "role",
       );
       if (role !== undefined) {
-        const customerId = firstString(
-          await sql`SELECT customer_id FROM group_map
-                    WHERE channel = ${channel} AND group_id = ${groupId} AND enabled = true
-                    LIMIT 1`,
-          "customer_id",
-        );
+        const customerId = await this.groups.customerIdOf({ channel, groupId });
         // Đại lý cần cả membership dai_ly VÀ group_map enabled để derive customerId.
         if (customerId !== undefined) return { role: "dai_ly", senderId, customerId };
       }
@@ -42,13 +43,4 @@ export class SqlIdentityResolver implements IdentityResolver {
 
     return { role: "guest", senderId };
   }
-}
-
-/** Lấy string ở cột `key` của row đầu. Rows là kết quả query (untrusted shape) → narrow runtime. */
-function firstString(rows: unknown, key: string): string | undefined {
-  if (!Array.isArray(rows) || rows.length === 0) return undefined;
-  const row: unknown = rows[0];
-  if (typeof row !== "object" || row === null) return undefined;
-  const value = (row as Record<string, unknown>)[key];
-  return typeof value === "string" ? value : undefined;
 }
