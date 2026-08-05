@@ -13,10 +13,16 @@ function makeRepo() {
   const calls: string[] = [];
   const repo: IdentityRepo = {
     async bindUser(p) {
-      calls.push(`bind:${p.senderId}=${p.userId}`);
+      calls.push(`bind:${p.senderId}=${p.userId} tok=${p.opToken}`);
     },
     async isBoundUser(p) {
       return p.senderId === "STAFF"; // chỉ STAFF là nhân viên
+    },
+    async getOpToken(p) {
+      return p.senderId === "NV_A" ? "OPTOK" : null; // chỉ NV_A đã bind op token
+    },
+    async upsertGroupMap(p) {
+      calls.push(`map:${p.groupId}=${p.customerId}`);
     },
     async assignDealer(p) {
       calls.push(`assign:${p.senderId}@${p.groupId} by=${p.assignedBy}`);
@@ -31,6 +37,9 @@ function makeRepo() {
 const ops: OpsPort = {
   async resolveUserByToken(token) {
     return token === "GOOD" ? { userId: "NV_042" } : null;
+  },
+  async fetchDealerInfo(p) {
+    return p.senderId === "U_A" ? { customerId: "CUS_9" } : null; // chỉ U_A là đại lý
   },
 };
 
@@ -76,7 +85,7 @@ describe("/ketnoi-hethong", () => {
     const { repo, calls } = makeRepo();
     const r = await flashRegistry.dispatch("/ketnoi-hethong GOOD", input({ identity: guest, repo }));
     expect(r?.ok).toBe(true);
-    expect(calls).toEqual(["bind:U_guest=NV_042"]);
+    expect(calls).toEqual(["bind:U_guest=NV_042 tok=GOOD"]);
   });
   test("thiếu token → fail, không bind", async () => {
     const { repo, calls } = makeRepo();
@@ -91,11 +100,28 @@ describe("/ketnoi-hethong", () => {
 });
 
 describe("/ketnoi-daily", () => {
-  test("nhân viên mention 1 người → assign", async () => {
+  test("nhân viên mention 1 người → map group + assign", async () => {
     const { repo, calls } = makeRepo();
     const r = await flashRegistry.dispatch("/ketnoi-daily @A", input({ repo, mentions: [{ uid: "U_A" }] }));
     expect(r?.ok).toBe(true);
-    expect(calls).toEqual(["assign:U_A@G1 by=NV_042"]);
+    // group_map ghi TRƯỚC assign (resolve vai đại lý cần cả hai).
+    expect(calls).toEqual(["map:G1=CUS_9", "assign:U_A@G1 by=NV_042"]);
+  });
+  test("nhân viên chưa bind op token → fail, không map/assign", async () => {
+    const { repo, calls } = makeRepo();
+    const noTokenStaff: Identity = { role: ActorRole.NhanVien, senderId: "NV_X", userId: "NV_099" };
+    const r = await flashRegistry.dispatch(
+      "/ketnoi-daily @A",
+      input({ repo, identity: noTokenStaff, mentions: [{ uid: "U_A" }] }),
+    );
+    expect(r?.ok).toBe(false);
+    expect(calls).toEqual([]);
+  });
+  test("hệ vận hành không nhận đại lý → fail, không map/assign", async () => {
+    const { repo, calls } = makeRepo();
+    const r = await flashRegistry.dispatch("/ketnoi-daily @B", input({ repo, mentions: [{ uid: "U_B" }] }));
+    expect(r?.ok).toBe(false);
+    expect(calls).toEqual([]);
   });
   test("guest gõ → chặn quyền", async () => {
     const r = await flashRegistry.dispatch("/ketnoi-daily @A", input({ identity: guest, mentions: [{ uid: "U_A" }] }));

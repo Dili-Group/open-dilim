@@ -32,16 +32,17 @@ export type GroupRole = (typeof GroupRole)[keyof typeof GroupRole];
 export const GROUP_ROLE_VALUES: readonly string[] = Object.values(GroupRole);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// memory — DÀI HẠN (§7). Fact chưng cất. Partition (customer_id, end_user_id).
-// end_user_id = NGƯỜI DÙNG CUỐI trong group, KHÔNG phải nhân viên vận hành.
-// Memory thuộc về khách, không về người gõ → không lẫn group khách A sang B.
+// memory — DÀI HẠN (§7). Fact chưng cất. Partition (customer_id, channel, conversation_id).
+// Memory thuộc về PHÒNG (nhân viên + khách nói chung một mạch), không về người gõ.
+// customer_id giữ tenancy cứng → không lẫn phòng khách A sang B.
 // ─────────────────────────────────────────────────────────────────────────────
 export const MEMORY = {
   table: "memory",
   col: {
     id: "id",
     customerId: "customer_id",  // nhóm khách (từ group_map)
-    endUserId: "end_user_id",   // người dùng cuối, KHÔNG phải nhân viên
+    channel: "channel",         // zalo | fb | ... (conversation_id chỉ unique trong kênh)
+    conversationId: "conversation_id", // phòng chat sở hữu fact này
     type: "type",
     text: "text",
     embedding: "embedding",
@@ -126,6 +127,8 @@ export const GROUP_MAP = {
 // user_binding — (channel, sender_id) → user_id hệ vận hành. Tạo lúc /ketnoi-dilim.
 // Định danh BỀN: sau bind, nhận diện nhân viên bằng sender_id, không gõ token lại.
 // Role/permission KHÔNG ở đây — cache Redis session (TTL, refresh từ API) để tránh stale.
+// op_token: bearer (UUID) đổi từ token lúc bind, giữ lại để ketnoi-daily gọi hệ vận hành
+// act-as nhân viên (lấy customer_id đại lý). Read-only scope → lưu plaintext; KHÔNG log, null khi revoke.
 // ─────────────────────────────────────────────────────────────────────────────
 export const USER_BINDING = {
   table: "user_binding",
@@ -133,6 +136,7 @@ export const USER_BINDING = {
     channel: "channel",
     senderId: "sender_id",   // id từ zalo/fb (webhook đã ký → tin được)
     userId: "user_id",       // id trong hệ vận hành
+    opToken: "op_token",     // bearer (UUID) gọi hệ vận hành act-as nhân viên. KHÔNG log. Null khi revoke.
     boundAt: "bound_at",
     revokedAt: "revoked_at", // null = active; set khi đổi thiết bị / token mới
   },
@@ -188,11 +192,12 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS ${EXTENSION_VECTOR};
 
--- memory — DÀI HẠN (§7). Partition (customer_id, end_user_id): mọi read/write filter cả 2.
+-- memory — DÀI HẠN (§7). Partition (customer_id, channel, conversation_id): read/write filter cả 3.
 CREATE TABLE IF NOT EXISTS ${m.table} (
   ${m.col.id}            uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
   ${m.col.customerId}    text          NOT NULL,              -- nhóm khách (từ group_map)
-  ${m.col.endUserId}     text          NOT NULL,              -- người dùng cuối, KHÔNG phải nhân viên
+  ${m.col.channel}       text          NOT NULL,              -- kênh chứa phòng (tránh đụng id giữa kênh)
+  ${m.col.conversationId} text         NOT NULL,              -- phòng sở hữu fact — KHÔNG phải người gõ
   ${m.col.type}          text          NOT NULL,              -- preference | context | episode ...
   ${m.col.text}          text          NOT NULL,              -- 1 atomic fact self-contained
   ${m.col.embedding}     vector(${EMBEDDING_DIM})  NOT NULL,  -- gemini-embedding-001
@@ -205,7 +210,7 @@ CREATE INDEX IF NOT EXISTS ${m.idx.embeddingHnsw}
   ON ${m.table} USING hnsw (${m.col.embedding} vector_cosine_ops);
 
 CREATE INDEX IF NOT EXISTS ${m.idx.scope}
-  ON ${m.table} (${m.col.customerId}, ${m.col.endUserId});
+  ON ${m.table} (${m.col.customerId}, ${m.col.channel}, ${m.col.conversationId});
 
 -- scheduler_jobs — CRON job def durable (§8). Nguồn rebuild Redis ZSET.
 CREATE TABLE IF NOT EXISTS ${s.table} (
@@ -266,7 +271,8 @@ CREATE INDEX IF NOT EXISTS ${g.idx.customer}
 CREATE TABLE IF NOT EXISTS ${b.table} (
   ${b.col.channel}      text        NOT NULL,                 -- zalo | fb | ...
   ${b.col.senderId}     text        NOT NULL,                 -- id gửi tin từ kênh
-  ${b.col.userId}       text        NOT NULL,                 -- id hệ vận hành (từ token /ketnoi-dilim)
+  ${b.col.userId}       text        NOT NULL,                 -- id hệ vận hành (từ token /ketnoi-hethong)
+  ${b.col.opToken}      text,                                 -- bearer hệ vận hành; KHÔNG log; null khi revoke
   ${b.col.boundAt}      timestamptz NOT NULL DEFAULT now(),
   ${b.col.revokedAt}    timestamptz,                          -- null = active
   PRIMARY KEY (${b.col.channel}, ${b.col.senderId})

@@ -22,6 +22,32 @@ const ketnoiDaily: FlashCommand = {
       return fail("Người này là nhân viên, không gán làm đại lý.");
     }
 
+    // Cần bearer của nhân viên gõ lệnh để gọi hệ vận hành act-as (lấy customer_id đại lý).
+    const opToken = await ctx.repo.getOpToken({
+      channel: ctx.channel,
+      senderId: ctx.identity.senderId,
+    });
+    if (opToken === null) {
+      return fail("Bạn chưa kết nối tài khoản hệ vận hành. Gõ /ketnoi-hethong <token> trước.");
+    }
+
+    // customer_id KHÔNG nhập tay → hệ vận hành trả về, gọi act-as bằng token nhân viên.
+    const dealer = await ctx.ops.fetchDealerInfo({
+      token: opToken,
+      channel: ctx.channel,
+      senderId: targetUid,
+    });
+    if (dealer === null) {
+      return fail("Hệ vận hành không nhận diện người này là đại lý.");
+    }
+
+    // Ghi group_map TRƯỚC assignDealer: resolve vai đại lý cần cả group_member lẫn group_map.
+    await ctx.repo.upsertGroupMap({
+      channel: ctx.channel,
+      groupId,
+      customerId: dealer.customerId,
+    });
+
     await ctx.repo.assignDealer({
       channel: ctx.channel,
       groupId,

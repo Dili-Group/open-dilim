@@ -21,10 +21,12 @@ const ketnoiHethong: FlashCommand = {
       return fail("Token không hợp lệ hoặc đã hết hạn.");
     }
 
+    // Token gõ tay chính là bearer hệ vận hành → lưu lại để ketnoi-daily gọi act-as sau này.
     await ctx.repo.bindUser({
       channel: ctx.channel,
       senderId: ctx.identity.senderId,
       userId: resolved.userId,
+      opToken: token,
     });
 
     return ok(`Đã kết nối tài khoản ${resolved.userId}.`);

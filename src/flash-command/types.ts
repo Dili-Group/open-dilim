@@ -41,14 +41,31 @@ export type { Mention };
 export interface OpsPort {
   /** null = token không hợp lệ / hết hạn. Không throw cho case "sai token" — đó là input hợp lệ. */
   resolveUserByToken(token: string): Promise<{ userId: string } | null>;
+  /**
+   * Tra thông tin đại lý ứng với người được mention, gọi act-as nhân viên bằng `token` của họ.
+   * `senderId` = uid người được mention (khoá đại lý ở hệ vận hành). customer_id trả về inject
+   * server-side (không tin payload). null = hệ vận hành không nhận diện người này là đại lý.
+   */
+  fetchDealerInfo(p: {
+    token: string;
+    channel: string;
+    senderId: string;
+  }): Promise<{ customerId: string } | null>;
 }
 
-/** Cổng ghi định danh vào Postgres (user_binding / group_member). Idempotent. */
+/** Cổng ghi định danh vào Postgres (user_binding / group_member / group_map). Idempotent. */
 export interface IdentityRepo {
-  /** Upsert user_binding(channel, senderId) → userId; clear revoked_at (bind lại sau đổi máy). */
-  bindUser(p: { channel: string; senderId: string; userId: string }): Promise<void>;
+  /**
+   * Upsert user_binding(channel, senderId) → userId; clear revoked_at (bind lại sau đổi máy).
+   * `opToken` = bearer hệ vận hành, lưu để ketnoi-daily gọi act-as. KHÔNG log.
+   */
+  bindUser(p: { channel: string; senderId: string; userId: string; opToken: string }): Promise<void>;
   /** True nếu senderId đang là nhân viên active — chặn phong nhầm nhân viên thành đại lý. */
   isBoundUser(p: { channel: string; senderId: string }): Promise<boolean>;
+  /** Bearer hệ vận hành của nhân viên active. null = chưa bind / đã revoke. KHÔNG log giá trị. */
+  getOpToken(p: { channel: string; senderId: string }): Promise<string | null>;
+  /** Upsert group_map(channel, groupId) → customerId, enabled=true. customer_id inject server-side. */
+  upsertGroupMap(p: { channel: string; groupId: string; customerId: string }): Promise<void>;
   /** Upsert group_member role=dai_ly, active. `assignedBy` = user_id nhân viên gán (audit). */
   assignDealer(p: {
     channel: string;
