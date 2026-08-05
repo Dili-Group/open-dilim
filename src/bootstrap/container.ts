@@ -10,8 +10,8 @@ import type { SkillRegistry } from "../skills/index.ts";
 import type { FlashRegistry } from "../flash-command/index.ts";
 import type { LLMProvider } from "../llm/index.ts";
 import type { AgentRegistry } from "../agents/index.ts";
-import type { Broadcaster } from "../broadcast/index.ts";
-import type { IdentityResolver } from "../auth/index.ts";
+import type { Broadcaster, TypingFactory } from "../broadcast/index.ts";
+import type { GroupCustomerLookup, IdentityResolver } from "../auth/index.ts";
 import type { BrokerConsumer, HistoryReader } from "../worker/index.ts";
 
 /** Mọi service dựng lúc boot, share cho các tầng downstream (worker/gateway). */
@@ -29,8 +29,12 @@ export interface Services {
   readonly agents: AgentRegistry;
   /** Egress (dev: console). */
   readonly broadcaster: Broadcaster;
+  /** Nhịp "đang xử lý" theo channel (dev: console). Worker phát mỗi bước agent. */
+  readonly typing: TypingFactory;
   /** Resolve senderId → vai (auth). */
   readonly identity: IdentityResolver;
+  /** Tra phòng → khách sở hữu. Worker dựng MemoryScope từ đây (memory thuộc phòng). */
+  readonly groupCustomer: GroupCustomerLookup;
   /** Đầu consume của broker — CÙNG instance với ingestDeps.broker. */
   readonly broker: BrokerConsumer;
   /** Đọc history — CÙNG instance với ingestDeps.history. */

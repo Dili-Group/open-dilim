@@ -8,35 +8,63 @@ import { startGateway, type IngestDeps } from "../message-ingest/index.ts";
 import { buildSkillRegistry } from "../skills/index.ts";
 import { flashRegistry } from "../flash-command/index.ts";
 import { closeDb } from "../db/client.ts";
+import { closeRedis } from "../redis/client.ts";
+import { buildBroker } from "../broker/index.ts";
 import { buildLlmProvider } from "../llm/index.ts";
 import { buildAgentRegistry } from "../agents/index.ts";
-import { ConsoleBroadcaster } from "../broadcast/index.ts";
-import { SqlIdentityResolver } from "../auth/index.ts";
+import {
+  ConsoleBroadcaster,
+  ConsoleTypingSender,
+  TypingFactory,
+  ZaloTypingSender,
+} from "../broadcast/index.ts";
+import { SqlGroupCustomerLookup, SqlIdentityResolver } from "../auth/index.ts";
+import { buildDedupe, buildHistoryStore, buildMemoryStore } from "../state/index.ts";
 import { startWorkers } from "../worker/index.ts";
 import { checkInfra, loadConfig } from "./env.ts";
-import { MemoryBroker, MemoryDedupe, MemoryHistoryStore } from "./deps-memory.ts";
 import { type RunningSystem, type Services } from "./container.ts";
 
 /**
- * Dựng mọi service (DI). Fail-fast: env thiếu (loadConfig) / DB chưa lên (checkInfra) /
- * skill def hỏng (buildSkillRegistry) đều throw TRƯỚC khi mở port.
+ * Dựng mọi service (DI). Fail-fast: env thiếu (loadConfig) / DB+Redis chưa lên (checkInfra) /
+ * consumer group không tạo được (buildBroker) / skill def hỏng đều throw TRƯỚC khi mở port.
  */
 export async function bootstrap(): Promise<Services> {
   const config = loadConfig();
   await checkInfra();
   const skills = await buildSkillRegistry();
 
-  // Port ingress in-mem — 1 instance, 2 góc nhìn: publish (ingest) + take/recent (worker).
-  // Thay bằng impl Redis khi broker/ xong; phần còn lại không đụng vì cùng port.
-  const broker = new MemoryBroker();
-  const history = new MemoryHistoryStore();
-  const dedupe = new MemoryDedupe();
+  // Port ingress trên Redis — 1 instance broker, 2 góc nhìn: publish (ingest) + take/ack (worker).
+  // History cũng 1 instance: ingest append, worker recent. State nằm ngoài process → restart app
+  // không mất queue lẫn ngữ cảnh ngắn hạn.
+  const broker = await buildBroker();
+  const history = buildHistoryStore();
+  const dedupe = buildDedupe();
   const ingestDeps: IngestDeps = { broker, history, dedupe };
 
   const llm = buildLlmProvider(config);
-  const agents = buildAgentRegistry(llm, config);
+  // Memory dài hạn cần embedder Gemini (buildEmbedder throw nếu thiếu key). Không có key → chạy
+  // KHÔNG có trí nhớ dài hạn thay vì chặn boot: agent vẫn trả lời được bằng history ngắn hạn.
+  let memory: ReturnType<typeof buildMemoryStore> | undefined;
+  if (config.geminiApiKey === undefined) {
+    console.warn("[bootstrap] thiếu GEMINI_API_KEY → tắt trí nhớ dài hạn (recall bỏ qua).");
+  } else {
+    memory = buildMemoryStore();
+  }
+
+  // skills đi thẳng vào agent: catalog vào system prompt + backing cho tool use_skill.
+  // memory = cổng CHỈ-ĐỌC; scope (phòng nào) do worker cấp từng lượt qua groupCustomer.
+  const agents = buildAgentRegistry({ provider: llm, config, skills, memory });
   const broadcaster = new ConsoleBroadcaster();
-  const identity = new SqlIdentityResolver();
+  // Fallback console cho channel chưa có adapter egress. Zalo: có bridge config → sender thật,
+  // thiếu → vẫn console (typing best-effort, không chặn boot).
+  const typing = new TypingFactory(new ConsoleTypingSender());
+  if (config.zaloBridge !== undefined) {
+    typing.register("zalo", new ZaloTypingSender(config.zaloBridge));
+  } else {
+    console.warn("[bootstrap] thiếu ZALO_BRIDGE_URL/SECRET → typing Zalo dùng console (dev).");
+  }
+  const groupCustomer = new SqlGroupCustomerLookup();
+  const identity = new SqlIdentityResolver(groupCustomer);
 
   return {
     config,
@@ -46,7 +74,9 @@ export async function bootstrap(): Promise<Services> {
     llm,
     agents,
     broadcaster,
+    typing,
     identity,
+    groupCustomer,
     broker,
     historyReader: history,
   };
@@ -63,8 +93,10 @@ export async function start(): Promise<RunningSystem> {
     broker: services.broker,
     history: services.historyReader,
     identity: services.identity,
+    groupCustomer: services.groupCustomer,
     agents: services.agents,
     broadcaster: services.broadcaster,
+    typing: services.typing,
     workerCount: services.config.workerCount,
   });
 
@@ -72,6 +104,7 @@ export async function start(): Promise<RunningSystem> {
     await workers.stop(); // ngừng nhận việc mới, chờ worker đang chạy xong
     await server.stop(true); // đóng cả connection đang mở
     await closeDb();
+    closeRedis(); // sau workers.stop(): lệnh XACK cuối cùng đã đi xong
   }
 
   return { services, server, stop };

@@ -37,7 +37,7 @@ describe("MemoryBroker", () => {
     const broker = new MemoryBroker();
     await broker.publish(envelope);
     await broker.publish({ ...envelope, msgId: "m2" });
-    expect(broker.queue.map((e) => e.msgId)).toEqual(["m1", "m2"]);
+    expect(broker.queue.map((d) => d.envelope.msgId)).toEqual(["m1", "m2"]);
   });
 });
 

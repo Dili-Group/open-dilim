@@ -1,38 +1,53 @@
 // deps-memory.ts — impl in-memory của IngestDeps (Broker / HistoryStore / Dedupe).
 //
-// ⚠️ CHỈ DEV/LOCAL. State nằm trong RAM: mất khi restart, KHÔNG share cross-process/worker,
-// queue KHÔNG có ai consume (worker pool chưa xây) → phình vô hạn nếu chạy lâu.
-// Prod: thay bằng impl Redis (Streams cho Broker, ZSET/hash cho state). Đổi 1 dòng ở
-// bootstrap/index.ts (createMemoryDeps → createRedisDeps), phần còn lại không đụng vì cùng port.
+// ⚠️ CHỈ CHO TEST. Runtime thật dùng Redis (broker/queue.ts, state/session.ts, state/dedupe.ts);
+// bootstrap KHÔNG còn wire mấy class này. Giữ lại vì test cần queue/history không cần server:
+// state nằm trong RAM → mất khi restart, KHÔNG share cross-process.
 //
 // JS single-thread → firstSee (check-and-mark) atomic tự nhiên, khỏi lock.
 
 import type { Envelope, HistoryEntry } from "../types/index.ts";
 import type { Broker, Dedupe, HistoryStore, IngestDeps } from "../message-ingest/index.ts";
+import type { BrokerConsumer, Delivery } from "../worker/index.ts";
 
 /**
  * Ingress queue in-mem, consume được (worker pool đọc qua take()). FIFO fair giữa nhiều worker:
  * publish giao thẳng cho waiter đang chờ (nếu có), ngược lại xếp queue. Abort → take trả null.
  */
-export class MemoryBroker implements Broker {
-  readonly queue: Envelope[] = [];
-  private readonly waiters: Array<(env: Envelope | null) => void> = [];
+export class MemoryBroker implements Broker, BrokerConsumer {
+  readonly queue: Delivery[] = [];
+  private readonly waiters: Array<(delivery: Delivery | null) => void> = [];
+  /** msgId đã ack — test khẳng định worker chốt đúng trạng thái. */
+  readonly acked: string[] = [];
 
   publish(envelope: Envelope): Promise<void> {
+    const delivery = this.makeDelivery(envelope);
     const waiter = this.waiters.shift();
-    if (waiter !== undefined) waiter(envelope);
-    else this.queue.push(envelope);
+    if (waiter !== undefined) waiter(delivery);
+    else this.queue.push(delivery);
     return Promise.resolve();
   }
 
-  /** Lấy 1 envelope; chờ tới khi có hoặc signal abort (trả null để worker thoát vòng). */
-  take(signal?: AbortSignal): Promise<Envelope | null> {
+  /** In-mem không có PEL: retryLater chỉ đánh dấu "chưa xong", không giao lại. */
+  private makeDelivery(envelope: Envelope): Delivery {
+    return {
+      envelope,
+      ack: () => {
+        this.acked.push(envelope.msgId);
+        return Promise.resolve();
+      },
+      retryLater: () => Promise.resolve(),
+    };
+  }
+
+  /** Lấy 1 message; chờ tới khi có hoặc signal abort (trả null để worker thoát vòng). */
+  take(signal?: AbortSignal): Promise<Delivery | null> {
     if (signal?.aborted === true) return Promise.resolve(null);
     const queued = this.queue.shift();
     if (queued !== undefined) return Promise.resolve(queued);
 
     return new Promise((resolve) => {
-      const settle = (env: Envelope | null): void => {
+      const settle = (env: Delivery | null): void => {
         signal?.removeEventListener("abort", onAbort);
         resolve(env);
       };
@@ -41,6 +56,7 @@ export class MemoryBroker implements Broker {
         if (idx >= 0) this.waiters.splice(idx, 1);
         resolve(null);
       };
+
       this.waiters.push(settle);
       signal?.addEventListener("abort", onAbort, { once: true });
     });
