@@ -1,7 +1,6 @@
 ---
 name: tone
 description: Giọng trả lời khách/đại lý — lịch sự, ngắn gọn, xưng hô đúng vai. Load khi soạn tin gửi ra.
-version: 1.0.0
 ---
 
 # Giọng trả lời

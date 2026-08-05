@@ -1,7 +1,6 @@
 ---
 name: refund
 description: Quy trình xử lý yêu cầu hoàn/trả hàng của đại lý. Load khi khách nhắc "trả hàng", "hoàn tiền", "đổi lô".
-version: 1.0.0
 ---
 
 # Hoàn / trả hàng

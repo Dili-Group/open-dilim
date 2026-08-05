@@ -27,7 +27,7 @@ export function renderSkillCatalog(registry: SkillRegistry): string {
 
 /** Kết quả model gọi useSkill — structured, ok:false cho tên lạ (input model, model tự sửa). */
 export type UseSkillResult =
-  | { ok: true; name: string; version: string; body: string; references: readonly string[] }
+  | { ok: true; name: string; body: string; references: readonly string[] }
   | { ok: false; error: string };
 
 /**
@@ -40,7 +40,7 @@ export async function useSkill(registry: SkillRegistry, name: string): Promise<U
     return { ok: false, error: `Skill không tồn tại: ${name}` };
   }
   const [body, references] = await Promise.all([readBody(skill), listReferences(skill)]);
-  return { ok: true, name: skill.meta.name, version: skill.meta.version, body, references };
+  return { ok: true, name: skill.meta.name, body, references };
 }
 
 /** Kết quả model gọi useReference — structured như useSkill. */

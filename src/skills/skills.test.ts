@@ -17,13 +17,12 @@ describe("registry (defs thật)", () => {
     expect(names).toEqual(["refund", "tone"]);
   });
 
-  test("catalog chỉ trả meta (name/description/version)", async () => {
+  test("catalog chỉ trả meta (name/description)", async () => {
     const registry = await buildSkillRegistry();
     const tone = registry.catalog().find((m) => m.name === "tone");
     expect(tone).toEqual({
       name: "tone",
       description: expect.stringContaining("Giọng trả lời"),
-      version: "1.0.0",
     });
   });
 
@@ -38,7 +37,7 @@ describe("registry (defs thật)", () => {
 
   test("register trùng tên → throw", () => {
     const registry = new SkillRegistry();
-    const skill = { meta: { name: "x", description: "d", version: "1" }, dir: "/tmp" };
+    const skill = { meta: { name: "x", description: "d" }, dir: "/tmp" };
     registry.register(skill);
     expect(() => registry.register(skill)).toThrow(/trùng tên/);
   });
@@ -62,7 +61,7 @@ describe("selector — model tự chọn skill", () => {
   test("useSkill nạp body + references khi model chọn đúng tên", async () => {
     const registry = await buildSkillRegistry();
     const result = await useSkill(registry, "refund");
-    expect(result).toMatchObject({ ok: true, name: "refund", version: "1.0.0" });
+    expect(result).toMatchObject({ ok: true, name: "refund" });
     if (result.ok) {
       expect(result.body).toContain("chờ duyệt");
       expect(result.references).toEqual(["policy.md"]);
@@ -111,7 +110,7 @@ describe("loader (fixture tạm)", () => {
   test("frontmatter không đóng → throw", async () => {
     const solo = await mkdtemp(join(tmpdir(), "skills-solo-"));
     await mkdir(join(solo, "s"), { recursive: true });
-    await writeFile(join(solo, "s", "SKILL.md"), "---\nname: x\ndescription: d\nversion: 1");
+    await writeFile(join(solo, "s", "SKILL.md"), "---\nname: x\ndescription: d");
     await expect(loadAllSkills(solo)).rejects.toThrow(/không đóng/);
     await rm(solo, { recursive: true, force: true });
   });
@@ -124,8 +123,8 @@ describe("loader (fixture tạm)", () => {
   });
 
   test("readReference chặn path traversal", async () => {
-    const skillDir = await writeSkill("ok", "---\nname: ok\ndescription: d\nversion: 1\n---\nbody");
-    const skill = { meta: { name: "ok", description: "d", version: "1" }, dir: skillDir };
+    const skillDir = await writeSkill("ok", "---\nname: ok\ndescription: d\n---\nbody");
+    const skill = { meta: { name: "ok", description: "d" }, dir: skillDir };
     await expect(readReference(skill, "../SKILL.md")).rejects.toThrow(/không hợp lệ/);
     await expect(readReference(skill, "/etc/passwd")).rejects.toThrow(/không hợp lệ/);
   });

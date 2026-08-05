@@ -14,7 +14,7 @@ const SKILL_FILE = "SKILL.md";
 const REFERENCES_DIR = "references";
 const FRONTMATTER_DELIM = "---";
 /** Khoá frontmatter bắt buộc — thiếu bất kỳ khoá nào → SKILL.md không hợp lệ. */
-const REQUIRED_KEYS = ["name", "description", "version"] as const;
+const REQUIRED_KEYS = ["name", "description"] as const;
 
 /** SKILL.md đã tách: frontmatter (meta) + phần body markdown còn lại. */
 interface SkillDoc {
@@ -23,7 +23,7 @@ interface SkillDoc {
 }
 
 /**
- * Tách frontmatter YAML tối giản (chỉ `key: value` 1 dòng — đủ cho name/description/version,
+ * Tách frontmatter YAML tối giản (chỉ `key: value` 1 dòng — đủ cho name/description,
  * không kéo lib YAML). `src` = nhãn để lỗi chỉ đúng file.
  */
 function parseSkillDoc(raw: string, src: string): SkillDoc {
@@ -58,13 +58,12 @@ function parseSkillDoc(raw: string, src: string): SkillDoc {
   // Không dùng non-null "!": đã validate REQUIRED_KEYS ở trên nhưng narrow lại cho type-checker.
   const name = fields.get("name");
   const description = fields.get("description");
-  const version = fields.get("version");
-  if (name === undefined || description === undefined || version === undefined) {
+  if (name === undefined || description === undefined) {
     throw new Error(`${src}: frontmatter thiếu khoá bắt buộc.`);
   }
 
   return {
-    meta: { name, description, version },
+    meta: { name, description },
     body: lines.slice(closeIdx + 1).join("\n").trim(),
   };
 }
