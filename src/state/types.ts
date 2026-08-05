@@ -1,13 +1,20 @@
 // types.ts — hợp đồng tầng state/memory dài hạn (§7).
 //
-// Memory thuộc về KHÁCH, không về người gõ: partition (customerId, endUserId) — mọi read/write
-// LỌC CẢ HAI (tenancy cứng, không lọt cross-customer). Scope này derive từ group_map + senderId
-// ở tầng wiring (worker), KHÔNG phải Identity người gõ → state/ nhận scope tường minh, không đoán.
+// Memory thuộc về PHÒNG, không về người gõ: partition (customerId, channel, conversationId) —
+// mọi read/write LỌC CẢ BA (tenancy cứng, không lọt cross-customer/cross-channel). Phòng có cả
+// nhân viên lẫn khách nói chung một mạch hội thoại, nên fact rút ra là của phòng đó; ai gõ chỉ
+// là chi tiết ghi TRONG text fact. Scope derive từ group_map ở tầng wiring (worker), KHÔNG phải
+// Identity người gõ (nhân viên không mang customerId) → state/ nhận scope tường minh, không đoán.
 
-/** Khoá phân vùng memory. customerId từ group_map; endUserId = người dùng cuối (≠ nhân viên). */
+/**
+ * Khoá phân vùng memory. customerId từ group_map (nhóm chưa bind → KHÔNG có memory);
+ * channel + conversationId = đúng một phòng chat (conversationId là id thô của kênh, chỉ
+ * unique TRONG kênh — bỏ channel là lẫn phòng giữa hai kênh).
+ */
 export interface MemoryScope {
   readonly customerId: string;
-  readonly endUserId: string;
+  readonly channel: string;
+  readonly conversationId: string;
 }
 
 // Vocabulary loại fact MẶC ĐỊNH (dùng cho agent hỗ trợ khách — xem specs.ts). KHÔNG phải bộ
@@ -43,6 +50,17 @@ export interface DistillSpec {
   readonly defaultType: string;
 }
 
+/**
+ * Tham số recall. Object chứ KHÔNG hai tham số vị trí `number` cạnh nhau — đổi chỗ nhầm `k` với
+ * `maxDistance` sẽ không ai phát hiện ra.
+ */
+export interface RecallOptions {
+  /** top-K (§7: 5–8). */
+  readonly k: number;
+  /** Trần cosine distance pgvector `<=>`. Xa hơn = không đủ liên quan → vứt (§7 chống ảo giác #1). */
+  readonly maxDistance: number;
+}
+
 /** Fact recall về — chỉ phần cần cho context (progressive disclosure), không kèm embedding. */
 export interface RecalledFact {
   readonly type: string;
@@ -62,8 +80,22 @@ export interface Distiller {
   distill(turns: readonly DistillTurn[], signal?: AbortSignal): Promise<DistilledFact[]>;
 }
 
-/** Kho memory dài hạn. Impl Postgres+pgvector; test qua fake executor. */
-export interface MemoryStore {
+/**
+ * Cổng CHỈ-ĐỌC memory. Tách khỏi `MemoryStore` vì bên đọc (context/) không có việc gì với
+ * `write`/`prime` — bắt nó phụ thuộc cả kho là ép cài method chết (ISP).
+ */
+export interface MemoryRecall {
+  /** Semantic search fact liên quan `queryText` TRONG scope này, theo `options`. */
+  recall(
+    scope: MemoryScope,
+    queryText: string,
+    options: RecallOptions,
+    signal?: AbortSignal,
+  ): Promise<RecalledFact[]>;
+}
+
+/** Kho memory dài hạn (đọc + ghi). Impl Postgres+pgvector; test qua fake executor. */
+export interface MemoryStore extends MemoryRecall {
   /**
    * Ghi fact vào scope. `sourceMsgId` = provenance + idempotency (message đã distill → bỏ qua).
    * Trả SỐ fact ghi thực (sau khi bỏ trùng near-dup). Không ghi log thô.
@@ -74,14 +106,6 @@ export interface MemoryStore {
     sourceMsgId?: string,
     signal?: AbortSignal,
   ): Promise<number>;
-
-  /** Semantic search top-K fact liên quan `queryText` TRONG scope này. */
-  recall(
-    scope: MemoryScope,
-    queryText: string,
-    k: number,
-    signal?: AbortSignal,
-  ): Promise<RecalledFact[]>;
 
   /** Prime lúc bootstrap: fact gần nhất của scope (profile khách compact). */
   prime(scope: MemoryScope, limit: number, signal?: AbortSignal): Promise<RecalledFact[]>;

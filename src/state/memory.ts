@@ -1,6 +1,6 @@
 // memory.ts — MemoryStore dài hạn trên Postgres+pgvector (§7). Đơn vị = 1 atomic fact (không
-// chunk cơ học). Mọi query LỌC (customer_id, end_user_id) — tenancy cứng. SqlExecutor + Embedder
-// inject → test không cần DB/network thật.
+// chunk cơ học). Mọi query LỌC (customer_id, channel, conversation_id) — tenancy cứng, memory
+// thuộc về PHÒNG. SqlExecutor + Embedder inject → test không cần DB/network thật.
 //
 // Injection: `text` chỉ ghép từ hằng schema (tin được); giá trị runtime (scope, vector, fact)
 // LUÔN qua params $n. Không nối string giá trị vào query (CLAUDE.md).
@@ -11,6 +11,7 @@ import {
   type DistilledFact,
   type MemoryScope,
   type MemoryStore,
+  type RecallOptions,
   type RecalledFact,
   type SqlExecutor,
 } from "./types.ts";
@@ -18,6 +19,14 @@ import { DEDUP_COSINE_DISTANCE, toVectorLiteral } from "./vector.ts";
 
 const C = MEMORY.col;
 const T = MEMORY.table;
+
+// Bộ lọc phân vùng, LUÔN chiếm $1..$3 của mọi query. Đặt một chỗ để không query nào quên một cột
+// — quên = fact phòng này lọt sang phòng khác.
+const SCOPE_WHERE = `${C.customerId} = $1 AND ${C.channel} = $2 AND ${C.conversationId} = $3`;
+
+function scopeParams(scope: MemoryScope): unknown[] {
+  return [scope.customerId, scope.channel, scope.conversationId];
+}
 
 export class PgMemoryStore implements MemoryStore {
   constructor(
@@ -56,10 +65,10 @@ export class PgMemoryStore implements MemoryStore {
       if (await this.hasNearDuplicate(scope, literal)) continue;
 
       await this.exec.query(
-        `INSERT INTO ${T} (${C.customerId}, ${C.endUserId}, ${C.type}, ${C.text}, ` +
-          `${C.embedding}, ${C.sourceMsgId}, ${C.confidence}) ` +
-          `VALUES ($1, $2, $3, $4, $5::vector, $6, $7)`,
-        [scope.customerId, scope.endUserId, fact.type, fact.text, literal, sourceMsgId ?? null, fact.confidence],
+        `INSERT INTO ${T} (${C.customerId}, ${C.channel}, ${C.conversationId}, ${C.type}, ` +
+          `${C.text}, ${C.embedding}, ${C.sourceMsgId}, ${C.confidence}) ` +
+          `VALUES ($1, $2, $3, $4, $5, $6::vector, $7, $8)`,
+        [...scopeParams(scope), fact.type, fact.text, literal, sourceMsgId ?? null, fact.confidence],
       );
       written++;
     }
@@ -69,18 +78,20 @@ export class PgMemoryStore implements MemoryStore {
   async recall(
     scope: MemoryScope,
     queryText: string,
-    k: number,
+    options: RecallOptions,
     signal?: AbortSignal,
   ): Promise<RecalledFact[]> {
-    if (queryText.trim() === "" || k <= 0) return [];
+    if (queryText.trim() === "" || options.k <= 0) return [];
     const [vector] = await this.embedder.embed({ texts: [queryText], taskType: "query", signal });
     if (vector === undefined) return [];
 
+    // Lọc ngưỡng NGAY TRONG SQL (không lọc ở JS): dùng được index HNSW và không kéo về fact rác.
     const rows = await this.exec.query(
       `SELECT ${C.text}, ${C.type}, ${C.createdAt} FROM ${T} ` +
-        `WHERE ${C.customerId} = $1 AND ${C.endUserId} = $2 ` +
-        `ORDER BY ${C.embedding} <=> $3::vector LIMIT $4`,
-      [scope.customerId, scope.endUserId, toVectorLiteral(vector), k],
+        `WHERE ${SCOPE_WHERE} ` +
+        `AND ${C.embedding} <=> $4::vector < $5 ` +
+        `ORDER BY ${C.embedding} <=> $4::vector LIMIT $6`,
+      [...scopeParams(scope), toVectorLiteral(vector), options.maxDistance, options.k],
     );
     return toRecalledFacts(rows);
   }
@@ -89,27 +100,26 @@ export class PgMemoryStore implements MemoryStore {
     if (limit <= 0) return [];
     const rows = await this.exec.query(
       `SELECT ${C.text}, ${C.type}, ${C.createdAt} FROM ${T} ` +
-        `WHERE ${C.customerId} = $1 AND ${C.endUserId} = $2 ` +
-        `ORDER BY ${C.createdAt} DESC LIMIT $3`,
-      [scope.customerId, scope.endUserId, limit],
+        `WHERE ${SCOPE_WHERE} ` +
+        `ORDER BY ${C.createdAt} DESC LIMIT $4`,
+      [...scopeParams(scope), limit],
     );
     return toRecalledFacts(rows);
   }
 
   private async hasSource(scope: MemoryScope, sourceMsgId: string): Promise<boolean> {
     const rows = await this.exec.query(
-      `SELECT 1 FROM ${T} WHERE ${C.customerId} = $1 AND ${C.endUserId} = $2 ` +
-        `AND ${C.sourceMsgId} = $3 LIMIT 1`,
-      [scope.customerId, scope.endUserId, sourceMsgId],
+      `SELECT 1 FROM ${T} WHERE ${SCOPE_WHERE} AND ${C.sourceMsgId} = $4 LIMIT 1`,
+      [...scopeParams(scope), sourceMsgId],
     );
     return nonEmpty(rows);
   }
 
   private async hasNearDuplicate(scope: MemoryScope, vectorLiteral: string): Promise<boolean> {
     const rows = await this.exec.query(
-      `SELECT 1 FROM ${T} WHERE ${C.customerId} = $1 AND ${C.endUserId} = $2 ` +
-        `AND ${C.embedding} <=> $3::vector < $4 LIMIT 1`,
-      [scope.customerId, scope.endUserId, vectorLiteral, DEDUP_COSINE_DISTANCE],
+      `SELECT 1 FROM ${T} WHERE ${SCOPE_WHERE} ` +
+        `AND ${C.embedding} <=> $4::vector < $5 LIMIT 1`,
+      [...scopeParams(scope), vectorLiteral, DEDUP_COSINE_DISTANCE],
     );
     return nonEmpty(rows);
   }

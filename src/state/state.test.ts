@@ -4,13 +4,17 @@
 
 import { describe, expect, test } from "bun:test";
 import type { ChatRequest, ChatResult, Embedder, EmbedRequest, LLMProvider } from "../llm/types.ts";
+import type { HistoryEntry } from "../types/index.ts";
+import type { RedisCommand } from "../redis/types.ts";
 import { LlmDistiller, parseFacts, renderTranscript } from "./distiller.ts";
+import { RedisHistoryStore, parseHistoryEntry } from "./session.ts";
+import { RedisDedupe } from "./dedupe.ts";
 import { PgMemoryStore } from "./memory.ts";
 import { toVectorLiteral } from "./vector.ts";
 import { customerSupportSpec } from "./specs.ts";
 import { MemoryType, type DistillSpec, type MemoryScope, type SqlExecutor } from "./types.ts";
 
-const SCOPE: MemoryScope = { customerId: "cus1", endUserId: "eu1" };
+const SCOPE: MemoryScope = { customerId: "cus1", channel: "zalo", conversationId: "room1" };
 // Spec khách-hàng: vocab = preference|context|episode, default context.
 const SPEC = customerSupportSpec;
 
@@ -144,8 +148,8 @@ describe("PgMemoryStore.write", () => {
   });
 
   test("near-dup → bỏ, không insert", async () => {
-    // Dedup query chứa "<=>" và "< $4"; trả hit → coi là trùng.
-    const exec = new FakeExec((t) => (t.includes("<=>") && t.includes("< $4") ? [{ "?column?": 1 }] : []));
+    // Dedup query chứa "<=>" và "< $5"; trả hit → coi là trùng.
+    const exec = new FakeExec((t) => (t.includes("<=>") && t.includes("< $5") ? [{ "?column?": 1 }] : []));
     const store = new PgMemoryStore(exec, new FakeEmbedder());
     expect(await store.write(SCOPE, FACTS)).toBe(0);
     expect(exec.inserts()).toHaveLength(0);
@@ -158,9 +162,18 @@ describe("PgMemoryStore.write", () => {
     expect(n).toBe(1);
     const ins = exec.inserts();
     expect(ins).toHaveLength(1);
-    expect(ins[0]?.text).toContain("$5::vector");
-    // params: [customerId, endUserId, type, text, vecLiteral, sourceMsgId, confidence]
-    expect(ins[0]?.params).toEqual(["cus1", "eu1", "context", "Khách tên An", "[1,0,0]", "msg-9", 0.8]);
+    expect(ins[0]?.text).toContain("$6::vector");
+    // params: [customerId, channel, conversationId, type, text, vecLiteral, sourceMsgId, confidence]
+    expect(ins[0]?.params).toEqual([
+      "cus1",
+      "zalo",
+      "room1",
+      "context",
+      "Khách tên An",
+      "[1,0,0]",
+      "msg-9",
+      0.8,
+    ]);
   });
 
   test("embed trả sai số vector → throw", async () => {
@@ -177,10 +190,12 @@ describe("PgMemoryStore.write", () => {
 // ─── PgMemoryStore.recall ───────────────────────────────────────────────────
 
 describe("PgMemoryStore.recall", () => {
+  const OPTS = { k: 8, maxDistance: 0.3 };
+
   test("query rỗng → [], không embed", async () => {
     const embedder = new FakeEmbedder();
     const store = new PgMemoryStore(new FakeExec(), embedder);
-    expect(await store.recall(SCOPE, "  ", 8)).toEqual([]);
+    expect(await store.recall(SCOPE, "  ", OPTS)).toEqual([]);
     expect(embedder.requests).toHaveLength(0);
   });
 
@@ -191,15 +206,25 @@ describe("PgMemoryStore.recall", () => {
       { text: 123, type: "context", created_at: created }, // hỏng → bỏ
     ]);
     const store = new PgMemoryStore(exec, new FakeEmbedder());
-    const facts = await store.recall(SCOPE, "khách tên gì", 8);
+    const facts = await store.recall(SCOPE, "khách tên gì", OPTS);
     expect(facts).toEqual([{ text: "Khách tên An", type: "context", createdAt: created }]);
   });
 
   test("recall embed dùng taskType query", async () => {
     const embedder = new FakeEmbedder();
     const store = new PgMemoryStore(new FakeExec(() => []), embedder);
-    await store.recall(SCOPE, "hỏi gì đó", 5);
+    await store.recall(SCOPE, "hỏi gì đó", { k: 5, maxDistance: 0.3 });
     expect(embedder.requests[0]?.taskType).toBe("query");
+  });
+
+  test("ngưỡng liên quan lọc TRONG SQL, k và maxDistance xuống đúng params", async () => {
+    const exec = new FakeExec(() => []);
+    const store = new PgMemoryStore(exec, new FakeEmbedder());
+    await store.recall(SCOPE, "hỏi", { k: 6, maxDistance: 0.3 });
+    const call = exec.calls[0];
+    expect(call?.text).toContain("<=> $4::vector < $5");
+    // [customerId, channel, conversationId, vecLiteral, maxDistance, k]
+    expect(call?.params).toEqual(["cus1", "zalo", "room1", "[1,0,0]", 0.3, 6]);
   });
 });
 
@@ -223,5 +248,89 @@ describe("LlmDistiller", () => {
     const provider = new ScriptedProvider(new Error("model chết"));
     const distiller = new LlmDistiller(provider, SPEC);
     expect(await distiller.distill([{ senderId: "An", role: "user", text: "x" }])).toEqual([]);
+  });
+});
+
+// ─── short-term (Redis) ─────────────────────────────────────────────────────
+
+/** Redis giả: ghi lại lệnh + trả reply đặt sẵn. Không server, không network. */
+class FakeRedis {
+  readonly calls: Array<{ name: string; args: string[] }> = [];
+  constructor(private readonly reply: unknown = null) {}
+  readonly send: RedisCommand = (name, args) => {
+    this.calls.push({ name, args });
+    return Promise.resolve(this.reply);
+  };
+  argsOf(name: string): string[][] {
+    return this.calls.filter((c) => c.name === name).map((c) => c.args);
+  }
+}
+
+const ENTRY: HistoryEntry = {
+  conversationId: "c1",
+  msgId: "m1",
+  senderId: "u1",
+  text: "chào",
+  isGroup: false,
+  ts: 1,
+};
+
+describe("RedisHistoryStore", () => {
+  test("append: RPUSH + LTRIM + EXPIRE trên key theo phòng", async () => {
+    const redis = new FakeRedis();
+    await new RedisHistoryStore(redis.send).append(ENTRY);
+    expect(redis.calls.map((c) => c.name)).toEqual(["RPUSH", "LTRIM", "EXPIRE"]);
+    expect(redis.argsOf("RPUSH")[0]?.[0]).toBe("dilim:hist:c1");
+    // LTRIM giữ ĐUÔI (N turn gần nhất), không phải đầu.
+    expect(redis.argsOf("LTRIM")[0]?.[2]).toBe("-1");
+  });
+
+  test("recent: LRANGE N phần tử cuối, giữ thứ tự", async () => {
+    const redis = new FakeRedis([JSON.stringify(ENTRY), JSON.stringify({ ...ENTRY, msgId: "m2" })]);
+    const entries = await new RedisHistoryStore(redis.send).recent("c1", 20);
+    expect(entries.map((e) => e.msgId)).toEqual(["m1", "m2"]);
+    expect(redis.argsOf("LRANGE")[0]).toEqual(["dilim:hist:c1", "-20", "-1"]);
+  });
+
+  test("recent: entry hỏng bị bỏ qua, entry lành vẫn về", async () => {
+    const redis = new FakeRedis(["{hong", JSON.stringify(ENTRY)]);
+    const entries = await new RedisHistoryStore(redis.send).recent("c1", 20);
+    expect(entries.map((e) => e.msgId)).toEqual(["m1"]);
+  });
+
+  test("recent: limit <= 0 → không gọi Redis", async () => {
+    const redis = new FakeRedis([]);
+    expect(await new RedisHistoryStore(redis.send).recent("c1", 0)).toEqual([]);
+    expect(redis.calls).toHaveLength(0);
+  });
+});
+
+describe("parseHistoryEntry", () => {
+  test("thiếu field → null", () => {
+    const { senderId: _drop, ...rest } = ENTRY;
+    expect(parseHistoryEntry(JSON.stringify(rest))).toBeNull();
+  });
+
+  test("sai kiểu ts → null", () => {
+    expect(parseHistoryEntry(JSON.stringify({ ...ENTRY, ts: "1" }))).toBeNull();
+  });
+});
+
+describe("RedisDedupe", () => {
+  test("SET NX trả OK → lần đầu thấy", async () => {
+    const redis = new FakeRedis("OK");
+    expect(await new RedisDedupe(redis.send).firstSee("zalo", "m1")).toBe(true);
+    expect(redis.argsOf("SET")[0]).toEqual(["dilim:seen:zalo:m1", "1", "NX", "EX", "86400"]);
+  });
+
+  test("SET NX trả null → trùng", async () => {
+    const redis = new FakeRedis(null);
+    expect(await new RedisDedupe(redis.send).firstSee("zalo", "m1")).toBe(false);
+  });
+
+  test("release DEL đúng key", async () => {
+    const redis = new FakeRedis();
+    await new RedisDedupe(redis.send).release("zalo", "m1");
+    expect(redis.argsOf("DEL")[0]).toEqual(["dilim:seen:zalo:m1"]);
   });
 });

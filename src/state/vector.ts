@@ -15,3 +15,8 @@ export function toVectorLiteral(values: readonly number[]): string {
 // Ngưỡng cosine distance coi 2 fact là TRÙNG (near-dup) → không ghi bản sao. pgvector `<=>` trả
 // [0,2]: 0 = trùng khít. 0.05 ≈ gần như y hệt ý → bỏ; khác ý rõ thì > 0.05, giữ lại.
 export const DEDUP_COSINE_DISTANCE = 0.05;
+
+// Ngưỡng LIÊN QUAN lúc recall (§7 chống ảo giác #1). `<=>` = 1 - cosine_similarity → similarity
+// ~0.7 ↔ distance ~0.3. Xa hơn ngưỡng = fact không liên quan → VỨT, không nhồi vào context.
+// Thà thiếu còn hơn context sai.
+export const RECALL_MAX_COSINE_DISTANCE = 0.3;
