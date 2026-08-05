@@ -8,5 +8,6 @@ export type {
   WorkerContext,
   WorkerPoolDeps,
   BrokerConsumer,
+  Delivery,
   HistoryReader,
 } from "./types.ts";
