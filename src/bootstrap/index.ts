@@ -13,9 +13,11 @@ import { buildBroker } from "../broker/index.ts";
 import { buildLlmProvider } from "../llm/index.ts";
 import { buildAgentRegistry } from "../agents/index.ts";
 import {
+  BroadcastRouter,
   ConsoleBroadcaster,
   ConsoleTypingSender,
   TypingFactory,
+  ZaloBroadcaster,
   ZaloTypingSender,
 } from "../broadcast/index.ts";
 import { SqlGroupCustomerLookup, SqlIdentityResolver } from "../auth/index.ts";
@@ -54,14 +56,15 @@ export async function bootstrap(): Promise<Services> {
   // skills đi thẳng vào agent: catalog vào system prompt + backing cho tool use_skill.
   // memory = cổng CHỈ-ĐỌC; scope (phòng nào) do worker cấp từng lượt qua groupCustomer.
   const agents = buildAgentRegistry({ provider: llm, config, skills, memory });
-  const broadcaster = new ConsoleBroadcaster();
-  // Fallback console cho channel chưa có adapter egress. Zalo: có bridge config → sender thật,
-  // thiếu → vẫn console (typing best-effort, không chặn boot).
+  // Egress: fallback console cho channel chưa có adapter. Zalo có bridge config → gửi thật (cả
+  // reply lẫn typing), thiếu config → console cho cả hai (dev thấy được luồng, không chặn boot).
+  const broadcaster = new BroadcastRouter(new ConsoleBroadcaster());
   const typing = new TypingFactory(new ConsoleTypingSender());
   if (config.zaloBridge !== undefined) {
+    broadcaster.register("zalo", new ZaloBroadcaster(config.zaloBridge));
     typing.register("zalo", new ZaloTypingSender(config.zaloBridge));
   } else {
-    console.warn("[bootstrap] thiếu ZALO_BRIDGE_URL/SECRET → typing Zalo dùng console (dev).");
+    console.warn("[bootstrap] thiếu ZALO_BRIDGE_URL/SECRET → egress Zalo dùng console (dev).");
   }
   const groupCustomer = new SqlGroupCustomerLookup();
   const identity = new SqlIdentityResolver(groupCustomer);
