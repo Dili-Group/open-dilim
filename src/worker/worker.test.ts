@@ -195,6 +195,30 @@ describe("handleEnvelope", () => {
     expect(broadcaster.sent[0]!.target.conversationId).toBe("c1");
   });
 
+  test("reply vượt trần channel → text gửi bị cắt, kết quả trả về giữ nguyên", async () => {
+    const history = new MemoryHistoryStore();
+    await history.append({
+      conversationId: "c1",
+      msgId: "m1",
+      senderId: "u1",
+      text: "chào",
+      isGroup: false,
+      ts: 1,
+    });
+    const long = "a".repeat(5000);
+    const provider = new ScriptedProvider([
+      { stopReason: "end_turn", content: [{ type: "text", text: long }] },
+    ]);
+    const { ctx, broadcaster } = makeCtx(provider, { role: "guest", senderId: "u1" }, history);
+
+    const result = await handleEnvelope(ctx, makeEnvelope());
+
+    expect(result).toEqual({ status: "reply", text: long });
+    const sent = broadcaster.sent[0]!.text;
+    expect(sent.length).toBeLessThanOrEqual(4500);
+    expect(sent.endsWith("… (nội dung đã bị cắt bớt)")).toBe(true);
+  });
+
   test("history rỗng → failed(state), không broadcast", async () => {
     const provider = new ScriptedProvider([
       { stopReason: "end_turn", content: [{ type: "text", text: "x" }] },

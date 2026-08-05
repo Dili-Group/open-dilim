@@ -4,7 +4,7 @@
 // hệt nhau). Dedupe (bước 4) đã làm ở ingest (biến thể "ingest dày") nên worker không lặp lại.
 
 import type { MemoryScope } from "../state/types.ts";
-import type { TypingTarget } from "../broadcast/index.ts";
+import { capForChannel, type TypingTarget } from "../broadcast/index.ts";
 import type { AgentResult, Envelope, LifecycleStep } from "../types/index.ts";
 import type { WorkerContext } from "./types.ts";
 
@@ -48,6 +48,7 @@ export async function handleEnvelope(
     if (result.status !== "reply" || result.text === "") return result;
 
     // 9. BROADCAST — direct → DM user; group → topic phòng, @ lại người hỏi.
+    // Cap ở đây chứ không ở agent: trần là ràng buộc CỦA KÊNH, agent không cần biết.
     step = "broadcast";
     await ctx.broadcaster.send(
       {
@@ -56,7 +57,7 @@ export async function handleEnvelope(
         isGroup: envelope.isGroup,
         replyToSenderId: envelope.senderId,
       },
-      result.text,
+      capForChannel(envelope.channel, result.text),
     );
     return result;
   } catch (err) {

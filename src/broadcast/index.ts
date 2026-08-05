@@ -2,6 +2,7 @@
 
 export { ConsoleBroadcaster } from "./console.ts";
 export type { Broadcaster, BroadcastTarget } from "./types.ts";
+export { capForChannel } from "./limits.ts";
 export { ConsoleTypingSender } from "./typing-console.ts";
 export { ZaloTypingSender } from "./zalo-typing.ts";
 export { TypingFactory } from "./typing-factory.ts";
