@@ -12,7 +12,7 @@ import { buildUseReferenceTool } from "./impl/use-reference.ts";
 
 const GUEST: Identity = { role: "guest", senderId: "u1" };
 
-// Registry thật từ src/skills/defs (có "refund" kèm references/policy.md, và "tone").
+// Registry thật từ src/skills/defs (có "refund" kèm references/policy.md).
 const skills: SkillRegistry = await buildSkillRegistry();
 
 describe("readStringField", () => {

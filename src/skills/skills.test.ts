@@ -14,15 +14,15 @@ describe("registry (defs thật)", () => {
   test("buildSkillRegistry nạp mọi skill trong defs/", async () => {
     const registry = await buildSkillRegistry();
     const names = registry.catalog().map((m) => m.name).sort();
-    expect(names).toEqual(["refund", "tone"]);
+    expect(names).toEqual(["refund"]);
   });
 
   test("catalog chỉ trả meta (name/description)", async () => {
     const registry = await buildSkillRegistry();
-    const tone = registry.catalog().find((m) => m.name === "tone");
-    expect(tone).toEqual({
-      name: "tone",
-      description: expect.stringContaining("Giọng trả lời"),
+    const refund = registry.catalog().find((m) => m.name === "refund");
+    expect(refund).toEqual({
+      name: "refund",
+      description: expect.any(String),
     });
   });
 
@@ -48,7 +48,6 @@ describe("selector — model tự chọn skill", () => {
     const registry = await buildSkillRegistry();
     const catalog = renderSkillCatalog(registry);
     expect(catalog).toContain("use_skill");
-    expect(catalog).toContain("- tone:");
     expect(catalog).toContain("- refund:");
     // Tầng 1 KHÔNG rò body ra prompt.
     expect(catalog).not.toContain("chờ duyệt");

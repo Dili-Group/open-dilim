@@ -97,14 +97,12 @@
 │   │   ├── loader.ts            #   đọc SKILL.md (parse frontmatter), versioned
 │   │   ├── selector.ts          #   chọn skill inject theo intent/context
 │   │   └── defs/                #   1 folder / skill (non-dev sửa, không deploy)
-│   │       ├── refund/
-│   │       │   ├── SKILL.md     #     frontmatter (name, description, version) + body
-│   │       │   └── references/  #     chi tiết, load khi cần (progressive disclosure)
-│   │       │       ├── policy.md
-│   │       │       └── examples.md
-│   │       └── tone/
-│   │           ├── SKILL.md
-│   │           └── references/
+│   │       └── refund/
+│   │           ├── SKILL.md     #     frontmatter (name, description, version) + body
+│   │           └── references/  #     chi tiết, load khi cần (progressive disclosure)
+│   │               ├── policy.md
+│   │               └── examples.md
+│   │   # LƯU Ý: giọng trả lời (tone) KHÔNG phải skill — nó là persona, nằm ở agents/prompts.ts
 │   │
 │   ├── broadcast/               # OUTPUT — đẩy kết quả ra
 │   │   ├── publisher.ts         #   nhận AgentResult → publish lên pubsub topic
