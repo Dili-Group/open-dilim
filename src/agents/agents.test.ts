@@ -2,13 +2,15 @@
 // KHÔNG import config.ts runtime (fail-fast env) — chỉ type + prompt tách rời.
 
 import { describe, expect, test } from "bun:test";
-import type { ChatRequest, ChatResult, LLMProvider } from "../llm/types.ts";
+import type { ChatRequest, ChatResult, LLMProvider, LlmMessage } from "../llm/types.ts";
 import type { Identity } from "../flash-command/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
+import { SkillRegistry } from "../skills/registry.ts";
 import { buildToolRegistry } from "../tools/index.ts";
 import { customerSupportSpec } from "../state/specs.ts";
 import { runAgentLoop } from "./loop.ts";
-import { buildAgentRegistry, type AgentConfig } from "./registry.ts";
+import { buildAgentRegistry } from "./registry.ts";
+import type { AgentConfig, AgentDeps } from "./types.ts";
 
 class ScriptedProvider implements LLMProvider {
   readonly name = "scripted";
@@ -30,16 +32,24 @@ const HISTORY: HistoryEntry[] = [
 ];
 const CFG: AgentConfig = { maxTokens: 100, effort: "low", agentMaxIterations: 4 };
 
+// Registry skill rỗng: test loop/agent không phụ thuộc filesystem skill def.
+const SKILLS = new SkillRegistry();
+const MESSAGES: LlmMessage[] = [{ role: "user", content: [{ type: "text", text: "bạn là ai" }] }];
+
 function loop(provider: LLMProvider) {
   return runAgentLoop({
     provider,
     system: "s",
-    history: HISTORY,
-    registry: buildToolRegistry(GUEST),
+    messages: MESSAGES,
+    registry: buildToolRegistry(SKILLS, GUEST),
     maxTokens: CFG.maxTokens,
     effort: CFG.effort,
     maxIterations: CFG.agentMaxIterations,
   });
+}
+
+function agentDeps(provider: LLMProvider): AgentDeps {
+  return { provider, config: CFG, skills: SKILLS };
 }
 
 describe("runAgentLoop", () => {
@@ -101,14 +111,22 @@ describe("AgentRegistry", () => {
     const provider = new ScriptedProvider([
       { stopReason: "end_turn", content: [{ type: "text", text: "xin chào" }] },
     ]);
-    const registry = buildAgentRegistry(provider, CFG);
-    const reply = await registry.resolve("khong_ton_tai").run({ identity: GUEST, history: HISTORY });
-    expect(reply).toBe("xin chào");
+    const registry = buildAgentRegistry(agentDeps(provider));
+    const result = await registry.resolve("khong_ton_tai").run({ identity: GUEST, history: HISTORY });
+    expect(result).toEqual({ status: "reply", text: "xin chào" });
+  });
+
+  test("provider lỗi → run trả failed(agent), KHÔNG reject", async () => {
+    // Script rỗng → ScriptedProvider throw ngay lượt đầu, mô phỏng LLMError xuyên qua loop.
+    const registry = buildAgentRegistry(agentDeps(new ScriptedProvider([])));
+    const result = await registry.resolve().run({ identity: GUEST, history: HISTORY });
+    expect(result.status).toBe("failed");
+    if (result.status === "failed") expect(result.step).toBe("agent");
   });
 
   test("default agent mang memorySpec riêng (chưng cất tuỳ agent)", () => {
     const provider = new ScriptedProvider([]);
-    const registry = buildAgentRegistry(provider, CFG);
+    const registry = buildAgentRegistry(agentDeps(provider));
     expect(registry.resolve().memorySpec).toBe(customerSupportSpec);
   });
 });

@@ -1,6 +1,6 @@
 // loop.ts — vòng lặp agent: LLM ⇄ tools tới khi model dừng gọi tool (design §agents loop.ts).
-// History phòng = chuỗi turn user (in-mem chưa lưu reply agent). Tool_use → chạy tool, nối
-// tool_result, lặp. Chặn ở agentMaxIterations để không loop vô hạn.
+// Loop KHÔNG lắp ngữ cảnh: `system` + `messages` do context/ dựng sẵn (xem context/assembler.ts).
+// Tool_use → chạy tool, nối tool_result, lặp. Chặn ở agentMaxIterations để không loop vô hạn.
 
 import type { Effort } from "../config.ts";
 import type {
@@ -9,17 +9,18 @@ import type {
   LlmMessage,
   LlmToolUseBlock,
 } from "../llm/types.ts";
-import type { HistoryEntry } from "../types/index.ts";
 import { runToolCall, type ToolRegistry } from "../tools/index.ts";
 
 export interface AgentLoopInput {
   readonly provider: LLMProvider;
   readonly system: string;
-  readonly history: readonly HistoryEntry[];
+  readonly messages: readonly LlmMessage[];
   readonly registry: ToolRegistry;
   readonly maxTokens: number;
   readonly effort: Effort;
   readonly maxIterations: number;
+  /** Nhịp gọi TRƯỚC mỗi bước (báo "đang xử lý" về kênh). Best-effort — xem `pulse`. */
+  readonly onStep?: () => Promise<void>;
   readonly signal?: AbortSignal;
 }
 
@@ -27,12 +28,19 @@ const REFUSAL_REPLY = "Xin lỗi, mình không thể xử lý yêu cầu này.";
 const TRUNCATED_REPLY = "Phản hồi quá dài — bạn thu hẹp yêu cầu giúp mình nhé.";
 const EXHAUSTED_REPLY = "Xử lý vượt số bước cho phép, bạn thử lại sau nhé.";
 
-/** Chạy loop, trả text trả lời cuối. Không bao giờ throw ra ngoài vì lỗi model/tool đã cô lập. */
+/**
+ * Chạy loop, trả text trả lời cuối. Lỗi TOOL đã cô lập ở `runner.ts` (thành tool_result isError
+ * cho model tự sửa) — nhưng lỗi PROVIDER (`provider.chat` → LLMError) VẪN nổi ra ngoài, và được
+ * bắt ở biên `RootAgent.run` (agents/registry.ts) để thành `AgentResult.failed`.
+ */
 export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
-  const { provider, system, registry, maxTokens, effort, maxIterations, signal } = input;
-  let messages: LlmMessage[] = input.history.map(toUserMessage);
+  const { provider, system, registry, maxTokens, effort, maxIterations, onStep, signal } = input;
+  let messages: LlmMessage[] = [...input.messages];
 
   for (let i = 0; i < maxIterations; i++) {
+    // Nhịp "đang xử lý" mỗi bước — giữ typing sống suốt chuỗi tool dài (indicator platform hết
+    // hạn sau vài giây nên phải refresh từng vòng).
+    await pulse(onStep, signal);
     const result = await provider.chat(
       { system, messages, tools: registry.schemas(), maxTokens, effort },
       signal,
@@ -60,10 +68,17 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
   return EXHAUSTED_REPLY;
 }
 
-/** 1 turn history → 1 message user. Group đa speaker: gắn senderId để model phân biệt người. */
-function toUserMessage(entry: HistoryEntry): LlmMessage {
-  const text = entry.isGroup ? `${entry.senderId}: ${entry.text}` : entry.text;
-  return { role: "user", content: [{ type: "text", text }] };
+/**
+ * Gửi 1 nhịp báo tiến trình. Nuốt lỗi CÓ CHỦ ĐÍCH (log warn, không rethrow): typing là tín hiệu
+ * cosmetic — hỏng nó KHÔNG được giết lượt trả lời. Đã abort → bỏ qua, không phát nhịp thừa.
+ */
+async function pulse(onStep: (() => Promise<void>) | undefined, signal?: AbortSignal): Promise<void> {
+  if (onStep === undefined || signal?.aborted) return;
+  try {
+    await onStep();
+  } catch (err) {
+    console.warn("[agent] gửi typing hỏng (bỏ qua):", err);
+  }
 }
 
 function isToolUse(block: LlmContentBlock): block is LlmToolUseBlock {
