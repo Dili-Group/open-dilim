@@ -22,7 +22,15 @@ import {
 } from "../broadcast/index.ts";
 import { SqlGroupCustomerLookup, SqlIdentityRepo, SqlIdentityResolver } from "../auth/index.ts";
 import { OperationalOpsPort } from "../operational/ops-port.ts";
-import { buildDedupe, buildHistoryStore, buildMemoryStore } from "../state/index.ts";
+import {
+  buildDedupe,
+  buildHistoryStore,
+  buildMemoryStore,
+  buildMemoryWriter,
+  customerSupportSpec,
+  type MemoryStore,
+  type MemoryWriter,
+} from "../state/index.ts";
 import { startWorkers } from "../worker/index.ts";
 import { checkInfra, loadConfig } from "./env.ts";
 import { type RunningSystem, type Services } from "./container.ts";
@@ -47,11 +55,15 @@ export async function bootstrap(): Promise<Services> {
   const llm = buildLlmProvider(config);
   // Memory dài hạn cần embedder Gemini (buildEmbedder throw nếu thiếu key). Không có key → chạy
   // KHÔNG có trí nhớ dài hạn thay vì chặn boot: agent vẫn trả lời được bằng history ngắn hạn.
-  let memory: ReturnType<typeof buildMemoryStore> | undefined;
+  let memory: MemoryStore | undefined;
+  let memoryWriter: MemoryWriter | undefined;
   if (config.geminiApiKey === undefined) {
     console.warn("[bootstrap] thiếu GEMINI_API_KEY → tắt trí nhớ dài hạn (recall bỏ qua).");
   } else {
     memory = buildMemoryStore();
+    // Đường ghi: agent hỗ trợ khách → customerSupportSpec. Agent khác cần nhớ khác thì dựng
+    // writer riêng theo spec của nó.
+    memoryWriter = buildMemoryWriter(memory, customerSupportSpec);
   }
 
   // skills đi thẳng vào agent: catalog vào system prompt + backing cho tool use_skill.
@@ -89,6 +101,7 @@ export async function bootstrap(): Promise<Services> {
     broker,
     historyReader: history,
     historyWriter: history,
+    memoryWriter,
   };
 }
 
@@ -108,6 +121,7 @@ export async function start(): Promise<RunningSystem> {
     identityRepo: services.identityRepo,
     ops: services.ops,
     groupCustomer: services.groupCustomer,
+    memoryWriter: services.memoryWriter,
     agents: services.agents,
     broadcaster: services.broadcaster,
     typing: services.typing,

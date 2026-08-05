@@ -14,6 +14,7 @@ import type { AgentRegistry } from "../agents/index.ts";
 import type { Broadcaster, TypingFactory } from "../broadcast/index.ts";
 import type { GroupCustomerLookup, IdentityResolver } from "../auth/index.ts";
 import type { BrokerConsumer, HistoryReader, HistoryWriter } from "../worker/index.ts";
+import type { MemoryWriter } from "../state/index.ts";
 
 /** Mọi service dựng lúc boot, share cho các tầng downstream (worker/gateway). */
 export interface Services {
@@ -46,6 +47,11 @@ export interface Services {
   readonly historyReader: HistoryReader;
   /** Ghi history (flash reply) — CÙNG instance với historyReader/ingestDeps.history. */
   readonly historyWriter: HistoryWriter;
+  /**
+   * Đường ghi trí nhớ dài hạn (distill theo lô → embed → pgvector). undefined khi thiếu
+   * GEMINI_API_KEY → hệ chạy bằng ngắn hạn, không chặn boot.
+   */
+  readonly memoryWriter?: MemoryWriter;
 }
 
 /** Hệ thống ĐANG CHẠY: service + HTTP server + hook shutdown sạch. */

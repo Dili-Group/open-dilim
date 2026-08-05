@@ -112,6 +112,20 @@ export interface MemoryStore extends MemoryRecall {
 }
 
 /**
+ * Đường GHI trí nhớ dài hạn, gọi sau mỗi lượt đã trả lời. Impl tự quyết định lượt này có chưng
+ * cất thật hay chỉ tích luỹ (xem BatchedMemoryWriter) — worker không giữ policy đó.
+ * Trả SỐ fact ghi thực (0 = chưa tới lô, hoặc không rút được fact nào).
+ */
+export interface MemoryWriter {
+  afterTurn(
+    scope: MemoryScope,
+    turns: readonly DistillTurn[],
+    sourceMsgId: string,
+    signal?: AbortSignal,
+  ): Promise<number>;
+}
+
+/**
  * Cổng thực thi SQL — seam để test không cần Postgres thật. `text` chỉ ghép từ hằng schema
  * (tin được); MỌI giá trị runtime đi qua `params` ($1,$2...) → tham số hoá, chống injection.
  */

@@ -5,9 +5,15 @@ import { describe, expect, test } from "bun:test";
 import type { ChatRequest, ChatResult, LLMProvider } from "../llm/types.ts";
 import type { Identity, IdentityRepo, OpsPort } from "../flash-command/types.ts";
 import { FlashRegistry, flashRegistry, ok } from "../flash-command/index.ts";
-import type { Envelope } from "../types/index.ts";
+import { AGENT_SENDER_ID, type Envelope } from "../types/index.ts";
 import type { GroupCustomerLookup, GroupLookupInput, IdentityResolver } from "../auth/types.ts";
-import type { MemoryRecall, MemoryScope, RecalledFact } from "../state/types.ts";
+import type {
+  DistillTurn,
+  MemoryRecall,
+  MemoryScope,
+  MemoryWriter,
+  RecalledFact,
+} from "../state/types.ts";
 import type { Broadcaster, BroadcastTarget } from "../broadcast/types.ts";
 import { TypingFactory } from "../broadcast/typing-factory.ts";
 import { MemoryBroker, MemoryHistoryStore } from "../bootstrap/deps-memory.ts";
@@ -420,5 +426,77 @@ describe("handleEnvelope — MemoryScope", () => {
     );
     expect(groups.calls).toHaveLength(0);
     expect(memory.scopes).toHaveLength(0);
+  });
+});
+
+/** Ghi lại lời gọi đường ghi dài hạn — kiểm worker có đóng lượt bằng distill hay không. */
+class RecordingMemoryWriter implements MemoryWriter {
+  readonly calls: { scope: MemoryScope; turns: DistillTurn[]; sourceMsgId: string }[] = [];
+  afterTurn(scope: MemoryScope, turns: readonly DistillTurn[], sourceMsgId: string): Promise<number> {
+    this.calls.push({ scope, turns: [...turns], sourceMsgId });
+    return Promise.resolve(0);
+  }
+}
+
+// Đóng lượt (bước 10): reply agent vào history ngắn hạn + đẩy cửa sổ sang đường ghi dài hạn.
+describe("handleEnvelope — ghi nhớ sau lượt", () => {
+  async function runTurn(
+    groupCustomer: GroupCustomerLookup | undefined,
+    envelope: Envelope,
+  ): Promise<{ writer: RecordingMemoryWriter; history: MemoryHistoryStore }> {
+    const history = new MemoryHistoryStore();
+    await history.append({
+      conversationId: envelope.conversationId,
+      msgId: "m1",
+      senderId: envelope.senderId,
+      text: "khách hỏi gì đó",
+      isGroup: envelope.isGroup,
+      role: "user",
+      ts: 1,
+    });
+    const writer = new RecordingMemoryWriter();
+    const ctx: WorkerContext = {
+      history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
+      identity: new FakeResolver({ role: "guest", senderId: envelope.senderId }),
+      groupCustomer,
+      memoryWriter: writer,
+      agents: buildAgentRegistry({
+        provider: new ScriptedProvider([
+          { stopReason: "end_turn", content: [{ type: "text", text: "ok anh" }] },
+        ]),
+        config: CFG,
+        skills: SKILLS,
+      }),
+      broadcaster: new CapturingBroadcaster(),
+      typing: TYPING,
+    };
+    expect((await handleEnvelope(ctx, envelope)).status).toBe("reply");
+    return { writer, history };
+  }
+
+  test("reply agent được lưu vào history phòng", async () => {
+    const envelope = makeEnvelope({ isGroup: true, conversationId: "g1", channel: "zalo" });
+    const { history } = await runTurn(new FakeGroupCustomer("cusX"), envelope);
+    const recent = await history.recent("g1", 10);
+    expect(recent.at(-1)).toMatchObject({ role: "agent", text: "ok anh" });
+  });
+
+  test("phòng đã bind → afterTurn nhận scope + transcript có cả lượt agent", async () => {
+    const envelope = makeEnvelope({ isGroup: true, conversationId: "g1", channel: "zalo" });
+    const { writer } = await runTurn(new FakeGroupCustomer("cusX"), envelope);
+    expect(writer.calls).toHaveLength(1);
+    const call = writer.calls[0];
+    expect(call?.scope).toEqual({ customerId: "cusX", channel: "zalo", conversationId: "g1" });
+    expect(call?.sourceMsgId).toBe(envelope.msgId);
+    expect(call?.turns.at(-1)).toEqual({ senderId: AGENT_SENDER_ID, role: "assistant", text: "ok anh" });
+  });
+
+  test("chưa bind phòng → không ghi dài hạn (không có chỗ để ghi)", async () => {
+    const { writer } = await runTurn(new FakeGroupCustomer(undefined), makeEnvelope({ isGroup: true }));
+    expect(writer.calls).toHaveLength(0);
   });
 });

@@ -3,6 +3,7 @@
 
 import type { Envelope, HistoryEntry } from "../types/index.ts";
 import type { GroupCustomerLookup, IdentityResolver } from "../auth/types.ts";
+import type { MemoryWriter } from "../state/types.ts";
 import type { AgentRegistry } from "../agents/registry.ts";
 import type { Broadcaster } from "../broadcast/types.ts";
 import type { TypingFactory } from "../broadcast/typing-factory.ts";
@@ -54,6 +55,11 @@ export interface WorkerContext {
    * undefined = chưa nối tầng memory → lượt chạy không có trí nhớ dài hạn, không phải lỗi.
    */
   readonly groupCustomer?: GroupCustomerLookup;
+  /**
+   * Đường ghi trí nhớ dài hạn sau lượt (distill theo lô → embed → pgvector).
+   * undefined = chạy không có trí nhớ dài hạn (thiếu GEMINI_API_KEY), không phải lỗi.
+   */
+  readonly memoryWriter?: MemoryWriter;
   readonly agents: AgentRegistry;
   readonly broadcaster: Broadcaster;
   /** Chọn TypingSender theo channel để phát nhịp "đang xử lý" mỗi bước agent. */

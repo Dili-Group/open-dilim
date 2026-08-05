@@ -10,9 +10,18 @@ import { LlmDistiller, parseFacts, renderTranscript } from "./distiller.ts";
 import { RedisHistoryStore, parseHistoryEntry } from "./session.ts";
 import { RedisDedupe } from "./dedupe.ts";
 import { PgMemoryStore } from "./memory.ts";
+import { BatchedMemoryWriter, RedisDistillCounter, toDistillTurns, type DistillCounter } from "./memory-writer.ts";
 import { toVectorLiteral } from "./vector.ts";
 import { customerSupportSpec } from "./specs.ts";
-import { MemoryType, type DistillSpec, type MemoryScope, type SqlExecutor } from "./types.ts";
+import {
+  MemoryType,
+  type DistilledFact,
+  type Distiller,
+  type DistillSpec,
+  type DistillTurn,
+  type MemoryScope,
+  type SqlExecutor,
+} from "./types.ts";
 
 const SCOPE: MemoryScope = { customerId: "cus1", channel: "zalo", conversationId: "room1" };
 // Spec khách-hàng: vocab = preference|context|episode, default context.
@@ -333,5 +342,133 @@ describe("RedisDedupe", () => {
     const redis = new FakeRedis();
     await new RedisDedupe(redis.send).release("zalo", "m1");
     expect(redis.argsOf("DEL")[0]).toEqual(["dilim:seen:zalo:m1"]);
+  });
+});
+
+// ─── đường ghi dài hạn (batch distill) ──────────────────────────────────────
+
+/** Đếm in-mem thay Redis — chỉ để lái nhịp lô trong test. */
+class FakeCounter implements DistillCounter {
+  private n = 0;
+  resets = 0;
+  bump(): Promise<number> {
+    this.n++;
+    return Promise.resolve(this.n);
+  }
+  reset(): Promise<void> {
+    this.n = 0;
+    this.resets++;
+    return Promise.resolve();
+  }
+}
+
+/** Distiller giả: trả sẵn fact, ghi lại transcript nhận được. */
+class FakeDistiller implements Distiller {
+  readonly seen: DistillTurn[][] = [];
+  constructor(private readonly facts: DistilledFact[]) {}
+  distill(turns: readonly DistillTurn[]): Promise<DistilledFact[]> {
+    this.seen.push([...turns]);
+    return Promise.resolve(this.facts);
+  }
+}
+
+const FACT: DistilledFact = { type: MemoryType.Context, text: "Khách ở HN", confidence: 0.8 };
+
+function turnsOf(n: number): DistillTurn[] {
+  return Array.from({ length: n }, (_, i) => ({ senderId: "u1", role: "user" as const, text: `t${i}` }));
+}
+
+describe("BatchedMemoryWriter", () => {
+  test("chưa đủ lô → chỉ đếm, không gọi distill/ghi", async () => {
+    const distiller = new FakeDistiller([FACT]);
+    const exec = new FakeExec(() => []);
+    const writer = new BatchedMemoryWriter(
+      new PgMemoryStore(exec, new FakeEmbedder()),
+      distiller,
+      new FakeCounter(),
+      3,
+      12,
+    );
+    expect(await writer.afterTurn(SCOPE, turnsOf(2), "m1")).toBe(0);
+    expect(await writer.afterTurn(SCOPE, turnsOf(2), "m2")).toBe(0);
+    expect(distiller.seen).toHaveLength(0);
+    expect(exec.calls).toHaveLength(0);
+  });
+
+  test("đủ lô → distill + ghi, và reset bộ đếm", async () => {
+    const distiller = new FakeDistiller([FACT]);
+    const counter = new FakeCounter();
+    const exec = new FakeExec(() => []); // không trùng nguồn, không near-dup
+    const writer = new BatchedMemoryWriter(
+      new PgMemoryStore(exec, new FakeEmbedder()),
+      distiller,
+      counter,
+      3,
+      12,
+    );
+    await writer.afterTurn(SCOPE, turnsOf(2), "m1");
+    await writer.afterTurn(SCOPE, turnsOf(2), "m2");
+    expect(await writer.afterTurn(SCOPE, turnsOf(2), "m3")).toBe(1);
+    expect(distiller.seen).toHaveLength(1);
+    expect(counter.resets).toBe(1);
+    // sourceMsgId của lô = msgId lượt kích hoạt (provenance + idempotency).
+    const insert = exec.calls.find((c) => c.text.startsWith("INSERT"));
+    expect(insert?.params).toContain("m3");
+  });
+
+  test("cửa sổ cắt về windowTurns turn cuối", async () => {
+    const distiller = new FakeDistiller([]);
+    const writer = new BatchedMemoryWriter(
+      new PgMemoryStore(new FakeExec(() => []), new FakeEmbedder()),
+      distiller,
+      new FakeCounter(),
+      1,
+      3,
+    );
+    await writer.afterTurn(SCOPE, turnsOf(10), "m1");
+    expect(distiller.seen[0]?.map((t) => t.text)).toEqual(["t7", "t8", "t9"]);
+  });
+
+  test("distill không ra fact → không đụng DB", async () => {
+    const exec = new FakeExec(() => []);
+    const writer = new BatchedMemoryWriter(
+      new PgMemoryStore(exec, new FakeEmbedder()),
+      new FakeDistiller([]),
+      new FakeCounter(),
+      1,
+      12,
+    );
+    expect(await writer.afterTurn(SCOPE, turnsOf(1), "m1")).toBe(0);
+    expect(exec.calls).toHaveLength(0);
+  });
+});
+
+describe("RedisDistillCounter", () => {
+  test("bump: INCR + EXPIRE theo (channel, phòng)", async () => {
+    const redis = new FakeRedis(2);
+    expect(await new RedisDistillCounter(redis.send).bump(SCOPE)).toBe(2);
+    expect(redis.argsOf("INCR")[0]).toEqual(["dilim:distill:zalo:room1"]);
+    expect(redis.argsOf("EXPIRE")[0]?.[1]).toBe("86400");
+  });
+
+  test("reset: DEL đúng key", async () => {
+    const redis = new FakeRedis();
+    await new RedisDistillCounter(redis.send).reset(SCOPE);
+    expect(redis.argsOf("DEL")[0]).toEqual(["dilim:distill:zalo:room1"]);
+  });
+});
+
+describe("toDistillTurns", () => {
+  test("map role agent → assistant, bỏ text rỗng", () => {
+    expect(
+      toDistillTurns([
+        ENTRY,
+        { ...ENTRY, msgId: "m2", senderId: "agent", role: "agent", text: "chào anh" },
+        { ...ENTRY, msgId: "m3", text: "   " },
+      ]),
+    ).toEqual([
+      { senderId: "u1", role: "user", text: "chào" },
+      { senderId: "agent", role: "assistant", text: "chào anh" },
+    ]);
   });
 });

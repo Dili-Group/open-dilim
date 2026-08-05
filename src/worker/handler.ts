@@ -4,8 +4,15 @@
 // hệt nhau). Dedupe (bước 4) đã làm ở ingest (biến thể "ingest dày") nên worker không lặp lại.
 
 import type { MemoryScope } from "../state/types.ts";
+import { toDistillTurns } from "../state/memory-writer.ts";
 import { capForChannel, type TypingTarget } from "../broadcast/index.ts";
-import { AGENT_SENDER_ID, type AgentResult, type Envelope, type LifecycleStep } from "../types/index.ts";
+import {
+  AGENT_SENDER_ID,
+  type AgentResult,
+  type Envelope,
+  type HistoryEntry,
+  type LifecycleStep,
+} from "../types/index.ts";
 import type { WorkerContext } from "./types.ts";
 
 // N turn history nạp vào context mỗi lần chạy agent.
@@ -93,9 +100,56 @@ export async function handleEnvelope(
       },
       capForChannel(envelope.channel, result.text),
     );
+
+    // 10. GHI NHỚ — reply agent vào buffer ngắn hạn, rồi đường dài hạn (distill theo lô, tự quyết
+    // định lượt này có chạy hay không). Sau broadcast: khách đã nhận câu trả lời, hỏng ở đây chỉ
+    // mất trí nhớ chứ không được biến lượt thành failed.
+    await rememberTurn(ctx, envelope, result.text, history, memoryScope, signal);
     return result;
   } catch (err) {
     return { status: "failed", step, error: err instanceof Error ? err : new Error(String(err)) };
+  }
+}
+
+/**
+ * Đóng lượt: lưu reply agent vào history phòng (lượt sau thấy chính mình đã trả gì) rồi đẩy cả
+ * cửa sổ hội thoại sang đường ghi dài hạn. Cả hai đều best-effort — lỗi log rồi thôi, vì reply đã
+ * gửi đi và distill chỉ là việc nền.
+ */
+async function rememberTurn(
+  ctx: WorkerContext,
+  envelope: Envelope,
+  replyText: string,
+  history: readonly HistoryEntry[],
+  memoryScope: MemoryScope | undefined,
+  signal?: AbortSignal,
+): Promise<void> {
+  const reply: HistoryEntry = {
+    conversationId: envelope.conversationId,
+    msgId: `${envelope.msgId}#agent`,
+    senderId: AGENT_SENDER_ID,
+    text: replyText,
+    isGroup: envelope.isGroup,
+    role: "agent",
+    ts: Date.now(),
+  };
+  try {
+    await ctx.historyWriter.append(reply);
+  } catch (err) {
+    console.error("[worker] lưu reply vào history lỗi:", err);
+  }
+
+  // Chưa bind phòng (không có scope) hoặc chưa bật memory dài hạn → không có chỗ ghi, bỏ qua.
+  if (memoryScope === undefined || ctx.memoryWriter === undefined) return;
+  try {
+    await ctx.memoryWriter.afterTurn(
+      memoryScope,
+      toDistillTurns([...history, reply]),
+      envelope.msgId,
+      signal,
+    );
+  } catch (err) {
+    console.error("[worker] ghi trí nhớ dài hạn lỗi:", err);
   }
 }
 
