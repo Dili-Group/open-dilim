@@ -6,6 +6,7 @@
 
 import { CONFIG, type Config } from "../config.ts";
 import { pingDb } from "../db/client.ts";
+import { pingRedis } from "../redis/client.ts";
 
 /** Trả CONFIG (đã validate lúc import). Gọi ở đầu bootstrap để fail-fast có chủ đích. */
 export function loadConfig(): Config {
@@ -13,9 +14,9 @@ export function loadConfig(): Config {
 }
 
 /**
- * Kiểm tra hạ tầng đã dựng còn sống. Hiện chỉ Postgres (client thật, đã có).
- * Redis check thêm khi có client (broker/ chưa xây — bootstrap đang dùng in-mem thay thế).
+ * Kiểm tra hạ tầng còn sống TRƯỚC khi mở port: Postgres (memory dài hạn, danh tính) và Redis
+ * (ingress queue, history ngắn hạn, dedupe). Ping song song — hai đích độc lập.
  */
 export async function checkInfra(): Promise<void> {
-  await pingDb();
+  await Promise.all([pingDb(), pingRedis()]);
 }
