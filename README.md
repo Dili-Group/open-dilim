@@ -53,11 +53,20 @@ Chi tiết đầy đủ: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 ## Bắt đầu
 
 ```bash
-cd agent
 cp .env.example .env      # điền ANTHROPIC_API_KEY, hoặc chạy `ant auth login` và để trống
 bun install
-bun run src/index.ts      # start   (dev: bun --watch run src/index.ts)
+bun run infra:up          # postgres + redis (chờ healthcheck xanh mới trả về)
+bun start                 # dev: bun run dev (watch)
 ```
+
+App fail-fast nếu Postgres hoặc Redis chưa lên — chạy `infra:up` trước.
+
+| Lệnh | Việc |
+|------|------|
+| `bun run infra:up` | Dựng postgres + redis, chờ healthy. Migration chạy 1 lần lúc volume còn rỗng |
+| `bun run infra:down` | Dừng container, **giữ** dữ liệu (volume) |
+| `bun run infra:logs` | Xem log 2 service |
+| `bun run infra:reset` | `down -v` rồi up lại — **XÓA volume**: mất toàn bộ DB + queue/history Redis. Chỉ dùng khi muốn làm lại từ đầu |
 
 Env override: `PROVIDER` (anthropic|gemini), `MODEL`, `EFFORT` (low|medium|high|xhigh|max).
 Credentials: `ANTHROPIC_API_KEY` / `ant auth` cho Claude, `GEMINI_API_KEY` cho Gemini. Xem `agent/.env.example`.

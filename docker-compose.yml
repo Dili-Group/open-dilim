@@ -13,8 +13,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-dilim}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dilim}
       POSTGRES_DB: ${POSTGRES_DB:-dilim}
+    networks:
+      - dilim-net
+    # Bind loopback: password dev yếu, không expose ra LAN.
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       # Chạy migration 1 lần khi init volume rỗng (thứ tự alphabet).
@@ -31,8 +34,10 @@ services:
     restart: unless-stopped
     # AOF bật → broker/short-term/lock sống qua restart, không mất PEL.
     command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - dilim-net
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -40,6 +45,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+# Network riêng, tên cố định → không phụ thuộc tên default do compose sinh ra.
+# Postgres/Redis gọi nhau qua DNS service name (postgres:5432, redis:6379).
+networks:
+  dilim-net:
+    name: dilim-net
+    driver: bridge
 
 volumes:
   pgdata:
