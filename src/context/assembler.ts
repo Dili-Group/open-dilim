@@ -12,6 +12,19 @@ import type { ContextSources, TurnContext, TurnInput } from "./types.ts";
 
 const SECTION_SEPARATOR = "\n\n";
 
+// Múi giờ khách (Việt Nam). Dấu thời gian in theo giờ địa phương để model suy luận sáng/chiều
+// đúng, KHÔNG lệch 7 tiếng như UTC. Locale sv-SE cho định dạng ISO-like "2026-08-05 21:47".
+const TURN_TIME_ZONE = "Asia/Ho_Chi_Minh";
+const turnTimeFormat = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: TURN_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
 /**
  * Dựng đúng 2 thứ model thấy. Thứ tự section: prompt nền → catalog skill → khối memory, tức ỔN
  * ĐỊNH → BIẾN ĐỘNG (prompt nền + catalog giống hệt nhau mọi lượt, khối memory đổi từng lượt) —
@@ -42,19 +55,27 @@ export async function assembleTurnContext(
 }
 
 /**
- * History → message. Lượt agent (flash reply / lượt agent) → assistant, KHÔNG prefix speaker.
- * Lượt người dùng → user; group đa speaker gắn senderId để model trả đúng người.
+ * History → message. Lượt agent (flash reply / lượt agent) → assistant, KHÔNG prefix speaker
+ * cũng KHÔNG prefix thời gian (stamp vào content agent = dạy model tự nhại timestamp vào câu
+ * trả lời gửi ra ngoài). Lượt người dùng → user; mỗi lượt user gắn `[thời gian]` để model biết
+ * lượt nào đến trước/sau + khoảng cách thật giữa các tin; group đa speaker thêm senderId.
  */
 function toMessages(history: readonly HistoryEntry[]): LlmMessage[] {
   return history.map((entry) => {
     if (entry.role === "agent") {
       return { role: "assistant" as const, content: [{ type: "text" as const, text: entry.text }] };
     }
+    const speaker = entry.isGroup ? `${entry.senderId}: ` : "";
     return {
       role: "user" as const,
-      content: [{ type: "text" as const, text: entry.isGroup ? `${entry.senderId}: ${entry.text}` : entry.text }],
+      content: [{ type: "text" as const, text: `[${formatTurnTime(entry.ts)}] ${speaker}${entry.text}` }],
     };
   });
+}
+
+/** Epoch ms → "YYYY-MM-DD HH:mm" giờ Việt Nam, làm dấu thứ tự cho lượt người dùng. */
+function formatTurnTime(ts: number): string {
+  return turnTimeFormat.format(new Date(ts));
 }
 
 /** Câu hỏi đi tra memory = lượt người dùng gần nhất. History rỗng → không tra. */

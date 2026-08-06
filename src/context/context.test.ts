@@ -168,25 +168,42 @@ describe("assembleTurnContext — khối memory (§7)", () => {
   });
 });
 
+// Dấu thời gian "[YYYY-MM-DD HH:mm] " đầu mỗi lượt user — regex thay vì so chuỗi cứng để không
+// vỡ theo tz-data của máy chạy test.
+const TIME_PREFIX = /^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] /;
+
 describe("assembleTurnContext — messages", () => {
-  test("direct: text nguyên văn, không prefix", async () => {
+  test("direct: text kèm dấu thời gian, không prefix speaker", async () => {
     const ctx = await assembleTurnContext(sources(), { history: [entry({ text: "chào" })] });
-    expect(ctx.messages[0]?.content[0]).toEqual({ type: "text", text: "chào" });
+    const part = ctx.messages[0]?.content[0];
+    expect(part?.type).toBe("text");
+    expect((part as { text: string }).text).toMatch(new RegExp(`${TIME_PREFIX.source}chào$`));
   });
 
-  test("group: prefix senderId để model trả đúng người", async () => {
+  test("group: dấu thời gian + senderId để model trả đúng người", async () => {
     const ctx = await assembleTurnContext(sources(), {
       history: [entry({ isGroup: true, senderId: "An", text: "cho hỏi giá" })],
     });
-    expect(ctx.messages[0]?.content[0]).toEqual({ type: "text", text: "An: cho hỏi giá" });
+    const part = ctx.messages[0]?.content[0];
+    expect((part as { text: string }).text).toMatch(new RegExp(`${TIME_PREFIX.source}An: cho hỏi giá$`));
+  });
+
+  test("lượt agent → assistant, KHÔNG stamp thời gian (tránh nhại vào câu trả lời)", async () => {
+    const ctx = await assembleTurnContext(sources(), {
+      history: [entry({ role: "agent", text: "dạ em trả lời" })],
+    });
+    expect(ctx.messages[0]).toEqual({
+      role: "assistant",
+      content: [{ type: "text", text: "dạ em trả lời" }],
+    });
   });
 
   test("giữ đúng thứ tự và số lượng turn (verbatim §7)", async () => {
-    const history = [entry({ text: "a" }), entry({ msgId: "m2", text: "b" })];
+    const history = [entry({ text: "a", ts: 1000 }), entry({ msgId: "m2", text: "b", ts: 2000 })];
     const ctx = await assembleTurnContext(sources(), { history });
-    expect(ctx.messages.map((m) => m.content[0])).toEqual([
-      { type: "text", text: "a" },
-      { type: "text", text: "b" },
-    ]);
+    const texts = ctx.messages.map((m) => (m.content[0] as { text: string }).text);
+    expect(texts).toHaveLength(2);
+    expect(texts[0]).toMatch(new RegExp(`${TIME_PREFIX.source}a$`));
+    expect(texts[1]).toMatch(new RegExp(`${TIME_PREFIX.source}b$`));
   });
 });
