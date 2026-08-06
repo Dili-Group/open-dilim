@@ -10,8 +10,19 @@ import type { HistoryReader } from "../worker/index.ts";
 import type { RedisCommand } from "../redis/types.ts";
 
 const KEY_PREFIX = "dilim:hist:";
-/** Trần turn giữ mỗi phòng. Worker chỉ đọc ~20 turn; phần dư là biên an toàn cho compaction sau. */
-const MAX_TURNS = 200;
+
+/**
+ * Cửa sổ verbatim agent đọc mỗi lượt. Ở ĐÂY (chứ không ở worker) vì compactor phải giữ nguyên
+ * đúng chừng này entry cuối — hai bên lệch nhau là tin rơi vào khe giữa: agent không còn thấy
+ * mà compactor cũng chưa nén.
+ */
+export const HISTORY_WINDOW_TURNS = 20;
+
+/**
+ * Trần turn giữ mỗi phòng. Rộng hơn cửa sổ đọc nhiều lần: phần dư là kho cho compactor gom lô
+ * (nén sau mỗi ~10 tin trôi ra), không phải biên an toàn suông.
+ */
+export const HISTORY_BUFFER_TURNS = 200;
 /** Phòng im lặng quá hạn này thì buffer tự hết — hội thoại cũ không còn là ngữ cảnh đúng nữa. */
 const TTL_SEC = 7 * 24 * 60 * 60;
 
@@ -52,7 +63,7 @@ export class RedisHistoryStore implements HistoryStore, HistoryReader {
     const key = historyKey(entry.conversationId);
     await this.send("RPUSH", [key, JSON.stringify(entry)]);
     // Cắt đuôi + gia hạn TTL sau MỖI tin: phòng đang nói chuyện thì không bao giờ hết hạn.
-    await this.send("LTRIM", [key, String(-MAX_TURNS), "-1"]);
+    await this.send("LTRIM", [key, String(-HISTORY_BUFFER_TURNS), "-1"]);
     await this.send("EXPIRE", [key, String(TTL_SEC)]);
   }
 

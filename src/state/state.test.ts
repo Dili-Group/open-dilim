@@ -485,88 +485,134 @@ describe("toDistillTurns", () => {
 
 describe("LlmCompactor", () => {
   class FakeSummaryStore implements SummaryStore {
-    constructor(private value?: string) {}
-    readonly writes: string[] = [];
+    constructor(
+      private value?: string,
+      private cursor?: string,
+    ) {}
+    readonly writes: Array<{ summary: string; cursor: string }> = [];
     get(): Promise<string | undefined> {
       return Promise.resolve(this.value);
     }
-    set(_conversationId: string, summary: string): Promise<void> {
-      this.writes.push(summary);
+    getCursor(): Promise<string | undefined> {
+      return Promise.resolve(this.cursor);
+    }
+    set(_conversationId: string, summary: string, cursorMsgId: string): Promise<void> {
+      this.writes.push({ summary, cursor: cursorMsgId });
       this.value = summary;
+      this.cursor = cursorMsgId;
       return Promise.resolve();
+    }
+    get savedCursor(): string | undefined {
+      return this.cursor;
     }
   }
 
-  /** N entry, mỗi entry `chars` ký tự → điều khiển chính xác tổng độ dài cửa sổ. */
-  function window(count: number, chars: number): HistoryEntry[] {
+  /** N entry đánh số, mỗi entry `chars` ký tự → điều khiển cả độ dài lẫn nhận diện từng tin. */
+  function buffer(count: number, chars: number): HistoryEntry[] {
     return Array.from({ length: count }, (_, i) => ({
       ...ENTRY,
       msgId: `m${i}`,
-      text: "x".repeat(chars),
+      text: `m${i}:${"x".repeat(chars)}`,
     }));
   }
 
-  const TRIGGER = 1000;
-  const KEEP = 4;
+  const POLICY = { triggerChars: 1000, minEntries: 3, keepRecent: 4 };
 
-  test("dưới ngưỡng → không gọi LLM, không ghi", async () => {
+  function promptOf(provider: ScriptedProvider): string {
+    const block = provider.seen[0]?.messages[0]?.content[0];
+    return block?.type === "text" ? block.text : "";
+  }
+
+  test("chưa tin nào trôi khỏi cửa sổ đọc → không gọi LLM, không ghi", async () => {
     const provider = new ScriptedProvider(textResult("không nên chạy"));
     const store = new FakeSummaryStore();
-    const compactor = new LlmCompactor(provider, store, TRIGGER, KEEP);
+    const compactor = new LlmCompactor(provider, store, POLICY);
 
-    await compactor.afterTurn("c1", window(10, 50)); // 500 ký tự
+    // 4 entry = đúng bằng keepRecent → agent vẫn thấy nguyên văn cả 4.
+    await compactor.afterTurn("c1", buffer(4, 400));
     expect(store.writes).toHaveLength(0);
   });
 
-  test("vượt ngưỡng → nén phần CŨ, giữ nguyên N entry cuối", async () => {
+  test("tin NGẮN nhưng đã trôi đủ số entry → vẫn nén (buffer rộng, không phải cửa sổ agent)", async () => {
     const provider = new ScriptedProvider(textResult("khách chốt giao thứ 5"));
     const store = new FakeSummaryStore();
-    const compactor = new LlmCompactor(provider, store, TRIGGER, KEEP);
+    const compactor = new LlmCompactor(provider, store, POLICY);
 
-    await compactor.afterTurn("c1", window(10, 200)); // 2000 ký tự
-    expect(store.writes).toEqual(["khách chốt giao thứ 5"]);
+    // 10 tin × 20 ký tự = 200 ký tự, xa ngưỡng ký tự — nhưng 6 tin đã trôi khỏi cửa sổ đọc.
+    await compactor.afterTurn("c1", buffer(10, 20));
+    expect(store.writes).toEqual([{ summary: "khách chốt giao thứ 5", cursor: "m5" }]);
   });
 
-  test("dài nhưng toàn tin gần đây → chưa có gì để nén", async () => {
+  test("ít entry nhưng quá dài → nén sớm theo ngưỡng ký tự", async () => {
+    const provider = new ScriptedProvider(textResult("bản tóm"));
+    const store = new FakeSummaryStore();
+    const compactor = new LlmCompactor(provider, store, { ...POLICY, minEntries: 100 });
+
+    await compactor.afterTurn("c1", buffer(10, 200)); // 6 entry trôi ra, ~1200 ký tự
+    expect(store.writes).toHaveLength(1);
+  });
+
+  test("trôi ra ít VÀ ngắn → chờ gom thêm, không tốn call LLM", async () => {
     const provider = new ScriptedProvider(textResult("không nên chạy"));
     const store = new FakeSummaryStore();
-    const compactor = new LlmCompactor(provider, store, TRIGGER, KEEP);
+    const compactor = new LlmCompactor(provider, store, POLICY);
 
-    // 4 entry = đúng bằng keepRecent → older rỗng.
-    await compactor.afterTurn("c1", window(4, 400));
+    await compactor.afterTurn("c1", buffer(6, 50)); // 2 entry trôi ra < minEntries
     expect(store.writes).toHaveLength(0);
+  });
+
+  test("có mốc cũ → chỉ nén phần MỚI, không nén lại đoạn đã nằm trong bản tóm", async () => {
+    const provider = new ScriptedProvider(textResult("bản gộp"));
+    const store = new FakeSummaryStore("tóm tắt cũ", "m5");
+    const compactor = new LlmCompactor(provider, store, POLICY);
+
+    await compactor.afterTurn("c1", buffer(14, 20));
+    const prompt = promptOf(provider);
+    expect(prompt).not.toContain("m5:");
+    expect(prompt).toContain("m6:");
+    expect(prompt).toContain("m9:");
+    expect(prompt).not.toContain("m10:"); // 4 tin cuối vẫn nguyên văn trong cửa sổ agent
+    expect(store.writes[0]?.cursor).toBe("m9");
+  });
+
+  test("mốc đã bị LTRIM đẩy khỏi buffer → nén cả buffer, không bỏ sót", async () => {
+    const provider = new ScriptedProvider(textResult("bản tóm"));
+    const store = new FakeSummaryStore(undefined, "da-bi-xoa");
+    const compactor = new LlmCompactor(provider, store, POLICY);
+
+    await compactor.afterTurn("c1", buffer(10, 20));
+    expect(promptOf(provider)).toContain("m0:");
+    expect(store.writes[0]?.cursor).toBe("m5");
   });
 
   test("có bản tóm cũ → đưa vào prompt để GỘP, không viết nối rời", async () => {
     const provider = new ScriptedProvider(textResult("bản gộp"));
     const store = new FakeSummaryStore("tóm tắt cũ");
-    const compactor = new LlmCompactor(provider, store, TRIGGER, KEEP);
+    const compactor = new LlmCompactor(provider, store, POLICY);
 
-    await compactor.afterTurn("c1", window(10, 200));
-    const sent = provider.seen[0]?.messages[0]?.content[0];
-    expect(sent?.type).toBe("text");
-    if (sent?.type === "text") {
-      expect(sent.text).toContain("tóm tắt cũ");
-      expect(sent.text).toContain("HỘI THOẠI CŨ");
-    }
+    await compactor.afterTurn("c1", buffer(10, 20));
+    const prompt = promptOf(provider);
+    expect(prompt).toContain("tóm tắt cũ");
+    expect(prompt).toContain("HỘI THOẠI CŨ");
   });
 
   test("bản tóm quá dài → cắt về trần", async () => {
     const provider = new ScriptedProvider(textResult("y".repeat(SUMMARY_MAX_CHARS + 500)));
     const store = new FakeSummaryStore();
-    const compactor = new LlmCompactor(provider, store, TRIGGER, KEEP);
+    const compactor = new LlmCompactor(provider, store, POLICY);
 
-    await compactor.afterTurn("c1", window(10, 200));
-    expect(store.writes[0]).toHaveLength(SUMMARY_MAX_CHARS);
+    await compactor.afterTurn("c1", buffer(10, 20));
+    expect(store.writes[0]?.summary).toHaveLength(SUMMARY_MAX_CHARS);
   });
 
-  test("provider lỗi → không ghi, KHÔNG throw (nén là việc nền)", async () => {
+  test("provider lỗi → không ghi, mốc KHÔNG tiến (lượt sau nén lại), KHÔNG throw", async () => {
     const provider = new ScriptedProvider(new Error("model chết"));
-    const store = new FakeSummaryStore();
-    const compactor = new LlmCompactor(provider, store, TRIGGER, KEEP);
+    const store = new FakeSummaryStore(undefined, "m2");
+    const compactor = new LlmCompactor(provider, store, POLICY);
 
-    await compactor.afterTurn("c1", window(10, 200));
+    await compactor.afterTurn("c1", buffer(10, 20));
     expect(store.writes).toHaveLength(0);
+    expect(store.savedCursor).toBe("m2");
   });
 });
 

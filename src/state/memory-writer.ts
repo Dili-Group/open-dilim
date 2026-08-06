@@ -27,7 +27,7 @@ export const DISTILL_EVERY_TURNS = 6;
 
 /**
  * Số turn transcript đưa vào distiller mỗi lần. Rộng hơn ngưỡng trên (gồm cả lượt agent trả và
- * phần đuôi của lô trước) để fact rút ra không bị cụt ngữ cảnh. Phải ≤ HISTORY_LIMIT của worker.
+ * phần đuôi của lô trước) để fact rút ra không bị cụt ngữ cảnh. Phải ≤ HISTORY_WINDOW_TURNS (session.ts).
  */
 export const DISTILL_WINDOW_TURNS = 12;
 

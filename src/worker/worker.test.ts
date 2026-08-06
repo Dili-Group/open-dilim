@@ -5,7 +5,7 @@ import { describe, expect, test } from "bun:test";
 import type { ChatRequest, ChatResult, LLMProvider } from "../llm/types.ts";
 import type { Identity, IdentityRepo, OpsPort } from "../flash-command/types.ts";
 import { FlashRegistry, flashRegistry, ok } from "../flash-command/index.ts";
-import { AGENT_SENDER_ID, type Envelope } from "../types/index.ts";
+import { AGENT_SENDER_ID, type Envelope, type HistoryEntry } from "../types/index.ts";
 import type { GroupCustomerLookup, GroupLookupInput, IdentityResolver } from "../auth/types.ts";
 import type {
   DistillTurn,
@@ -17,6 +17,8 @@ import type {
 import type { Broadcaster, BroadcastTarget } from "../broadcast/types.ts";
 import { TypingFactory } from "../broadcast/typing-factory.ts";
 import { MemoryBroker, MemoryHistoryStore } from "../bootstrap/deps-memory.ts";
+import { HISTORY_WINDOW_TURNS } from "../state/session.ts";
+import type { ConversationCompactor } from "../state/compactor.ts";
 import { StubOrderPort } from "../operational/order-stub.ts";
 import { SkillRegistry } from "../skills/registry.ts";
 import { buildAgentRegistry } from "../agents/registry.ts";
@@ -221,6 +223,40 @@ describe("handleEnvelope", () => {
     expect(broadcaster.sent).toHaveLength(1);
     expect(broadcaster.sent[0]!.text).toBe("xin chào bạn");
     expect(broadcaster.sent[0]!.target.conversationId).toBe("c1");
+  });
+
+  test("nén hội thoại nhận CẢ BUFFER, không chỉ cửa sổ agent đọc", async () => {
+    const history = new MemoryHistoryStore();
+    const total = HISTORY_WINDOW_TURNS + 10;
+    for (let i = 0; i < total; i++) {
+      await history.append({
+        conversationId: "c1",
+        msgId: `old${i}`,
+        senderId: "u1",
+        text: `tin ${i}`,
+        isGroup: false,
+        role: "user",
+        ts: i + 1,
+      });
+    }
+    const seen: HistoryEntry[][] = [];
+    const compactor: ConversationCompactor = {
+      afterTurn: (_conversationId, entries) => {
+        seen.push([...entries]);
+        return Promise.resolve();
+      },
+    };
+    const provider = new ScriptedProvider([
+      { stopReason: "end_turn", content: [{ type: "text", text: "ok" }] },
+    ]);
+    const { ctx } = makeCtx(provider, { role: "guest", senderId: "u1" }, history);
+
+    const result = await handleEnvelope({ ...ctx, compactor }, makeEnvelope());
+
+    expect(result.status).toBe("reply");
+    // Agent chỉ thấy 20 tin cuối; compactor phải thấy cả phần đã trôi + reply vừa lưu.
+    expect(seen[0]?.length).toBe(total + 1);
+    expect(seen[0]?.[0]?.msgId).toBe("old0");
   });
 
   test("agent tra đơn → gửi tin báo TRƯỚC, rồi tin trả lời (2 tin, đúng thứ tự)", async () => {

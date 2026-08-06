@@ -66,7 +66,12 @@ export function buildMemoryWriters(
 }
 
 export { PgMemoryStore } from "./memory.ts";
-export { RedisHistoryStore, parseHistoryEntry } from "./session.ts";
+export {
+  RedisHistoryStore,
+  parseHistoryEntry,
+  HISTORY_WINDOW_TURNS,
+  HISTORY_BUFFER_TURNS,
+} from "./session.ts";
 export { RedisDedupe } from "./dedupe.ts";
 export { LlmDistiller, parseFacts, renderTranscript } from "./distiller.ts";
 export {
@@ -81,10 +86,16 @@ export {
   LlmCompactor,
   RedisSummaryStore,
   COMPACT_TRIGGER_CHARS,
+  COMPACT_MIN_ENTRIES,
   KEEP_RECENT_ENTRIES,
   SUMMARY_MAX_CHARS,
 } from "./compactor.ts";
-export type { ConversationCompactor, SummaryReader, SummaryStore } from "./compactor.ts";
+export type {
+  CompactPolicy,
+  ConversationCompactor,
+  SummaryReader,
+  SummaryStore,
+} from "./compactor.ts";
 export { toVectorLiteral, DEDUP_COSINE_DISTANCE, RECALL_MAX_COSINE_DISTANCE } from "./vector.ts";
 export { MemoryType, MEMORY_TYPE_VALUES } from "./types.ts";
 export { customerSupportSpec, internalOpsSpec, personalSpec } from "./specs.ts";

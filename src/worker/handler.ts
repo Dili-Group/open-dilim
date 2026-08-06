@@ -7,6 +7,7 @@ import { resolveAgentType } from "../agents/router.ts";
 import type { RootAgent } from "../agents/types.ts";
 import { MemoryOwnerKind, type MemoryScope } from "../state/types.ts";
 import { toDistillTurns } from "../state/memory-writer.ts";
+import { HISTORY_BUFFER_TURNS, HISTORY_WINDOW_TURNS } from "../state/session.ts";
 import { capForChannel, type TypingTarget } from "../broadcast/index.ts";
 import {
   AGENT_SENDER_ID,
@@ -16,9 +17,6 @@ import {
   type LifecycleStep,
 } from "../types/index.ts";
 import type { WorkerContext } from "./types.ts";
-
-// N turn history nạp vào context mỗi lần chạy agent.
-const HISTORY_LIMIT = 20;
 
 export async function handleEnvelope(
   ctx: WorkerContext,
@@ -71,7 +69,7 @@ export async function handleEnvelope(
 
     // 7. STATE — nạp history phòng (đã gồm chính message này do ingest append trước khi publish).
     step = "state";
-    const history = await ctx.history.recent(envelope.conversationId, HISTORY_LIMIT);
+    const history = await ctx.history.recent(envelope.conversationId, HISTORY_WINDOW_TURNS);
     if (history.length === 0) {
       // Rỗng = bất thường (ingest append TRƯỚC publish) → thành kết quả có vết, không im lặng.
       return {
@@ -164,7 +162,11 @@ async function rememberTurn(
   const window = [...history, reply];
   if (ctx.compactor !== undefined) {
     try {
-      await ctx.compactor.afterTurn(envelope.conversationId, window, signal);
+      // Đọc LẠI buffer rộng thay vì tái dùng `window`: compactor cần cả phần đã trôi khỏi cửa sổ
+      // agent, mà `window` chỉ dôi ra đúng 1 entry so với cửa sổ đó. Một lượt đọc Redis thêm,
+      // nằm sau broadcast nên không ai chờ.
+      const buffered = await ctx.history.recent(envelope.conversationId, HISTORY_BUFFER_TURNS);
+      await ctx.compactor.afterTurn(envelope.conversationId, buffered, signal);
     } catch (err) {
       console.error("[worker] nén hội thoại lỗi:", err);
     }

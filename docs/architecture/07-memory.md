@@ -5,7 +5,7 @@ Hai tầng, khác bản chất — không nhét chung.
 | | Ngắn hạn (working) | Dài hạn (persistent) |
 |---|---|---|
 | Phạm vi | 1 `conversationId` (phòng) | cross-session, theo `(owner_kind, owner_id, channel, conversation_id)` |
-| Nội dung | N turn gần nhất **verbatim** + rolling summary (`compactor.ts`) | **fact đã chưng cất** (không phải log thô) |
+| Nội dung | 20 turn gần nhất **verbatim** (buffer 200) + rolling summary (`compactor.ts`) | **fact đã chưng cất** (không phải log thô) |
 | Store | **Redis** (ephemeral, bounded, TTL/evict) | **Postgres + pgvector** |
 | Module | `state/session.ts` | `state/memory.ts` |
 | Recall | đọc thẳng theo `conversationId` | semantic search top-K theo embedding |
@@ -17,29 +17,42 @@ Group: mỗi turn gắn `senderId` (đa speaker). KHÔNG cần vector/embedding.
 
 ### Nén (rolling summary) — `state/compactor.ts`
 
-Worker chỉ đọc 20 tin cuối. Phần trôi ra ngoài cửa sổ đó KHÔNG được biến mất im lặng: sau mỗi
-lượt, compactor cô nó lại thành một bản tóm cuộn (Redis, 1 key/phòng), và bước STATE nạp bản tóm
-đó vào system prompt trước khối memory.
+Worker chỉ đọc `HISTORY_WINDOW_TURNS` (20) tin cuối. Phần trôi ra ngoài cửa sổ đó KHÔNG được biến
+mất im lặng: compactor cô nó lại thành một bản tóm cuộn (Redis, 1 key/phòng), và bước STATE nạp
+bản tóm đó vào system prompt trước khối memory.
+
+Compactor đọc **CẢ BUFFER phòng** (`HISTORY_BUFFER_TURNS` = 200), không phải cửa sổ agent: cửa sổ
+agent chỉ dôi ra đúng 1 entry mỗi lượt nên nén theo nó là bỏ sót gần hết phần trôi. Vì buffer được
+đọc lại nguyên vẹn mỗi lượt, cần một **mốc** (`msgId` cuối đã nằm trong bản tóm, key Redis riêng)
+để không nén lại từ đầu buffer.
 
 ```
-afterTurn(conversationId, [...history, reply]):
-  tổng ký tự < COMPACT_TRIGGER_CHARS  → thoát, KHÔNG gọi LLM
-  còn lại → phần cũ = entries.slice(0, -KEEP_RECENT_ENTRIES)
-            (rỗng = cửa sổ dài nhưng toàn tin gần đây → chưa có gì để nén)
-          → con nhẹ GỘP (bản tóm cũ + phần cũ) → 1 bản tóm ≤ SUMMARY_MAX_CHARS → Redis
+afterTurn(conversationId, buffer 200 tin):
+  pending = phần sau mốc (mốc không còn trong buffer → lấy cả buffer)
+  older   = pending.slice(0, -KEEP_RECENT_ENTRIES)     ← phần đã trôi khỏi cửa sổ agent
+  rỗng                                                  → thoát
+  older < COMPACT_MIN_ENTRIES và < COMPACT_TRIGGER_CHARS → thoát, KHÔNG gọi LLM
+  còn lại → con nhẹ GỘP (bản tóm cũ + older) → 1 bản tóm ≤ SUMMARY_MAX_CHARS
+          → ghi bản tóm + tiến mốc tới msgId cuối của older
+  nén hỏng → mốc KHÔNG tiến, lượt sau nén lại (đoạn đó vẫn còn trong buffer)
 ```
 
 | Hằng | Giá trị | Vì sao |
 |---|---|---|
-| `COMPACT_TRIGGER_CHARS` | 12.000 | ~4–5k token tiếng Việt |
-| `KEEP_RECENT_ENTRIES` | 20 | Giữ nguyên văn; khớp `HISTORY_LIMIT` của worker |
+| `HISTORY_WINDOW_TURNS` | 20 | Cửa sổ verbatim agent đọc. Khai ở `session.ts` — compactor dùng chung, lệch nhau là tin rơi vào khe giữa |
+| `HISTORY_BUFFER_TURNS` | 200 | Trần buffer Redis = kho cho compactor gom lô |
+| `COMPACT_MIN_ENTRIES` | 10 | Số tin đã trôi ra, chưa nén, đủ bỏ ra 1 call LLM. **Ngưỡng thường chạy** |
+| `COMPACT_TRIGGER_CHARS` | 12.000 | Chốt chặn cho hội thoại ít tin nhưng tin dài (~4–5k token tiếng Việt) |
 | `SUMMARY_MAX_CHARS` | 1.200 | Bằng cap khối memory — cả hai đều chen vào trước history mỗi lượt |
 
+**Ngưỡng chính là SỐ ENTRY, không phải ký tự.** Chat Zalo tin ngắn (20–200 ký tự): 21 tin gộp lại
+chưa tới 4k ký tự, nên ngưỡng ký tự gần như không bao giờ chạm — nén theo nó là không bao giờ nén,
+và tin trôi khỏi vị trí thứ 20 mất thật. Ký tự chỉ còn vai trò chốt chặn.
+
 **Ngưỡng KHÔNG chọn theo trần context của model.** Agent chạy Opus 4.8 (1M token input) nên một
-lượt hiện dùng ~2–4k token — còn cách trần vài trăm lần. Lấy ngưỡng theo đó thì nén không bao giờ
-chạy. Ngưỡng chọn theo **chi phí**: mỗi lượt gửi lại toàn bộ cửa sổ, cửa sổ phình = trả tiền cho
-model đọc lại chuyện phiếm. (Con nhẹ nén là Haiku 4.5, 200K token — bản tóm cũ + phần cắt ra ≈ 5k
-token, thừa sức.)
+lượt hiện dùng ~2–4k token — còn cách trần vài trăm lần. Cửa sổ gửi lên model vốn cố định ở 20 tin
++ bản tóm, nên nén không phải để cứu trần context mà để **không mất ngữ cảnh cũ**. (Con nhẹ nén là
+Haiku 4.5, 200K token — bản tóm cũ + phần cắt ra thừa sức.)
 
 Đo bằng **ký tự, không token**: đếm token thật là một network call `count_tokens` mỗi lượt — cùng
 lý do với cap khối memory.
