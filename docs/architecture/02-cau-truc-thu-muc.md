@@ -121,7 +121,8 @@
 │   │
 │   ├── state/                   # STATE — session, memory, pending
 │   │   ├── store.ts             #   interface Store (get/set theo conversationId)
-│   │   ├── session.ts           #   NGẮN HẠN: Redis buffer N turn + rolling summary (TTL)
+│   │   ├── session.ts           #   NGẮN HẠN: Redis buffer N turn (LTRIM + TTL)
+│   │   ├── compactor.ts         #   nén phần trôi khỏi cửa sổ → rolling summary (theo PHÒNG)
 │   │   ├── memory.ts            #   DÀI HẠN: distill → embed (gemini) → pgvector, recall top-K theo user
 │   │   ├── specs.ts             #   DistillSpec dựng sẵn — "agent này nhớ GÌ"
 │   │   ├── memory-writer.ts     #   đường GHI theo lô + MemoryWriterRegistry (1 writer / 1 spec)

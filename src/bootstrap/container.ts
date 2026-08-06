@@ -14,7 +14,7 @@ import type { AgentRegistry } from "../agents/index.ts";
 import type { Broadcaster, TypingFactory } from "../broadcast/index.ts";
 import type { GroupCustomerLookup, IdentityResolver } from "../auth/index.ts";
 import type { BrokerConsumer, HistoryReader, HistoryWriter } from "../worker/index.ts";
-import type { MemoryWriterLookup } from "../state/index.ts";
+import type { ConversationCompactor, MemoryWriterLookup, SummaryReader } from "../state/index.ts";
 
 /** Mọi service dựng lúc boot, share cho các tầng downstream (worker/gateway). */
 export interface Services {
@@ -53,6 +53,9 @@ export interface Services {
    * không chặn boot.
    */
   readonly memoryWriters?: MemoryWriterLookup;
+  /** Nén hội thoại ngắn hạn theo phòng + cổng đọc bản tóm cho bước STATE. */
+  readonly compactor: ConversationCompactor;
+  readonly summaries: SummaryReader;
 }
 
 /** Hệ thống ĐANG CHẠY: service + HTTP server + hook shutdown sạch. */

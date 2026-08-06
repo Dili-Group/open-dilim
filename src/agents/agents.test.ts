@@ -7,6 +7,7 @@ import type { Identity } from "../flash-command/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import { SkillRegistry } from "../skills/registry.ts";
 import { COMMON_TOOLS, buildToolRegistry } from "../tools/index.ts";
+import type { ToolFactory } from "../tools/types.ts";
 import { customerSupportSpec, internalOpsSpec } from "../state/specs.ts";
 import { runAgentLoop } from "./runtime/loop.ts";
 import { buildAgentRegistry } from "./registry.ts";
@@ -106,6 +107,71 @@ describe("runAgentLoop", () => {
     const provider = new ScriptedProvider([toolTurn, toolTurn, toolTurn, toolTurn]);
     expect(await loop(provider)).toContain("vượt số bước");
     expect(provider.seen).toHaveLength(CFG.agentMaxIterations);
+  });
+});
+
+describe("announce giữa lượt", () => {
+  /** Tool "chậm" giả: khai announce để loop báo khách trước khi chạy. */
+  const slowTool: ToolFactory = () => ({
+    name: "cham",
+    description: "tool chậm",
+    inputSchema: { type: "object", properties: {} },
+    announce: "Dạ để em kiểm tra ạ.",
+    run: () => Promise.resolve({ content: "xong" }),
+  });
+  const toolTurn: ChatResult = {
+    stopReason: "tool_use",
+    content: [{ type: "tool_use", id: "t1", name: "cham", input: {} }],
+  };
+
+  function loopWith(
+    factories: readonly ToolFactory[],
+    script: readonly ChatResult[],
+    onAnnounce: (text: string) => Promise<void>,
+  ): Promise<string> {
+    return runAgentLoop({
+      provider: new ScriptedProvider(script),
+      system: "s",
+      messages: MESSAGES,
+      registry: buildToolRegistry(factories, { skills: SKILLS, identity: GUEST }),
+      maxTokens: CFG.maxTokens,
+      effort: CFG.effort,
+      maxIterations: CFG.agentMaxIterations,
+      onAnnounce,
+    });
+  }
+
+  test("tool có announce → gửi ĐÚNG 1 LẦN dù gọi tool nhiều vòng", async () => {
+    const sent: string[] = [];
+    const text = await loopWith([slowTool], [toolTurn, toolTurn, { stopReason: "end_turn", content: [{ type: "text", text: "rồi ạ" }] }], (t) => {
+      sent.push(t);
+      return Promise.resolve();
+    });
+    expect(text).toBe("rồi ạ");
+    expect(sent).toEqual(["Dạ để em kiểm tra ạ."]);
+  });
+
+  test("tool KHÔNG khai announce → không gửi gì", async () => {
+    const sent: string[] = [];
+    await loopWith(
+      COMMON_TOOLS,
+      [
+        { stopReason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "whoami", input: {} }] },
+        { stopReason: "end_turn", content: [{ type: "text", text: "ok" }] },
+      ],
+      (t) => {
+        sent.push(t);
+        return Promise.resolve();
+      },
+    );
+    expect(sent).toEqual([]);
+  });
+
+  test("gửi announce hỏng → lượt vẫn trả lời bình thường", async () => {
+    const text = await loopWith([slowTool], [toolTurn, { stopReason: "end_turn", content: [{ type: "text", text: "vẫn xong" }] }], () =>
+      Promise.reject(new Error("kênh chết")),
+    );
+    expect(text).toBe("vẫn xong");
   });
 });
 

@@ -85,9 +85,23 @@ export async function handleEnvelope(
     // Channel chưa map → resolveAgentType trả undefined → registry rơi về default agent.
     step = "agent";
     const agent = ctx.agents.resolve(resolveAgentType(envelope.channel));
-    const memoryScope = await resolveMemoryScope(ctx, envelope, agent);
+    // Tra chủ phòng MỘT LẦN: vừa là chủ sở hữu trí nhớ, vừa là phạm vi dữ liệu của tool nghiệp vụ.
+    const roomCustomerId = await resolveRoomCustomer(ctx, envelope, agent);
+    const memoryScope = resolveMemoryScope(envelope, agent, roomCustomerId);
+    // Bản tóm phần đã trôi khỏi cửa sổ 20 tin. Đọc hỏng → chạy không có nó, không giết lượt.
+    const summary = await readSummary(ctx, envelope.conversationId);
     const onStep = buildTypingPulse(ctx, envelope);
-    const result = await agent.run({ identity, history, memoryScope, onStep, signal });
+    const onAnnounce = buildAnnouncer(ctx, envelope);
+    const result = await agent.run({
+      identity,
+      history,
+      summary,
+      memoryScope,
+      roomCustomerId,
+      onStep,
+      onAnnounce,
+      signal,
+    });
     // suspended (§6): gate đã lưu pending + tự phát yêu cầu duyệt tới NGƯỜI DUYỆT (có thể ở phòng
     // khác) → worker thoát, không broadcast gì thêm. failed: không có text hợp lệ để gửi.
     if (result.status !== "reply" || result.text === "") return result;
@@ -145,6 +159,17 @@ async function rememberTurn(
     console.error("[worker] lưu reply vào history lỗi:", err);
   }
 
+  // Nén ngắn hạn TRƯỚC đường dài hạn, và KHÔNG phụ thuộc memoryScope: phòng chưa bind không
+  // distill được nhưng vẫn phải giữ được mạch hội thoại.
+  const window = [...history, reply];
+  if (ctx.compactor !== undefined) {
+    try {
+      await ctx.compactor.afterTurn(envelope.conversationId, window, signal);
+    } catch (err) {
+      console.error("[worker] nén hội thoại lỗi:", err);
+    }
+  }
+
   // Chưa bind phòng (không có scope) hoặc chưa bật memory dài hạn → không có chỗ ghi, bỏ qua.
   if (memoryScope === undefined || ctx.memoryWriters === undefined) return;
   // Writer THEO agent: agent này nhớ gì do `memorySpec` của nó quyết. Không có writer khớp →
@@ -152,14 +177,23 @@ async function rememberTurn(
   const writer = ctx.memoryWriters.for(agent.agentType);
   if (writer === undefined) return;
   try {
-    await writer.afterTurn(
-      memoryScope,
-      toDistillTurns([...history, reply]),
-      envelope.msgId,
-      signal,
-    );
+    await writer.afterTurn(memoryScope, toDistillTurns(window), envelope.msgId, signal);
   } catch (err) {
     console.error("[worker] ghi trí nhớ dài hạn lỗi:", err);
+  }
+}
+
+/**
+ * Bản tóm hội thoại cũ cho lượt này. Best-effort: chưa nối tầng nén, hoặc Redis hỏng → chạy bằng
+ * cửa sổ history thôi. Thiếu ngữ cảnh cũ tệ hơn có, nhưng vẫn tốt hơn là hỏng cả lượt.
+ */
+async function readSummary(ctx: WorkerContext, conversationId: string): Promise<string | undefined> {
+  if (ctx.summaries === undefined) return undefined;
+  try {
+    return await ctx.summaries.get(conversationId);
+  } catch (err) {
+    console.error("[worker] đọc bản tóm hội thoại lỗi:", err);
+    return undefined;
   }
 }
 
@@ -167,6 +201,22 @@ async function rememberTurn(
  * Nhịp "đang xử lý" bind sẵn target của lượt: agent chỉ gọi () => Promise, không biết channel/
  * conversationId. Sender chọn theo channel; kênh chưa có adapter → noop (factory tự fallback).
  */
+/**
+ * Gửi tin "đang làm việc X" giữa lượt (agent gọi khi chạm tool chậm — xem `Tool.announce`).
+ *
+ * KHÔNG ghi vào history: đây là câu trấn an cố định, không mang dữ kiện. Ghi vào thì mỗi lượt tra
+ * cứu đẻ thêm một lượt agent rỗng trong cửa sổ 20 tin và trong lô chưng cất trí nhớ.
+ */
+function buildAnnouncer(ctx: WorkerContext, envelope: Envelope): (text: string) => Promise<void> {
+  const target = {
+    channel: envelope.channel,
+    conversationId: envelope.conversationId,
+    isGroup: envelope.isGroup,
+    replyToSenderId: envelope.senderId,
+  };
+  return (text: string) => ctx.broadcaster.send(target, capForChannel(envelope.channel, text));
+}
+
 function buildTypingPulse(ctx: WorkerContext, envelope: Envelope): () => Promise<void> {
   const sender = ctx.typing.for(envelope.channel);
   const target: TypingTarget = {
@@ -175,6 +225,25 @@ function buildTypingPulse(ctx: WorkerContext, envelope: Envelope): () => Promise
     isGroup: envelope.isGroup,
   };
   return () => sender.typing(target);
+}
+
+/**
+ * Đại lý sở hữu PHÒNG này (nhóm đã `/ketnoi-daily`). Một lượt tra dùng cho hai việc: chủ sở hữu
+ * trí nhớ (resolveMemoryScope) và phạm vi dữ liệu của tool nghiệp vụ (ToolContext.roomCustomerId).
+ *
+ * Chat 1-1 / chưa nối tầng auth-group → undefined: không có phòng thì không có chủ phòng.
+ * Agent `directOnly` cũng bỏ qua: nó không phục vụ phòng, tra chỉ tốn một lượt I/O vô ích.
+ */
+async function resolveRoomCustomer(
+  ctx: WorkerContext,
+  envelope: Envelope,
+  agent: RootAgent,
+): Promise<string | undefined> {
+  if (agent.directOnly || ctx.groupCustomer === undefined || !envelope.isGroup) return undefined;
+  return ctx.groupCustomer.customerIdOf({
+    channel: envelope.channel,
+    groupId: envelope.conversationId,
+  });
 }
 
 /**
@@ -194,11 +263,11 @@ function buildTypingPulse(ctx: WorkerContext, envelope: Envelope): () => Promise
  * và không có rổ chung để đoán vào. Chat 1-1 với agent KHÔNG directOnly cũng không nhớ: chỉ trợ
  * lý riêng mới có trí nhớ cá nhân (agent đại lý DM riêng vẫn là chuyện của phòng, không của người).
  */
-async function resolveMemoryScope(
-  ctx: WorkerContext,
+function resolveMemoryScope(
   envelope: Envelope,
   agent: RootAgent,
-): Promise<MemoryScope | undefined> {
+  roomCustomerId: string | undefined,
+): MemoryScope | undefined {
   if (agent.directOnly) {
     if (envelope.isGroup) return undefined;
     return {
@@ -209,11 +278,7 @@ async function resolveMemoryScope(
     };
   }
 
-  if (ctx.groupCustomer === undefined || !envelope.isGroup) return undefined;
-  const customerId = await ctx.groupCustomer.customerIdOf({
-    channel: envelope.channel,
-    groupId: envelope.conversationId,
-  });
+  const customerId = roomCustomerId;
   if (customerId === undefined) return undefined;
   return {
     ownerKind: MemoryOwnerKind.Customer,

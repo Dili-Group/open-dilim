@@ -26,7 +26,12 @@ export interface ContextSources {
 export interface TurnInput {
   readonly history: readonly HistoryEntry[];
   /**
-   * Phân vùng (customerId, channel, conversationId) do WIRING cấp — context/ KHÔNG derive từ
+   * Bản tóm phần hội thoại đã trôi khỏi cửa sổ `history` (state/compactor.ts). undefined = phòng
+   * chưa đủ dài để nén, hoặc chưa nối tầng compact — không phải lỗi.
+   */
+  readonly summary?: string;
+  /**
+   * Phân vùng (ownerKind, ownerId, channel, conversationId) do WIRING cấp — context/ KHÔNG derive từ
    * Identity (memory thuộc PHÒNG, người gõ có thể là nhân viên không mang customerId). Derive
    * sai = rò memory sang khách khác. undefined = bỏ qua recall dài hạn.
    */

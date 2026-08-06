@@ -5,6 +5,7 @@
 // SERVER-SIDE qua closure lúc dựng tool cho request — xem buildTools(identity) trong index.ts.
 
 import type { Identity } from "../flash-command/types.ts";
+import type { OrderPort } from "../operational/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 
 export interface ToolResult {
@@ -19,6 +20,13 @@ export interface Tool {
   readonly description: string;
   /** JSON Schema object cho tham số nghiệp vụ (không chứa danh tính). */
   readonly inputSchema: Record<string, unknown>;
+  /**
+   * Câu báo "đang làm" gửi NGAY khi model gọi tool này, trước khi tool chạy (agents/runtime/loop.ts
+   * phát 1 lần/lượt). Khai ở đây vì "việc này lâu, phải trấn an khách" là tính chất CỦA TOOL —
+   * loop/worker chỉ chuyển phát, model không được quyết (nói rồi mới im lặng còn tệ hơn im luôn).
+   * Bỏ trống = tool nhanh/nội bộ, không báo gì.
+   */
+  readonly announce?: string;
   run(input: unknown, signal?: AbortSignal): Promise<ToolResult>;
 }
 
@@ -31,6 +39,14 @@ export interface Tool {
 export interface ToolContext {
   readonly skills: SkillRegistry;
   readonly identity: Identity;
+  /**
+   * Đại lý SỞ HỮU PHÒNG này (worker tra từ group_map), không phải đại lý của người gõ: nhân viên
+   * gõ trong nhóm đại lý X thì Identity không mang X nhưng đơn hỏi vẫn là đơn của X.
+   * undefined = phòng chưa `/ketnoi-daily`, hoặc chat 1-1.
+   */
+  readonly roomCustomerId?: string;
+  /** Cổng đọc đơn hàng. undefined = chưa nối hệ vận hành → tool tra đơn trả lỗi nghiệp vụ, không throw. */
+  readonly orders?: OrderPort;
 }
 
 export type ToolFactory = (ctx: ToolContext) => Tool;

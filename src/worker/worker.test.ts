@@ -17,6 +17,7 @@ import type {
 import type { Broadcaster, BroadcastTarget } from "../broadcast/types.ts";
 import { TypingFactory } from "../broadcast/typing-factory.ts";
 import { MemoryBroker, MemoryHistoryStore } from "../bootstrap/deps-memory.ts";
+import { StubOrderPort } from "../operational/order-stub.ts";
 import { SkillRegistry } from "../skills/registry.ts";
 import { buildAgentRegistry } from "../agents/registry.ts";
 import type { AgentConfig } from "../agents/types.ts";
@@ -220,6 +221,51 @@ describe("handleEnvelope", () => {
     expect(broadcaster.sent).toHaveLength(1);
     expect(broadcaster.sent[0]!.text).toBe("xin chào bạn");
     expect(broadcaster.sent[0]!.target.conversationId).toBe("c1");
+  });
+
+  test("agent tra đơn → gửi tin báo TRƯỚC, rồi tin trả lời (2 tin, đúng thứ tự)", async () => {
+    const history = new MemoryHistoryStore();
+    await history.append({
+      conversationId: "g1",
+      msgId: "m1",
+      senderId: "u1",
+      text: "Đơn A đi giúp chị nhé!",
+      isGroup: true,
+      role: "user",
+      ts: 1,
+    });
+    const provider = new ScriptedProvider([
+      { stopReason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "tra_don_hang", input: {} }] },
+      { stopReason: "end_turn", content: [{ type: "text", text: "Dạ đơn DH-1 đang giao ạ." }] },
+    ]);
+    const broadcaster = new CapturingBroadcaster();
+    const ctx: WorkerContext = {
+      history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
+      identity: new FakeResolver({ role: "nhan_vien", senderId: "u1", userId: "nv1" }),
+      // Phòng đã /ketnoi-daily → tool tra đơn có phạm vi đại lý dù NGƯỜI GÕ là nhân viên.
+      groupCustomer: new FakeGroupCustomer("dealer-1"),
+      agents: buildAgentRegistry({ provider, config: CFG, skills: SKILLS, orders: new StubOrderPort() }),
+      broadcaster,
+      typing: TYPING,
+    };
+
+    const result = await handleEnvelope(
+      ctx,
+      makeEnvelope({ conversationId: "g1", isGroup: true, text: "Đơn A đi giúp chị nhé!" }),
+    );
+
+    expect(result.status).toBe("reply");
+    expect(broadcaster.sent.map((s) => s.text)).toEqual([
+      "Dạ để em kiểm tra đơn hàng giúp anh/chị ạ.",
+      "Dạ đơn DH-1 đang giao ạ.",
+    ]);
+    // Tin báo là câu trấn an cố định → KHÔNG vào history (chỉ tin người dùng + reply thật).
+    const saved = await history.recent("g1", 10);
+    expect(saved.map((e) => e.role)).toEqual(["user", "agent"]);
   });
 
   test("reply vượt trần channel → text gửi bị cắt, kết quả trả về giữ nguyên", async () => {
@@ -566,6 +612,52 @@ describe("handleEnvelope — ghi nhớ sau lượt", () => {
     expect((await handleEnvelope(ctx, envelope)).status).toBe("reply");
     expect(asked).toEqual(["boss"]);
     expect(writer.calls).toHaveLength(1);
+  });
+
+  test("nén hội thoại chạy theo PHÒNG — kể cả phòng chưa bind (không có MemoryScope)", async () => {
+    const compacted: { conversationId: string; count: number }[] = [];
+    const history = new MemoryHistoryStore();
+    const envelope = makeEnvelope({ isGroup: true, conversationId: "g1", channel: "zalo" });
+    await history.append({
+      conversationId: envelope.conversationId,
+      msgId: "m1",
+      senderId: envelope.senderId,
+      text: "hỏi gì đó",
+      isGroup: true,
+      role: "user",
+      ts: 1,
+    });
+
+    const ctx: WorkerContext = {
+      history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
+      identity: new FakeResolver({ role: "guest", senderId: envelope.senderId }),
+      // Chưa /ketnoi-daily → không có scope → không distill. Nén vẫn phải chạy.
+      groupCustomer: new FakeGroupCustomer(undefined),
+      compactor: {
+        afterTurn: (conversationId, entries) => {
+          compacted.push({ conversationId, count: entries.length });
+          return Promise.resolve();
+        },
+      },
+      summaries: { get: () => Promise.resolve("tóm tắt cũ") },
+      agents: buildAgentRegistry({
+        provider: new ScriptedProvider([
+          { stopReason: "end_turn", content: [{ type: "text", text: "ok" }] },
+        ]),
+        config: CFG,
+        skills: SKILLS,
+      }),
+      broadcaster: new CapturingBroadcaster(),
+      typing: TYPING,
+    };
+
+    expect((await handleEnvelope(ctx, envelope)).status).toBe("reply");
+    // Cửa sổ đưa vào nén = history + reply agent vừa lưu.
+    expect(compacted).toEqual([{ conversationId: "g1", count: 2 }]);
   });
 
   test("không có writer cho agent → bỏ ghi, KHÔNG mượn writer agent khác", async () => {

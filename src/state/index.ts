@@ -8,6 +8,7 @@ import { PgMemoryStore } from "./memory.ts";
 import { RedisHistoryStore } from "./session.ts";
 import { RedisDedupe } from "./dedupe.ts";
 import { LlmDistiller } from "./distiller.ts";
+import { LlmCompactor, RedisSummaryStore } from "./compactor.ts";
 import { BatchedMemoryWriter, MemoryWriterRegistry, RedisDistillCounter } from "./memory-writer.ts";
 import type { Distiller, DistillSpec, MemoryStore, MemoryWriter, SqlExecutor } from "./types.ts";
 
@@ -34,6 +35,15 @@ export function buildDedupe(): RedisDedupe {
 /** Distiller chạy trên con nhẹ (CONFIG.memoryModel), theo policy `spec` của agent gọi. */
 export function buildDistiller(spec: DistillSpec): Distiller {
   return new LlmDistiller(buildMemoryLlmProvider(), spec);
+}
+
+/**
+ * Nén hội thoại ngắn hạn — cùng con nhẹ với distiller, nhưng lưu Redis theo phòng (không cần
+ * MemoryScope) nên chạy được cho cả phòng chưa bind.
+ */
+export function buildCompactor(): { compactor: LlmCompactor; summaries: RedisSummaryStore } {
+  const summaries = new RedisSummaryStore(commandOf(redis));
+  return { compactor: new LlmCompactor(buildMemoryLlmProvider(), summaries), summaries };
 }
 
 /**
@@ -67,6 +77,14 @@ export {
   DISTILL_EVERY_TURNS,
   DISTILL_WINDOW_TURNS,
 } from "./memory-writer.ts";
+export {
+  LlmCompactor,
+  RedisSummaryStore,
+  COMPACT_TRIGGER_CHARS,
+  KEEP_RECENT_ENTRIES,
+  SUMMARY_MAX_CHARS,
+} from "./compactor.ts";
+export type { ConversationCompactor, SummaryReader, SummaryStore } from "./compactor.ts";
 export { toVectorLiteral, DEDUP_COSINE_DISTANCE, RECALL_MAX_COSINE_DISTANCE } from "./vector.ts";
 export { MemoryType, MEMORY_TYPE_VALUES } from "./types.ts";
 export { customerSupportSpec, internalOpsSpec, personalSpec } from "./specs.ts";

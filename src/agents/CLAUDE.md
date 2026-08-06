@@ -21,7 +21,8 @@ src/agents/
                        #   Luồng: sub-router → assemble context → loop
     sub-router.ts      #   TẦNG 2 (mịn): trong 1 root, chọn sub-agent theo task.
                        #   1 lượt LLM rẻ (no tool, effort low, 24 token)
-    loop.ts            #   vòng LLM ⇄ tools tới khi model hết gọi tool
+    loop.ts            #   vòng LLM ⇄ tools tới khi model hết gọi tool.
+                       #   Chạm tool khai `announce` → phát 1 tin báo "đang xử lý" (1 lần/lượt)
 
   roots/               # DATA — thêm agent = thêm 1 file + 1 dòng ở registry.ts
     operations.ts      #   channel zalo-vanhanh

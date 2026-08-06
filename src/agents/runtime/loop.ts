@@ -21,6 +21,11 @@ export interface AgentLoopInput {
   readonly maxIterations: number;
   /** Nhịp gọi TRƯỚC mỗi bước (báo "đang xử lý" về kênh). Best-effort — xem `pulse`. */
   readonly onStep?: () => Promise<void>;
+  /**
+   * Gửi tin "đang làm X" khi model gọi tool có khai `announce`. Phát TỐI ĐA 1 LẦN mỗi lượt: chuỗi
+   * tool dài mà lần nào cũng "dạ để em kiểm tra" thì thành spam. Best-effort — xem `announce`.
+   */
+  readonly onAnnounce?: (text: string) => Promise<void>;
   readonly signal?: AbortSignal;
 }
 
@@ -36,6 +41,7 @@ const EXHAUSTED_REPLY = "Xử lý vượt số bước cho phép, bạn thử l�
 export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
   const { provider, system, registry, maxTokens, effort, maxIterations, onStep, signal } = input;
   let messages: LlmMessage[] = [...input.messages];
+  let announced = false;
 
   for (let i = 0; i < maxIterations; i++) {
     // Nhịp "đang xử lý" mỗi bước — giữ typing sống suốt chuỗi tool dài (indicator platform hết
@@ -48,6 +54,10 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
 
     if (result.stopReason === "tool_use") {
       const toolUses = result.content.filter(isToolUse);
+      // Báo TRƯỚC khi chạy tool: giá trị của câu "dạ để em kiểm tra" nằm ở chỗ nó tới sớm.
+      if (!announced) {
+        announced = await announce(registry, toolUses, input.onAnnounce, signal);
+      }
       const toolResults = await Promise.all(
         toolUses.map((call) => runToolCall(registry, call, signal)),
       );
@@ -79,6 +89,30 @@ async function pulse(onStep: (() => Promise<void>) | undefined, signal?: AbortSi
   } catch (err) {
     console.warn("[agent] gửi typing hỏng (bỏ qua):", err);
   }
+}
+
+/**
+ * Gửi câu báo của tool ĐẦU TIÊN có khai `announce` trong đợt gọi này. Trả true = đã gửi (lượt này
+ * thôi báo). Lỗi gửi KHÔNG rethrow: câu trả lời thật vẫn phải tới, mất câu trấn an không đáng
+ * giết lượt — nhưng trả true để không thử lại vòng sau (kênh hỏng thì vòng nào cũng hỏng).
+ */
+async function announce(
+  registry: ToolRegistry,
+  toolUses: readonly LlmToolUseBlock[],
+  onAnnounce: ((text: string) => Promise<void>) | undefined,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  if (onAnnounce === undefined || signal?.aborted) return false;
+  const text = toolUses
+    .map((call) => registry.get(call.name)?.announce)
+    .find((value): value is string => value !== undefined && value !== "");
+  if (text === undefined) return false;
+  try {
+    await onAnnounce(text);
+  } catch (err) {
+    console.error("[agent] gửi tin báo tiến trình lỗi (bỏ qua):", err);
+  }
+  return true;
 }
 
 function isToolUse(block: LlmContentBlock): block is LlmToolUseBlock {

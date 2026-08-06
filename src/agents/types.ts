@@ -4,6 +4,7 @@
 import type { Effort } from "../config.ts";
 import type { LLMProvider } from "../llm/types.ts";
 import type { Identity } from "../flash-command/types.ts";
+import type { OrderPort } from "../operational/types.ts";
 import type { AgentResult, HistoryEntry } from "../types/index.ts";
 import type { DistillSpec, MemoryRecall, MemoryScope } from "../state/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
@@ -36,15 +37,29 @@ export interface AgentDeps {
   readonly skills: SkillRegistry;
   /** Cổng CHỈ-ĐỌC (đường ghi memory là distiller chạy ngầm sau lượt, không phải việc của agent). */
   readonly memory?: MemoryRecall;
+  /** Cổng đọc đơn hàng cho tool tra đơn. undefined = chưa nối → tool trả lỗi nghiệp vụ, không chặn boot. */
+  readonly orders?: OrderPort;
 }
 
 export interface AgentRunInput {
   readonly identity: Identity;
   readonly history: readonly HistoryEntry[];
+  /** Bản tóm phần hội thoại đã trôi khỏi `history` — worker đọc, agent chỉ chuyển tiếp. */
+  readonly summary?: string;
   /** Do worker cấp — agent KHÔNG tự derive (derive sai = rò memory sang khách khác). */
   readonly memoryScope?: MemoryScope;
+  /**
+   * Đại lý sở hữu PHÒNG (worker tra từ group_map). Tool nghiệp vụ chặn phạm vi theo đây, không
+   * theo identity người gõ. undefined = chat 1-1 hoặc phòng chưa `/ketnoi-daily`.
+   */
+  readonly roomCustomerId?: string;
   /** Nhịp báo "đang xử lý" về kênh mỗi bước loop. Worker bind sẵn target; agent chỉ gọi. */
   readonly onStep?: () => Promise<void>;
+  /**
+   * Gửi 1 tin "đang làm việc X" giữa lượt (trước khi chạy tool chậm — xem `Tool.announce`).
+   * Tách khỏi `onStep`: onStep là tín hiệu typing cosmetic, đây là TIN NHẮN thật gửi vào phòng.
+   */
+  readonly onAnnounce?: (text: string) => Promise<void>;
   readonly signal?: AbortSignal;
 }
 

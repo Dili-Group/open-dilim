@@ -7,12 +7,21 @@ import type { Tool, ToolContext, ToolFactory } from "./types.ts";
 import { buildWhoamiTool } from "./impl/whoami.ts";
 import { buildUseSkillTool } from "./impl/use-skill.ts";
 import { buildUseReferenceTool } from "./impl/use-reference.ts";
+import { buildOrderStatusTool } from "./impl/order-status.ts";
 
 /** Bộ tool ai cũng có: biết mình là ai + đọc skill/reference. Không chạm dữ liệu nghiệp vụ. */
 export const COMMON_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildWhoamiTool(ctx.identity),
   (ctx: ToolContext): Tool => buildUseSkillTool(ctx.skills),
   (ctx: ToolContext): Tool => buildUseReferenceTool(ctx.skills),
+];
+
+/**
+ * Tool đọc dữ liệu đơn hàng — CHỈ agent phục vụ đại lý được khai (tool tự chặn phạm vi theo đại
+ * lý chủ phòng, nhưng agent không phục vụ đại lý thì cũng không có việc gì gọi nó).
+ */
+export const ORDER_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildOrderStatusTool(ctx),
 ];
 
 /**

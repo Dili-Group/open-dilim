@@ -27,11 +27,13 @@ import {
   SqlIdentityResolver,
 } from "../auth/index.ts";
 import { OperationalOpsPort } from "../operational/ops-port.ts";
+import { StubOrderPort } from "../operational/order-stub.ts";
 import {
   buildDedupe,
   buildHistoryStore,
   buildMemoryStore,
   buildMemoryWriters,
+  buildCompactor,
   type MemoryStore,
 } from "../state/index.ts";
 import { startWorkers } from "../worker/index.ts";
@@ -67,7 +69,14 @@ export async function bootstrap(): Promise<Services> {
 
   // skills đi thẳng vào agent: catalog vào system prompt + backing cho tool use_skill.
   // memory = cổng CHỈ-ĐỌC; scope (phòng nào) do worker cấp từng lượt qua groupCustomer.
-  const agents = buildAgentRegistry({ provider: llm, config, skills, memory });
+  // orders = STUB tới khi hệ vận hành có endpoint đơn hàng: đổi sang impl HTTP ở đúng dòng này.
+  const agents = buildAgentRegistry({
+    provider: llm,
+    config,
+    skills,
+    memory,
+    orders: new StubOrderPort(),
+  });
 
   // Đường GHI dựng SAU agents vì nó theo `memorySpec` của từng agent: agent vận hành nhớ việc,
   // agent đại lý nhớ khách — cùng một writer là chưng cất sai prompt cho một nửa số agent.
@@ -89,6 +98,9 @@ export async function bootstrap(): Promise<Services> {
     broadcaster.register(channel, new ZaloBroadcaster(channelConfig.bridge));
     typing.register(channel, new ZaloTypingSender(channelConfig.bridge));
   }
+  // Nén hội thoại ngắn hạn: theo phòng (conversationId), KHÔNG theo MemoryScope → chạy cho cả
+  // phòng chưa `/ketnoi-daily`. Không cần embedder nên bật kể cả khi tắt trí nhớ dài hạn.
+  const { compactor, summaries } = buildCompactor();
   const groupCustomer = new SqlGroupCustomerLookup();
   // Cache-aside Redis (session 8h) chặn trước Postgres; chỉ cache nhân_viên/đại_lý.
   const identity = new CachedIdentityResolver(new SqlIdentityResolver(groupCustomer), commandOf(redis));
@@ -113,6 +125,8 @@ export async function bootstrap(): Promise<Services> {
     historyReader: history,
     historyWriter: history,
     memoryWriters,
+    compactor,
+    summaries,
   };
 }
 
@@ -133,6 +147,8 @@ export async function start(): Promise<RunningSystem> {
     ops: services.ops,
     groupCustomer: services.groupCustomer,
     memoryWriters: services.memoryWriters,
+    compactor: services.compactor,
+    summaries: services.summaries,
     agents: services.agents,
     broadcaster: services.broadcaster,
     typing: services.typing,

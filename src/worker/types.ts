@@ -4,6 +4,7 @@
 import type { Envelope, HistoryEntry } from "../types/index.ts";
 import type { GroupCustomerLookup, IdentityResolver } from "../auth/types.ts";
 import type { MemoryWriterLookup } from "../state/types.ts";
+import type { ConversationCompactor, SummaryReader } from "../state/compactor.ts";
 import type { AgentRegistry } from "../agents/registry.ts";
 import type { Broadcaster } from "../broadcast/types.ts";
 import type { TypingFactory } from "../broadcast/typing-factory.ts";
@@ -61,6 +62,13 @@ export interface WorkerContext {
    * undefined = chạy không có trí nhớ dài hạn (thiếu GEMINI_API_KEY), không phải lỗi.
    */
   readonly memoryWriters?: MemoryWriterLookup;
+  /**
+   * Nén hội thoại ngắn hạn: đọc bản tóm ở bước STATE, nén lại sau lượt. Theo conversationId nên
+   * chạy cho MỌI phòng — kể cả phòng chưa bind (không có MemoryScope, không distill được).
+   * undefined = chạy không có nén, phần trôi khỏi cửa sổ mất luôn.
+   */
+  readonly compactor?: ConversationCompactor;
+  readonly summaries?: SummaryReader;
   readonly agents: AgentRegistry;
   readonly broadcaster: Broadcaster;
   /** Chọn TypingSender theo channel để phát nhịp "đang xử lý" mỗi bước agent. */

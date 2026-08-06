@@ -87,6 +87,24 @@ describe("assembleTurnContext — system", () => {
     expect(ctx.system).not.toContain("GHI NHỚ DÀI HẠN");
   });
 
+  test("có bản tóm → chèn section, nêu rõ là ngữ cảnh cũ chứ không phải tin mới", async () => {
+    const ctx = await assembleTurnContext(sources(), {
+      history: [entry()],
+      summary: "khách đã chốt giao thứ 5",
+    });
+    expect(ctx.system).toContain("khách đã chốt giao thứ 5");
+    expect(ctx.system).toContain("đã trôi khỏi lịch sử");
+    // Đứng sau prompt nền: phần ổn định nhất vẫn dẫn đầu (prefix cache).
+    expect(ctx.system.indexOf(BASE)).toBeLessThan(ctx.system.indexOf("khách đã chốt"));
+  });
+
+  test("bản tóm rỗng/thiếu → không có section thừa", async () => {
+    const withEmpty = await assembleTurnContext(sources(), { history: [entry()], summary: "" });
+    const without = await assembleTurnContext(sources(), { history: [entry()] });
+    expect(withEmpty.system).toBe(BASE);
+    expect(without.system).toBe(BASE);
+  });
+
   test("có scope nhưng chưa nối store → không section memory", async () => {
     const ctx = await assembleTurnContext(sources(), { history: [entry()], memoryScope: SCOPE });
     expect(ctx.system).not.toContain("GHI NHỚ DÀI HẠN");

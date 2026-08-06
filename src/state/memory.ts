@@ -1,6 +1,7 @@
 // memory.ts — MemoryStore dài hạn trên Postgres+pgvector (§7). Đơn vị = 1 atomic fact (không
-// chunk cơ học). Mọi query LỌC (customer_id, channel, conversation_id) — tenancy cứng, memory
-// thuộc về PHÒNG. SqlExecutor + Embedder inject → test không cần DB/network thật.
+// chunk cơ học). Mọi query LỌC (owner_kind, owner_id, channel, conversation_id) — tenancy cứng:
+// fact thuộc về PHÒNG đại lý (owner_kind=customer) hoặc MỘT NGƯỜI chat 1-1 (owner_kind=user).
+// SqlExecutor + Embedder inject → test không cần DB/network thật.
 //
 // Injection: `text` chỉ ghép từ hằng schema (tin được); giá trị runtime (scope, vector, fact)
 // LUÔN qua params $n. Không nối string giá trị vào query (CLAUDE.md).

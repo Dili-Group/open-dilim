@@ -31,6 +31,21 @@ KHÔNG cấp quyền. Group trigger = **mention @agent** (chỉ mention, không 
 Bước 6 (resolve `senderId` → vai, lệnh `/ketnoi-dilim`) tách riêng:
 xem [5b. Định danh & vai](./05b-dinh-danh-va-vai.md).
 
+## Tin báo giữa lượt (bước 8 có thể phát tin trước bước 9)
+
+Tool chậm (tra hệ vận hành) khai `Tool.announce`. Model vừa gọi tool đó → loop phát **tin báo**
+qua đúng đường broadcast của bước 9, TRƯỚC khi tool chạy: khách thấy "Dạ để em kiểm tra…" rồi mới
+tới câu trả lời. Một lượt do đó có thể ra 2 tin.
+
+Ba ràng buộc, đừng phá:
+
+- **Code quyết, không phải model.** Câu báo nằm ở tool (loại việc nào thì lâu là tính chất của
+  tool). Model chỉ chọn gọi tool; nói rồi im lặng còn tệ hơn im từ đầu.
+- **Tối đa 1 tin/lượt.** Chuỗi tool dài mà lần nào cũng báo thì thành spam.
+- **KHÔNG vào history.** Câu trấn an cố định, không mang dữ kiện — ghi vào chỉ làm bẩn cửa sổ 20
+  tin và lô chưng cất trí nhớ. Gửi hỏng → log, lượt vẫn chạy tiếp (khác bước 9: reply thật hỏng
+  là lượt hỏng).
+
 ## Delta của group (so với direct)
 
 | Bước | Direct | Group |

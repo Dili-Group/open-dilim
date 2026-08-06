@@ -17,6 +17,7 @@ import {
   toDistillTurns,
   type DistillCounter,
 } from "./memory-writer.ts";
+import { LlmCompactor, SUMMARY_MAX_CHARS, type SummaryStore } from "./compactor.ts";
 import { toVectorLiteral } from "./vector.ts";
 import { customerSupportSpec } from "./specs.ts";
 import {
@@ -60,8 +61,10 @@ class FakeExec implements SqlExecutor {
 
 class ScriptedProvider implements LLMProvider {
   readonly name = "scripted";
+  readonly seen: ChatRequest[] = [];
   constructor(private readonly reply: ChatResult | Error) {}
-  chat(_req: ChatRequest): Promise<ChatResult> {
+  chat(req: ChatRequest): Promise<ChatResult> {
+    this.seen.push(req);
     if (this.reply instanceof Error) return Promise.reject(this.reply);
     return Promise.resolve(this.reply);
   }
@@ -477,6 +480,93 @@ describe("toDistillTurns", () => {
       { senderId: "u1", role: "user", text: "chào" },
       { senderId: "agent", role: "assistant", text: "chào anh" },
     ]);
+  });
+});
+
+describe("LlmCompactor", () => {
+  class FakeSummaryStore implements SummaryStore {
+    constructor(private value?: string) {}
+    readonly writes: string[] = [];
+    get(): Promise<string | undefined> {
+      return Promise.resolve(this.value);
+    }
+    set(_conversationId: string, summary: string): Promise<void> {
+      this.writes.push(summary);
+      this.value = summary;
+      return Promise.resolve();
+    }
+  }
+
+  /** N entry, mỗi entry `chars` ký tự → điều khiển chính xác tổng độ dài cửa sổ. */
+  function window(count: number, chars: number): HistoryEntry[] {
+    return Array.from({ length: count }, (_, i) => ({
+      ...ENTRY,
+      msgId: `m${i}`,
+      text: "x".repeat(chars),
+    }));
+  }
+
+  const TRIGGER = 1000;
+  const KEEP = 4;
+
+  test("dưới ngưỡng → không gọi LLM, không ghi", async () => {
+    const provider = new ScriptedProvider(textResult("không nên chạy"));
+    const store = new FakeSummaryStore();
+    const compactor = new LlmCompactor(provider, store, TRIGGER, KEEP);
+
+    await compactor.afterTurn("c1", window(10, 50)); // 500 ký tự
+    expect(store.writes).toHaveLength(0);
+  });
+
+  test("vượt ngưỡng → nén phần CŨ, giữ nguyên N entry cuối", async () => {
+    const provider = new ScriptedProvider(textResult("khách chốt giao thứ 5"));
+    const store = new FakeSummaryStore();
+    const compactor = new LlmCompactor(provider, store, TRIGGER, KEEP);
+
+    await compactor.afterTurn("c1", window(10, 200)); // 2000 ký tự
+    expect(store.writes).toEqual(["khách chốt giao thứ 5"]);
+  });
+
+  test("dài nhưng toàn tin gần đây → chưa có gì để nén", async () => {
+    const provider = new ScriptedProvider(textResult("không nên chạy"));
+    const store = new FakeSummaryStore();
+    const compactor = new LlmCompactor(provider, store, TRIGGER, KEEP);
+
+    // 4 entry = đúng bằng keepRecent → older rỗng.
+    await compactor.afterTurn("c1", window(4, 400));
+    expect(store.writes).toHaveLength(0);
+  });
+
+  test("có bản tóm cũ → đưa vào prompt để GỘP, không viết nối rời", async () => {
+    const provider = new ScriptedProvider(textResult("bản gộp"));
+    const store = new FakeSummaryStore("tóm tắt cũ");
+    const compactor = new LlmCompactor(provider, store, TRIGGER, KEEP);
+
+    await compactor.afterTurn("c1", window(10, 200));
+    const sent = provider.seen[0]?.messages[0]?.content[0];
+    expect(sent?.type).toBe("text");
+    if (sent?.type === "text") {
+      expect(sent.text).toContain("tóm tắt cũ");
+      expect(sent.text).toContain("HỘI THOẠI CŨ");
+    }
+  });
+
+  test("bản tóm quá dài → cắt về trần", async () => {
+    const provider = new ScriptedProvider(textResult("y".repeat(SUMMARY_MAX_CHARS + 500)));
+    const store = new FakeSummaryStore();
+    const compactor = new LlmCompactor(provider, store, TRIGGER, KEEP);
+
+    await compactor.afterTurn("c1", window(10, 200));
+    expect(store.writes[0]).toHaveLength(SUMMARY_MAX_CHARS);
+  });
+
+  test("provider lỗi → không ghi, KHÔNG throw (nén là việc nền)", async () => {
+    const provider = new ScriptedProvider(new Error("model chết"));
+    const store = new FakeSummaryStore();
+    const compactor = new LlmCompactor(provider, store, TRIGGER, KEEP);
+
+    await compactor.afterTurn("c1", window(10, 200));
+    expect(store.writes).toHaveLength(0);
   });
 });
 

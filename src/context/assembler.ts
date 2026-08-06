@@ -39,6 +39,12 @@ export async function assembleTurnContext(
 ): Promise<TurnContext> {
   const sections = [sources.basePrompt, renderSkillCatalog(sources.skills)];
 
+  // Bản tóm đứng TRƯỚC khối memory và sau catalog: nó đổi hiếm (chỉ khi nén) nên vẫn thuộc nửa ổn
+  // định của prompt, còn khối memory đổi từng lượt.
+  if (input.summary !== undefined && input.summary !== "") {
+    sections.push(renderSummaryBlock(input.summary));
+  }
+
   // Recall chỉ chạy khi CÓ CẢ store lẫn scope. Thiếu scope = chưa biết memory thuộc về khách nào
   // → không được đoán (đoán sai = rò sang khách khác).
   const queryText = lastUserText(input.history);
@@ -76,6 +82,18 @@ function toMessages(history: readonly HistoryEntry[]): LlmMessage[] {
 /** Epoch ms → "YYYY-MM-DD HH:mm" giờ Việt Nam, làm dấu thứ tự cho lượt người dùng. */
 function formatTurnTime(ts: number): string {
   return turnTimeFormat.format(new Date(ts));
+}
+
+/**
+ * Khối tóm hội thoại cũ. Nói rõ đây là phần ĐÃ TRÔI để model không tưởng nhầm là tin mới nhất và
+ * trả lời lại chuyện cũ.
+ */
+function renderSummaryBlock(summary: string): string {
+  return [
+    "TÓM TẮT PHẦN HỘI THOẠI TRƯỚC ĐÓ (đã trôi khỏi lịch sử bên dưới — là NGỮ CẢNH, không phải",
+    "tin nhắn mới; đừng trả lời lại những gì đã xong ở đây):",
+    summary,
+  ].join("\n");
 }
 
 /** Câu hỏi đi tra memory = lượt người dùng gần nhất. History rỗng → không tra. */

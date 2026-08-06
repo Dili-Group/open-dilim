@@ -35,7 +35,12 @@ class ProfileRootAgent implements RootAgent {
       const handler = await this.pickHandler(input);
       const context = await assembleTurnContext(
         { basePrompt: handler.prompt, skills: this.deps.skills, memory: this.deps.memory },
-        { history: input.history, memoryScope: input.memoryScope, signal: input.signal },
+        {
+          history: input.history,
+          summary: input.summary,
+          memoryScope: input.memoryScope,
+          signal: input.signal,
+        },
       );
       const text = await runAgentLoop({
         provider: this.deps.provider,
@@ -44,11 +49,14 @@ class ProfileRootAgent implements RootAgent {
         registry: buildToolRegistry(handler.tools, {
           skills: this.deps.skills,
           identity: input.identity,
+          roomCustomerId: input.roomCustomerId,
+          orders: this.deps.orders,
         }),
         maxTokens: this.deps.config.maxTokens,
         effort: this.deps.config.effort,
         maxIterations: this.deps.config.agentMaxIterations,
         onStep: input.onStep,
+        onAnnounce: input.onAnnounce,
         signal: input.signal,
       });
       return { status: "reply", text };
