@@ -1,18 +1,38 @@
 // types.ts — hợp đồng tầng state/memory dài hạn (§7).
 //
-// Memory thuộc về PHÒNG, không về người gõ: partition (customerId, channel, conversationId) —
-// mọi read/write LỌC CẢ BA (tenancy cứng, không lọt cross-customer/cross-channel). Phòng có cả
-// nhân viên lẫn khách nói chung một mạch hội thoại, nên fact rút ra là của phòng đó; ai gõ chỉ
-// là chi tiết ghi TRONG text fact. Scope derive từ group_map ở tầng wiring (worker), KHÔNG phải
-// Identity người gõ (nhân viên không mang customerId) → state/ nhận scope tường minh, không đoán.
+// Partition (ownerKind, ownerId, channel, conversationId) — mọi read/write LỌC CẢ BỐN (tenancy
+// cứng, không lọt cross-owner/cross-channel).
+//
+// Fact có hai loại CHỦ SỞ HỮU:
+//   - PHÒNG đại lý (`customer`): phòng có cả nhân viên lẫn khách nói chung một mạch hội thoại,
+//     nên fact là của phòng; ai gõ chỉ là chi tiết ghi TRONG text fact.
+//   - MỘT NGƯỜI (`user`): chat 1-1 với trợ lý riêng — không phòng khách nào sở hữu.
+//
+// Scope derive ở tầng wiring (worker), KHÔNG phải từ Identity người gõ (nhân viên không mang
+// customerId) → state/ nhận scope tường minh, không đoán.
+
+/** Ai sở hữu fact. Hai giá trị = hai KHÔNG GIAN ĐỊNH DANH, không được trộn (xem MemoryScope). */
+export const MemoryOwnerKind = {
+  /** ownerId = customer_id (từ group_map) — fact của phòng đại lý. */
+  Customer: "customer",
+  /** ownerId = senderId — fact của chính người đang chat 1-1. */
+  User: "user",
+} as const;
+export type MemoryOwnerKind = (typeof MemoryOwnerKind)[keyof typeof MemoryOwnerKind];
 
 /**
- * Khoá phân vùng memory. customerId từ group_map (nhóm chưa bind → KHÔNG có memory);
- * channel + conversationId = đúng một phòng chat (conversationId là id thô của kênh, chỉ
- * unique TRONG kênh — bỏ channel là lẫn phòng giữa hai kênh).
+ * Khoá phân vùng memory.
+ *
+ * `ownerKind` KHÔNG thừa: `customer_id` và `senderId` là chuỗi từ hai hệ khác nhau, trùng giá
+ * trị là chuyện có thể xảy ra. Thiếu nó thì fact riêng tư của một người lọt vào phòng đại lý
+ * trùng id (hoặc ngược lại) mà không có cách nào phát hiện.
+ *
+ * `channel` + `conversationId` = đúng một cuộc trò chuyện (conversationId là id thô của kênh,
+ * chỉ unique TRONG kênh — bỏ channel là lẫn phòng giữa hai kênh).
  */
 export interface MemoryScope {
-  readonly customerId: string;
+  readonly ownerKind: MemoryOwnerKind;
+  readonly ownerId: string;
   readonly channel: string;
   readonly conversationId: string;
 }
@@ -123,6 +143,17 @@ export interface MemoryWriter {
     sourceMsgId: string,
     signal?: AbortSignal,
   ): Promise<number>;
+}
+
+/**
+ * Tra đường ghi theo agent. Cần vì `DistillSpec` đóng cứng vào distiller lúc dựng: agent nhớ
+ * khác nhau thì phải là writer khác nhau, không thể đổi spec giữa chừng.
+ *
+ * undefined = agent lạ (không nên xảy ra — writer dựng từ chính danh sách agent) → worker bỏ qua
+ * ghi dài hạn thay vì ghi bằng spec của agent khác.
+ */
+export interface MemoryWriterLookup {
+  for(agentType: string): MemoryWriter | undefined;
 }
 
 /**

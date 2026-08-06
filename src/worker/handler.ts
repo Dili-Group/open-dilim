@@ -3,7 +3,9 @@
 // chạm text, và `pool.ts` biết hỏng Ở BƯỚC NÀO (một catch chung thì auth với broadcast nhìn y
 // hệt nhau). Dedupe (bước 4) đã làm ở ingest (biến thể "ingest dày") nên worker không lặp lại.
 
-import type { MemoryScope } from "../state/types.ts";
+import { resolveAgentType } from "../agents/router.ts";
+import type { RootAgent } from "../agents/types.ts";
+import { MemoryOwnerKind, type MemoryScope } from "../state/types.ts";
 import { toDistillTurns } from "../state/memory-writer.ts";
 import { capForChannel, type TypingTarget } from "../broadcast/index.ts";
 import {
@@ -79,11 +81,13 @@ export async function handleEnvelope(
       };
     }
 
-    // 8. AGENT — agentType chưa map theo vai ở slice này → default agent.
+    // 8. AGENT — mỗi channel là một cửa vào riêng → một root agent riêng (agents/router.ts).
+    // Channel chưa map → resolveAgentType trả undefined → registry rơi về default agent.
     step = "agent";
-    const memoryScope = await resolveMemoryScope(ctx, envelope);
+    const agent = ctx.agents.resolve(resolveAgentType(envelope.channel));
+    const memoryScope = await resolveMemoryScope(ctx, envelope, agent);
     const onStep = buildTypingPulse(ctx, envelope);
-    const result = await ctx.agents.resolve().run({ identity, history, memoryScope, onStep, signal });
+    const result = await agent.run({ identity, history, memoryScope, onStep, signal });
     // suspended (§6): gate đã lưu pending + tự phát yêu cầu duyệt tới NGƯỜI DUYỆT (có thể ở phòng
     // khác) → worker thoát, không broadcast gì thêm. failed: không có text hợp lệ để gửi.
     if (result.status !== "reply" || result.text === "") return result;
@@ -104,7 +108,7 @@ export async function handleEnvelope(
     // 10. GHI NHỚ — reply agent vào buffer ngắn hạn, rồi đường dài hạn (distill theo lô, tự quyết
     // định lượt này có chạy hay không). Sau broadcast: khách đã nhận câu trả lời, hỏng ở đây chỉ
     // mất trí nhớ chứ không được biến lượt thành failed.
-    await rememberTurn(ctx, envelope, result.text, history, memoryScope, signal);
+    await rememberTurn(ctx, envelope, agent, result.text, history, memoryScope, signal);
     return result;
   } catch (err) {
     return { status: "failed", step, error: err instanceof Error ? err : new Error(String(err)) };
@@ -119,6 +123,7 @@ export async function handleEnvelope(
 async function rememberTurn(
   ctx: WorkerContext,
   envelope: Envelope,
+  agent: RootAgent,
   replyText: string,
   history: readonly HistoryEntry[],
   memoryScope: MemoryScope | undefined,
@@ -133,6 +138,7 @@ async function rememberTurn(
     role: "agent",
     ts: Date.now(),
   };
+
   try {
     await ctx.historyWriter.append(reply);
   } catch (err) {
@@ -140,9 +146,13 @@ async function rememberTurn(
   }
 
   // Chưa bind phòng (không có scope) hoặc chưa bật memory dài hạn → không có chỗ ghi, bỏ qua.
-  if (memoryScope === undefined || ctx.memoryWriter === undefined) return;
+  if (memoryScope === undefined || ctx.memoryWriters === undefined) return;
+  // Writer THEO agent: agent này nhớ gì do `memorySpec` của nó quyết. Không có writer khớp →
+  // bỏ ghi, KHÔNG mượn writer của agent khác (chưng cất sai prompt còn tệ hơn không nhớ).
+  const writer = ctx.memoryWriters.for(agent.agentType);
+  if (writer === undefined) return;
   try {
-    await ctx.memoryWriter.afterTurn(
+    await writer.afterTurn(
       memoryScope,
       toDistillTurns([...history, reply]),
       envelope.msgId,
@@ -168,21 +178,47 @@ function buildTypingPulse(ctx: WorkerContext, envelope: Envelope): () => Promise
 }
 
 /**
- * MemoryScope của lượt = (khách sở hữu PHÒNG, kênh, phòng) — KHÔNG lấy customerId từ Identity
- * người gõ: nhân viên gõ trong phòng khách X thì Identity không mang X, mà fact vẫn là của X.
+ * Ai sở hữu fact của lượt này:
  *
- * undefined khi: chat 1-1, hoặc nhóm chưa `/ketnoi-dilim` (group_map chưa bật). Chưa kết nối thì
- * không biết fact thuộc về khách nào → không đọc, không ghi. Không có rổ chung để đoán vào.
+ * ```
+ * agent directOnly + chat 1-1   → owner = NGƯỜI GÕ (trợ lý riêng: fact là của chính họ)
+ * agent directOnly + nhóm       → undefined (agent 1-1 lạc vào nhóm: không rõ fact của ai)
+ * nhóm đã /ketnoi-daily         → owner = KHÁCH sở hữu phòng
+ * còn lại                       → undefined
+ * ```
+ *
+ * Scope phòng KHÔNG lấy customerId từ Identity người gõ: nhân viên gõ trong phòng khách X thì
+ * Identity không mang X, mà fact vẫn là của X.
+ *
+ * undefined = không đọc, không ghi. Chưa `/ketnoi-daily` thì không biết fact thuộc về khách nào,
+ * và không có rổ chung để đoán vào. Chat 1-1 với agent KHÔNG directOnly cũng không nhớ: chỉ trợ
+ * lý riêng mới có trí nhớ cá nhân (agent đại lý DM riêng vẫn là chuyện của phòng, không của người).
  */
 async function resolveMemoryScope(
   ctx: WorkerContext,
   envelope: Envelope,
+  agent: RootAgent,
 ): Promise<MemoryScope | undefined> {
+  if (agent.directOnly) {
+    if (envelope.isGroup) return undefined;
+    return {
+      ownerKind: MemoryOwnerKind.User,
+      ownerId: envelope.senderId,
+      channel: envelope.channel,
+      conversationId: envelope.conversationId,
+    };
+  }
+
   if (ctx.groupCustomer === undefined || !envelope.isGroup) return undefined;
   const customerId = await ctx.groupCustomer.customerIdOf({
     channel: envelope.channel,
     groupId: envelope.conversationId,
   });
   if (customerId === undefined) return undefined;
-  return { customerId, channel: envelope.channel, conversationId: envelope.conversationId };
+  return {
+    ownerKind: MemoryOwnerKind.Customer,
+    ownerId: customerId,
+    channel: envelope.channel,
+    conversationId: envelope.conversationId,
+  };
 }

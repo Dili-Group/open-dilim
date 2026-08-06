@@ -20,12 +20,13 @@ import { DEDUP_COSINE_DISTANCE, toVectorLiteral } from "./vector.ts";
 const C = MEMORY.col;
 const T = MEMORY.table;
 
-// Bộ lọc phân vùng, LUÔN chiếm $1..$3 của mọi query. Đặt một chỗ để không query nào quên một cột
-// — quên = fact phòng này lọt sang phòng khác.
-const SCOPE_WHERE = `${C.customerId} = $1 AND ${C.channel} = $2 AND ${C.conversationId} = $3`;
+// Bộ lọc phân vùng, LUÔN chiếm $1..$4 của mọi query. Đặt một chỗ để không query nào quên một cột
+// — quên = fact phòng này lọt sang phòng khác, hoặc fact riêng tư 1-1 lọt vào phòng đại lý.
+const SCOPE_WHERE =
+  `${C.ownerKind} = $1 AND ${C.ownerId} = $2 AND ${C.channel} = $3 AND ${C.conversationId} = $4`;
 
 function scopeParams(scope: MemoryScope): unknown[] {
-  return [scope.customerId, scope.channel, scope.conversationId];
+  return [scope.ownerKind, scope.ownerId, scope.channel, scope.conversationId];
 }
 
 export class PgMemoryStore implements MemoryStore {
@@ -65,9 +66,9 @@ export class PgMemoryStore implements MemoryStore {
       if (await this.hasNearDuplicate(scope, literal)) continue;
 
       await this.exec.query(
-        `INSERT INTO ${T} (${C.customerId}, ${C.channel}, ${C.conversationId}, ${C.type}, ` +
-          `${C.text}, ${C.embedding}, ${C.sourceMsgId}, ${C.confidence}) ` +
-          `VALUES ($1, $2, $3, $4, $5, $6::vector, $7, $8)`,
+        `INSERT INTO ${T} (${C.ownerKind}, ${C.ownerId}, ${C.channel}, ${C.conversationId}, ` +
+          `${C.type}, ${C.text}, ${C.embedding}, ${C.sourceMsgId}, ${C.confidence}) ` +
+          `VALUES ($1, $2, $3, $4, $5, $6, $7::vector, $8, $9)`,
         [...scopeParams(scope), fact.type, fact.text, literal, sourceMsgId ?? null, fact.confidence],
       );
       written++;
@@ -89,8 +90,8 @@ export class PgMemoryStore implements MemoryStore {
     const rows = await this.exec.query(
       `SELECT ${C.text}, ${C.type}, ${C.createdAt} FROM ${T} ` +
         `WHERE ${SCOPE_WHERE} ` +
-        `AND ${C.embedding} <=> $4::vector < $5 ` +
-        `ORDER BY ${C.embedding} <=> $4::vector LIMIT $6`,
+        `AND ${C.embedding} <=> $5::vector < $6 ` +
+        `ORDER BY ${C.embedding} <=> $5::vector LIMIT $7`,
       [...scopeParams(scope), toVectorLiteral(vector), options.maxDistance, options.k],
     );
     return toRecalledFacts(rows);
@@ -101,7 +102,7 @@ export class PgMemoryStore implements MemoryStore {
     const rows = await this.exec.query(
       `SELECT ${C.text}, ${C.type}, ${C.createdAt} FROM ${T} ` +
         `WHERE ${SCOPE_WHERE} ` +
-        `ORDER BY ${C.createdAt} DESC LIMIT $4`,
+        `ORDER BY ${C.createdAt} DESC LIMIT $5`,
       [...scopeParams(scope), limit],
     );
     return toRecalledFacts(rows);
@@ -109,7 +110,7 @@ export class PgMemoryStore implements MemoryStore {
 
   private async hasSource(scope: MemoryScope, sourceMsgId: string): Promise<boolean> {
     const rows = await this.exec.query(
-      `SELECT 1 FROM ${T} WHERE ${SCOPE_WHERE} AND ${C.sourceMsgId} = $4 LIMIT 1`,
+      `SELECT 1 FROM ${T} WHERE ${SCOPE_WHERE} AND ${C.sourceMsgId} = $5 LIMIT 1`,
       [...scopeParams(scope), sourceMsgId],
     );
     return nonEmpty(rows);
@@ -118,7 +119,7 @@ export class PgMemoryStore implements MemoryStore {
   private async hasNearDuplicate(scope: MemoryScope, vectorLiteral: string): Promise<boolean> {
     const rows = await this.exec.query(
       `SELECT 1 FROM ${T} WHERE ${SCOPE_WHERE} ` +
-        `AND ${C.embedding} <=> $4::vector < $5 LIMIT 1`,
+        `AND ${C.embedding} <=> $5::vector < $6 LIMIT 1`,
       [...scopeParams(scope), vectorLiteral, DEDUP_COSINE_DISTANCE],
     );
     return nonEmpty(rows);

@@ -31,10 +31,8 @@ import {
   buildDedupe,
   buildHistoryStore,
   buildMemoryStore,
-  buildMemoryWriter,
-  customerSupportSpec,
+  buildMemoryWriters,
   type MemoryStore,
-  type MemoryWriter,
 } from "../state/index.ts";
 import { startWorkers } from "../worker/index.ts";
 import { checkInfra, loadConfig } from "./env.ts";
@@ -61,28 +59,35 @@ export async function bootstrap(): Promise<Services> {
   // Memory dài hạn cần embedder Gemini (buildEmbedder throw nếu thiếu key). Không có key → chạy
   // KHÔNG có trí nhớ dài hạn thay vì chặn boot: agent vẫn trả lời được bằng history ngắn hạn.
   let memory: MemoryStore | undefined;
-  let memoryWriter: MemoryWriter | undefined;
   if (config.geminiApiKey === undefined) {
     console.warn("[bootstrap] thiếu GEMINI_API_KEY → tắt trí nhớ dài hạn (recall bỏ qua).");
   } else {
     memory = buildMemoryStore();
-    // Đường ghi: agent hỗ trợ khách → customerSupportSpec. Agent khác cần nhớ khác thì dựng
-    // writer riêng theo spec của nó.
-    memoryWriter = buildMemoryWriter(memory, customerSupportSpec);
   }
 
   // skills đi thẳng vào agent: catalog vào system prompt + backing cho tool use_skill.
   // memory = cổng CHỈ-ĐỌC; scope (phòng nào) do worker cấp từng lượt qua groupCustomer.
   const agents = buildAgentRegistry({ provider: llm, config, skills, memory });
+
+  // Đường GHI dựng SAU agents vì nó theo `memorySpec` của từng agent: agent vận hành nhớ việc,
+  // agent đại lý nhớ khách — cùng một writer là chưng cất sai prompt cho một nửa số agent.
+  const memoryWriters =
+    memory === undefined
+      ? undefined
+      : buildMemoryWriters(memory, new Map(agents.all().map((a) => [a.agentType, a.memorySpec])));
   // Egress: fallback console cho channel chưa có adapter. Zalo có bridge config → gửi thật (cả
   // reply lẫn typing), thiếu config → console cho cả hai (dev thấy được luồng, không chặn boot).
   const broadcaster = new BroadcastRouter(new ConsoleBroadcaster());
   const typing = new TypingFactory(new ConsoleTypingSender());
-  if (config.zaloBridge !== undefined) {
-    broadcaster.register("zalo", new ZaloBroadcaster(config.zaloBridge));
-    typing.register("zalo", new ZaloTypingSender(config.zaloBridge));
-  } else {
-    console.warn("[bootstrap] thiếu ZALO_BRIDGE_URL/SECRET → egress Zalo dùng console (dev).");
+  for (const [channel, channelConfig] of Object.entries(config.channels)) {
+    if (channelConfig === undefined) continue;
+    if (channelConfig.bridge === undefined) {
+      console.warn(`[bootstrap] kênh ${channel} thiếu *_BRIDGE_URL/SECRET → egress dùng console.`);
+      continue;
+    }
+    // Bridge của CHÍNH tài khoản kênh đó — đăng ký theo tên kênh để không gửi nhầm tài khoản.
+    broadcaster.register(channel, new ZaloBroadcaster(channelConfig.bridge));
+    typing.register(channel, new ZaloTypingSender(channelConfig.bridge));
   }
   const groupCustomer = new SqlGroupCustomerLookup();
   // Cache-aside Redis (session 8h) chặn trước Postgres; chỉ cache nhân_viên/đại_lý.
@@ -107,7 +112,7 @@ export async function bootstrap(): Promise<Services> {
     broker,
     historyReader: history,
     historyWriter: history,
-    memoryWriter,
+    memoryWriters,
   };
 }
 
@@ -127,7 +132,7 @@ export async function start(): Promise<RunningSystem> {
     identityRepo: services.identityRepo,
     ops: services.ops,
     groupCustomer: services.groupCustomer,
-    memoryWriter: services.memoryWriter,
+    memoryWriters: services.memoryWriters,
     agents: services.agents,
     broadcaster: services.broadcaster,
     typing: services.typing,

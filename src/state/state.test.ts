@@ -10,7 +10,13 @@ import { LlmDistiller, parseFacts, renderTranscript } from "./distiller.ts";
 import { RedisHistoryStore, parseHistoryEntry } from "./session.ts";
 import { RedisDedupe } from "./dedupe.ts";
 import { PgMemoryStore } from "./memory.ts";
-import { BatchedMemoryWriter, RedisDistillCounter, toDistillTurns, type DistillCounter } from "./memory-writer.ts";
+import {
+  BatchedMemoryWriter,
+  MemoryWriterRegistry,
+  RedisDistillCounter,
+  toDistillTurns,
+  type DistillCounter,
+} from "./memory-writer.ts";
 import { toVectorLiteral } from "./vector.ts";
 import { customerSupportSpec } from "./specs.ts";
 import {
@@ -23,7 +29,7 @@ import {
   type SqlExecutor,
 } from "./types.ts";
 
-const SCOPE: MemoryScope = { customerId: "cus1", channel: "zalo", conversationId: "room1" };
+const SCOPE: MemoryScope = { ownerKind: "customer", ownerId: "cus1", channel: "zalo", conversationId: "room1" };
 // Spec khách-hàng: vocab = preference|context|episode, default context.
 const SPEC = customerSupportSpec;
 
@@ -157,8 +163,8 @@ describe("PgMemoryStore.write", () => {
   });
 
   test("near-dup → bỏ, không insert", async () => {
-    // Dedup query chứa "<=>" và "< $5"; trả hit → coi là trùng.
-    const exec = new FakeExec((t) => (t.includes("<=>") && t.includes("< $5") ? [{ "?column?": 1 }] : []));
+    // Dedup query chứa "<=>" và "< $6"; trả hit → coi là trùng.
+    const exec = new FakeExec((t) => (t.includes("<=>") && t.includes("< $6") ? [{ "?column?": 1 }] : []));
     const store = new PgMemoryStore(exec, new FakeEmbedder());
     expect(await store.write(SCOPE, FACTS)).toBe(0);
     expect(exec.inserts()).toHaveLength(0);
@@ -171,9 +177,10 @@ describe("PgMemoryStore.write", () => {
     expect(n).toBe(1);
     const ins = exec.inserts();
     expect(ins).toHaveLength(1);
-    expect(ins[0]?.text).toContain("$6::vector");
-    // params: [customerId, channel, conversationId, type, text, vecLiteral, sourceMsgId, confidence]
+    expect(ins[0]?.text).toContain("$7::vector");
+    // params: [ownerKind, ownerId, channel, conversationId, type, text, vecLiteral, sourceMsgId, confidence]
     expect(ins[0]?.params).toEqual([
+      "customer",
       "cus1",
       "zalo",
       "room1",
@@ -231,9 +238,9 @@ describe("PgMemoryStore.recall", () => {
     const store = new PgMemoryStore(exec, new FakeEmbedder());
     await store.recall(SCOPE, "hỏi", { k: 6, maxDistance: 0.3 });
     const call = exec.calls[0];
-    expect(call?.text).toContain("<=> $4::vector < $5");
-    // [customerId, channel, conversationId, vecLiteral, maxDistance, k]
-    expect(call?.params).toEqual(["cus1", "zalo", "room1", "[1,0,0]", 0.3, 6]);
+    expect(call?.text).toContain("<=> $5::vector < $6");
+    // [ownerKind, ownerId, channel, conversationId, vecLiteral, maxDistance, k]
+    expect(call?.params).toEqual(["customer", "cus1", "zalo", "room1", "[1,0,0]", 0.3, 6]);
   });
 });
 
@@ -470,5 +477,38 @@ describe("toDistillTurns", () => {
       { senderId: "u1", role: "user", text: "chào" },
       { senderId: "agent", role: "assistant", text: "chào anh" },
     ]);
+  });
+});
+
+describe("MemoryWriterRegistry", () => {
+  const otherSpec: DistillSpec = { ...customerSupportSpec, system: "nhớ việc nội bộ" };
+
+  function build(): { registry: MemoryWriterRegistry; built: DistillSpec[] } {
+    const built: DistillSpec[] = [];
+    const specs = new Map<string, DistillSpec>([
+      ["dealer", customerSupportSpec],
+      ["operations", otherSpec],
+      ["boss", otherSpec], // cùng spec với operations
+    ]);
+    const registry = new MemoryWriterRegistry(specs, (spec) => {
+      built.push(spec);
+      return { afterTurn: () => Promise.resolve(0) };
+    });
+    return { registry, built };
+  }
+
+  test("spec trùng → dùng chung 1 writer, không dựng distiller thừa", () => {
+    const { registry, built } = build();
+    expect(built).toHaveLength(2);
+    expect(registry.for("operations")).toBe(registry.for("boss"));
+  });
+
+  test("spec khác → writer khác (agent nhớ khác nhau)", () => {
+    const { registry } = build();
+    expect(registry.for("dealer")).not.toBe(registry.for("boss"));
+  });
+
+  test("agent lạ → undefined (không mượn writer agent khác)", () => {
+    expect(build().registry.for("khong_ton_tai")).toBeUndefined();
   });
 });

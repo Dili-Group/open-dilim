@@ -40,15 +40,20 @@
 │   │   └── idempotency.ts       #   dedupe theo msgId (chống xử lý trùng)
 │   │
 │   ├── agents/                  # AGENT LOOP + ROOT AGENTS + SUB-AGENTS
+│   │   ├── router.ts            #   channel → agentType (bảng hằng; lạ → undefined → default)
 │   │   ├── registry.ts          #   AgentRegistry: map agentType → root agent (+ default)
-│   │   ├── loop.ts              #   vòng lặp chính: LLM ⇄ tools tới khi xong
-│   │   ├── roots/               #   1 file / root agent (chọn theo agentType)
-│   │   │   ├── operation.ts     #     agentType=operation
-│   │   │   └── partner.ts       #     agentType=partner
-│   │   ├── orchestrator.ts      #   trong 1 root agent: quyết định gọi sub-agent/workflow
-│   │   └── sub/                 #   sub-agent (context riêng, chạy song song)
-│   │       ├── researcher.ts    #     ví dụ: agent tra cứu
-│   │       └── coder.ts         #     ví dụ: agent viết code
+│   │   ├── prompts.ts           #   persona + nhiệm vụ từng agent (giọng nằm ở đây, không ở skill)
+│   │   ├── runtime/             #   BỘ MÁY chạy lượt — thêm agent KHÔNG đụng vào đây
+│   │   │   ├── build-agent.ts   #     buildRootAgent: profile (DATA) → RootAgent (chạy được)
+│   │   │   ├── sub-router.ts    #     trong 1 root: chọn sub-agent theo task (1 lượt LLM rẻ)
+│   │   │   └── loop.ts          #     vòng lặp chính: LLM ⇄ tools tới khi xong
+│   │   └── roots/               #   1 file / root agent — chỉ DATA (RootAgentProfile).
+│   │                            #   Root có sub → chuyển thành folder <tên>/ + subs/
+│   │       ├── operations.ts    #     agentType=operations — nhân viên vận hành
+│   │       ├── dealer.ts        #     agentType=dealer — kế toán đại lý
+│   │       ├── personal.ts      #     agentType=personal — trợ lý riêng 1-1 (directOnly)
+│   │       ├── boss.ts          #     agentType=boss — ban lãnh đạo
+│   │       └── default.ts       #     dự phòng khi channel chưa map
 │   │
 │   ├── llm/                     # tầng gọi model — ĐA PROVIDER, sau interface chung
 │   │   ├── provider.ts          #   interface LLMProvider { chat, stream } + type chung
@@ -118,6 +123,8 @@
 │   │   ├── store.ts             #   interface Store (get/set theo conversationId)
 │   │   ├── session.ts           #   NGẮN HẠN: Redis buffer N turn + rolling summary (TTL)
 │   │   ├── memory.ts            #   DÀI HẠN: distill → embed (gemini) → pgvector, recall top-K theo user
+│   │   ├── specs.ts             #   DistillSpec dựng sẵn — "agent này nhớ GÌ"
+│   │   ├── memory-writer.ts     #   đường GHI theo lô + MemoryWriterRegistry (1 writer / 1 spec)
 │   │   └── pending.ts           #   pending_action (write chờ confirm, idempotency + requesterId)
 │   │
 │   ├── auth/                    # AUTH — xác thực & tenancy

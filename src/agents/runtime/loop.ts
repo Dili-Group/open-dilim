@@ -2,14 +2,14 @@
 // Loop KHÔNG lắp ngữ cảnh: `system` + `messages` do context/ dựng sẵn (xem context/assembler.ts).
 // Tool_use → chạy tool, nối tool_result, lặp. Chặn ở agentMaxIterations để không loop vô hạn.
 
-import type { Effort } from "../config.ts";
+import type { Effort } from "../../config.ts";
 import type {
   LLMProvider,
   LlmContentBlock,
   LlmMessage,
   LlmToolUseBlock,
-} from "../llm/types.ts";
-import { runToolCall, type ToolRegistry } from "../tools/index.ts";
+} from "../../llm/types.ts";
+import { runToolCall, type ToolRegistry } from "../../tools/index.ts";
 
 export interface AgentLoopInput {
   readonly provider: LLMProvider;

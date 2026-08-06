@@ -23,7 +23,6 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   async chat(req: ChatRequest, signal?: AbortSignal): Promise<ChatResult> {
-    console.log('req:: ', req)
     const message = await this.client.messages.create(
       {
         model: this.model,

@@ -46,7 +46,7 @@ Chi tiết tách theo mục, mỗi mục 1 file trong [`architecture/`](./archit
 |-----|------|--------------------|
 | 2 | [Cấu trúc thư mục](./architecture/02-cau-truc-thu-muc.md) | Code nằm ở đâu, thêm channel/tool/skill thì tạo file nào |
 | 3 | [Trách nhiệm từng module](./architecture/03-trach-nhiem-module.md) | Folder nào lo việc gì, ghi chú/cạm bẫy của từng module |
-| 4 | [Agent routing theo type](./architecture/04-agent-routing.md) | `agentType` route thế nào, vì sao type ≠ quyền, quan hệ với orchestrator |
+| 4 | [Agent routing](./architecture/04-agent-routing.md) | channel → root agent → sub-agent; vì sao route ≠ quyền; root agent là DATA |
 | 5 | [Message life cycle](./architecture/05-message-lifecycle.md) | 10 bước từ webhook tới lúc trả lời; direct khác group chỗ nào |
 | 5b | [Định danh & vai](./architecture/05b-dinh-danh-va-vai.md) | `senderId` → nhân viên/đại lý/guest; `/ketnoi-dilim`; `customer_id` từ đâu ra |
 | 6 | [Human-in-the-loop (approval)](./architecture/06-approval.md) | Suspend/resume khi cần duyệt, 2 tầng duyệt, 3 điểm dễ sai |

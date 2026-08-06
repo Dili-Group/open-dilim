@@ -11,17 +11,20 @@ import type { ZaloChannelConfig } from "../../config.ts";
 import type { Mention } from "../../types/index.ts";
 import { isAddressed, type Ingestor, type ParsedMessage } from "../ingestor.ts";
 
-const CHANNEL = "zalo";
-
 // Header mang chữ ký webhook. LƯU Ý: tên header + cách Zalo compose chuỗi ký PHẢI xác nhận lại
 // với payload/tài liệu Zalo thật trước prod. Cơ chế (HMAC-SHA256 rawBody, so timing-safe) đúng;
 // phần cần chốt là input ký. Verify FAIL-CLOSED: thiếu/sai chữ ký → false.
 const SIGNATURE_HEADER = "x-zevent-signature";
 
 export class ZaloIngestor implements Ingestor {
-  readonly channel = CHANNEL;
-
-  constructor(private readonly config: ZaloChannelConfig) {}
+  /**
+   * Tên kênh do WIRING cấp, không hard-code: nhiều tài khoản Zalo = nhiều kênh, mỗi kênh một
+   * agentUid/secret riêng và một root agent riêng (agents/router.ts).
+   */
+  constructor(
+    readonly channel: string,
+    private readonly config: ZaloChannelConfig,
+  ) {}
 
   verify(headers: Headers, rawBody: string): boolean {
     const provided = headers.get(SIGNATURE_HEADER);
@@ -62,7 +65,7 @@ export class ZaloIngestor implements Ingestor {
     const mentions = readMentions(event.mentions);
 
     return {
-      channel: CHANNEL,
+      channel: this.channel,
       msgId,
       conversationId,
       senderId,

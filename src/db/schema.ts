@@ -32,15 +32,20 @@ export type GroupRole = (typeof GroupRole)[keyof typeof GroupRole];
 export const GROUP_ROLE_VALUES: readonly string[] = Object.values(GroupRole);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// memory — DÀI HẠN (§7). Fact chưng cất. Partition (customer_id, channel, conversation_id).
-// Memory thuộc về PHÒNG (nhân viên + khách nói chung một mạch), không về người gõ.
-// customer_id giữ tenancy cứng → không lẫn phòng khách A sang B.
+// memory — DÀI HẠN (§7). Fact chưng cất. Partition (owner_kind, owner_id, channel,
+// conversation_id) — LỌC CẢ 4 ở mọi query.
+//
+// CHỦ SỞ HỮU fact có hai loại, và chúng nằm ở HAI KHÔNG GIAN ĐỊNH DANH KHÁC NHAU:
+//   owner_kind='customer' → owner_id = customer_id (từ group_map) — fact của PHÒNG đại lý
+//   owner_kind='user'     → owner_id = senderId    — fact của MỘT NGƯỜI, chat 1-1
+// Thiếu owner_kind thì một customer_id trùng chuỗi với một senderId sẽ chung phân vùng.
 // ─────────────────────────────────────────────────────────────────────────────
 export const MEMORY = {
   table: "memory",
   col: {
     id: "id",
-    customerId: "customer_id",  // nhóm khách (từ group_map)
+    ownerKind: "owner_kind",    // customer (phòng đại lý) | user (chat 1-1)
+    ownerId: "owner_id",        // customer_id từ group_map, HOẶC senderId khi kind=user
     channel: "channel",         // zalo | fb | ... (conversation_id chỉ unique trong kênh)
     conversationId: "conversation_id", // phòng chat sở hữu fact này
     type: "type",
@@ -194,10 +199,11 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS ${EXTENSION_VECTOR};
 
--- memory — DÀI HẠN (§7). Partition (customer_id, channel, conversation_id): read/write filter cả 3.
+-- memory — DÀI HẠN (§7). Partition (owner_kind, owner_id, channel, conversation_id): filter cả 4.
 CREATE TABLE IF NOT EXISTS ${m.table} (
   ${m.col.id}            uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
-  ${m.col.customerId}    text          NOT NULL,              -- nhóm khách (từ group_map)
+  ${m.col.ownerKind}     text          NOT NULL,              -- customer (phòng đại lý) | user (1-1)
+  ${m.col.ownerId}       text          NOT NULL,              -- customer_id (group_map) HOẶC senderId
   ${m.col.channel}       text          NOT NULL,              -- kênh chứa phòng (tránh đụng id giữa kênh)
   ${m.col.conversationId} text         NOT NULL,              -- phòng sở hữu fact — KHÔNG phải người gõ
   ${m.col.type}          text          NOT NULL,              -- preference | context | episode ...
@@ -212,7 +218,7 @@ CREATE INDEX IF NOT EXISTS ${m.idx.embeddingHnsw}
   ON ${m.table} USING hnsw (${m.col.embedding} vector_cosine_ops);
 
 CREATE INDEX IF NOT EXISTS ${m.idx.scope}
-  ON ${m.table} (${m.col.customerId}, ${m.col.channel}, ${m.col.conversationId});
+  ON ${m.table} (${m.col.ownerKind}, ${m.col.ownerId}, ${m.col.channel}, ${m.col.conversationId});
 
 -- scheduler_jobs — CRON job def durable (§8). Nguồn rebuild Redis ZSET.
 CREATE TABLE IF NOT EXISTS ${s.table} (

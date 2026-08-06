@@ -6,10 +6,13 @@ import type { ChatRequest, ChatResult, LLMProvider, LlmMessage } from "../llm/ty
 import type { Identity } from "../flash-command/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import { SkillRegistry } from "../skills/registry.ts";
-import { buildToolRegistry } from "../tools/index.ts";
-import { customerSupportSpec } from "../state/specs.ts";
-import { runAgentLoop } from "./loop.ts";
+import { COMMON_TOOLS, buildToolRegistry } from "../tools/index.ts";
+import { customerSupportSpec, internalOpsSpec } from "../state/specs.ts";
+import { runAgentLoop } from "./runtime/loop.ts";
 import { buildAgentRegistry } from "./registry.ts";
+import { buildRootAgent } from "./runtime/build-agent.ts";
+import { resolveAgentType } from "./router.ts";
+import { AgentType, type RootAgentProfile, type SubAgent } from "./types.ts";
 import type { AgentConfig, AgentDeps } from "./types.ts";
 
 class ScriptedProvider implements LLMProvider {
@@ -41,7 +44,7 @@ function loop(provider: LLMProvider) {
     provider,
     system: "s",
     messages: MESSAGES,
-    registry: buildToolRegistry(SKILLS, GUEST),
+    registry: buildToolRegistry(COMMON_TOOLS, { skills: SKILLS, identity: GUEST }),
     maxTokens: CFG.maxTokens,
     effort: CFG.effort,
     maxIterations: CFG.agentMaxIterations,
@@ -128,5 +131,119 @@ describe("AgentRegistry", () => {
     const provider = new ScriptedProvider([]);
     const registry = buildAgentRegistry(agentDeps(provider));
     expect(registry.resolve().memorySpec).toBe(customerSupportSpec);
+  });
+
+  test("đăng ký đủ 4 root agent, mỗi cái mang prompt+spec riêng", async () => {
+    const registry = buildAgentRegistry(agentDeps(new ScriptedProvider([])));
+    for (const type of Object.values(AgentType)) {
+      expect(registry.resolve(type).agentType).toBe(type);
+    }
+    expect(registry.resolve(AgentType.Boss).memorySpec).toBe(internalOpsSpec);
+    // Trợ lý riêng chỉ chạy 1-1 → worker bỏ qua group MemoryScope.
+    expect(registry.resolve(AgentType.Personal).directOnly).toBe(true);
+    expect(registry.resolve(AgentType.Dealer).directOnly).toBe(false);
+  });
+
+  test("agent dealer nạp đúng prompt của nó vào system", async () => {
+    const provider = new ScriptedProvider([
+      { stopReason: "end_turn", content: [{ type: "text", text: "dạ" }] },
+    ]);
+    const registry = buildAgentRegistry(agentDeps(provider));
+    await registry.resolve(AgentType.Dealer).run({ identity: GUEST, history: HISTORY });
+    expect(provider.seen[0]?.system).toContain("ĐẠI LÝ");
+  });
+});
+
+describe("resolveAgentType", () => {
+  test("channel đã map → đúng agent, không phân biệt hoa thường", () => {
+    expect(resolveAgentType("zalo")).toBe(AgentType.Dealer);
+    expect(resolveAgentType("ZALO-SEP")).toBe(AgentType.Boss);
+    expect(resolveAgentType("zalo-canhan")).toBe(AgentType.Personal);
+  });
+
+  test("channel lạ → undefined (registry rơi về default, không đoán agent)", () => {
+    expect(resolveAgentType("telegram")).toBeUndefined();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Orchestrator — sub-agent bên trong 1 root: chọn xong thì sub cầm TRỌN lượt (prompt + tool).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SUB_TOOL_NAME = "xem_bao_cao";
+const SUB: SubAgent = {
+  name: "bao_cao",
+  description: "câu hỏi về báo cáo doanh số",
+  prompt: "PROMPT_SUB",
+  tools: [
+    () => ({
+      name: SUB_TOOL_NAME,
+      description: "xem báo cáo",
+      inputSchema: { type: "object", properties: {}, required: [] },
+      run: () => Promise.resolve({ content: "ok" }),
+    }),
+  ],
+};
+
+const ROOT_WITH_SUB: RootAgentProfile = {
+  agentType: "test_root",
+  directOnly: false,
+  prompt: "PROMPT_ROOT",
+  memorySpec: customerSupportSpec,
+  tools: COMMON_TOOLS,
+  subAgents: [SUB],
+};
+
+/** Lượt LLM của orchestrator: chỉ trả về một tên. */
+function routeTo(name: string): ChatResult {
+  return { stopReason: "end_turn", content: [{ type: "text", text: name }] };
+}
+
+const FINAL_TURN: ChatResult = {
+  stopReason: "end_turn",
+  content: [{ type: "text", text: "xong" }],
+};
+
+describe("orchestrator (sub-agent)", () => {
+  test("chọn được sub → sub cầm prompt + bộ tool của nó", async () => {
+    const provider = new ScriptedProvider([routeTo("bao_cao"), FINAL_TURN]);
+    const agent = buildRootAgent(ROOT_WITH_SUB, agentDeps(provider));
+
+    expect(await agent.run({ identity: GUEST, history: HISTORY })).toEqual({
+      status: "reply",
+      text: "xong",
+    });
+    // Lượt 0 = định tuyến: không tool, không prompt agent.
+    expect(provider.seen[0]?.tools).toEqual([]);
+    // Lượt 1 = sub trả lời: prompt sub thay prompt root, tool cũng của sub.
+    expect(provider.seen[1]?.system).toContain("PROMPT_SUB");
+    expect(provider.seen[1]?.system).not.toContain("PROMPT_ROOT");
+    expect(provider.seen[1]?.tools.map((t) => t.name)).toEqual([SUB_TOOL_NAME]);
+  });
+
+  test('trả "none" → root tự trả lời', async () => {
+    const provider = new ScriptedProvider([routeTo("none"), FINAL_TURN]);
+    await buildRootAgent(ROOT_WITH_SUB, agentDeps(provider)).run({
+      identity: GUEST,
+      history: HISTORY,
+    });
+    expect(provider.seen[1]?.system).toContain("PROMPT_ROOT");
+  });
+
+  test("trả tên lạ → root tự trả lời (không đoán sub gần đúng)", async () => {
+    const provider = new ScriptedProvider([routeTo("phong_ke_toan"), FINAL_TURN]);
+    await buildRootAgent(ROOT_WITH_SUB, agentDeps(provider)).run({
+      identity: GUEST,
+      history: HISTORY,
+    });
+    expect(provider.seen[1]?.system).toContain("PROMPT_ROOT");
+  });
+
+  test("root không khai sub → KHÔNG tốn lượt LLM định tuyến nào", async () => {
+    const provider = new ScriptedProvider([FINAL_TURN]);
+    const noSub: RootAgentProfile = { ...ROOT_WITH_SUB, subAgents: undefined };
+    await buildRootAgent(noSub, agentDeps(provider)).run({ identity: GUEST, history: HISTORY });
+    expect(provider.seen).toHaveLength(1);
+    expect(provider.seen[0]?.system).toContain("PROMPT_ROOT");
   });
 });

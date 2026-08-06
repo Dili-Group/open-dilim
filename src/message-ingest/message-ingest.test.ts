@@ -50,7 +50,7 @@ function makeDeps(opts: { failPublish?: boolean } = {}) {
 }
 
 function makeGateway(deps: IngestDeps) {
-  const factory = new ChannelFactory().register(new ZaloIngestor(CHANNEL_CONFIG));
+  const factory = new ChannelFactory().register(new ZaloIngestor("zalo", CHANNEL_CONFIG));
   return createGateway(factory, deps);
 }
 
@@ -174,5 +174,26 @@ describe("gateway", () => {
       body,
     });
     expect((await gw.handle(req)).status).toBe(400);
+  });
+
+  test("nhiều tài khoản Zalo → Envelope mang ĐÚNG tên kênh của adapter nhận tin", async () => {
+    // Cùng một adapter class, hai kênh khác nhau: channel là thứ định tuyến root agent nên
+    // KHÔNG được hard-code trong adapter.
+    const factory = new ChannelFactory()
+      .register(new ZaloIngestor("zalo", CHANNEL_CONFIG))
+      .register(new ZaloIngestor("zalo-sep", CHANNEL_CONFIG));
+    const gw = createGateway(factory, ctx.deps);
+
+    const body = JSON.stringify(event({ msgId: "ms", mentions: [{ uid: AGENT_UID }] }));
+    const res = await gw.handle(
+      new Request("http://x/webhook/zalo-sep", {
+        method: "POST",
+        headers: { "x-zevent-signature": sign(body) },
+        body,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(ctx.published.at(-1)?.channel).toBe("zalo-sep");
   });
 });

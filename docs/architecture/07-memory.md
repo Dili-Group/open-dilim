@@ -21,6 +21,20 @@ tràn context → tóm tắt cuộn (rolling summary), đẩy phần cũ ra. Gro
 **Write path** (sau turn/hội thoại): distiller rút fact bền → record, embed bằng
 **`gemini-embedding-001`** → lưu pgvector. KHÔNG lưu log thô.
 
+> **Mỗi agent nhớ một kiểu.** `DistillSpec` ("agent này giữ GÌ, bỏ gì") đi thẳng vào system
+> prompt của distiller, và được đóng cứng vào distiller lúc dựng — KHÔNG đổi được giữa chừng.
+> Nên đường ghi là **một writer cho mỗi `RootAgent.memorySpec`**, không phải một writer toàn hệ:
+>
+> ```
+> bootstrap:  agents.all() → Map<agentType, memorySpec> → buildMemoryWriters(store, specs)
+>             spec trùng nhau (vận hành + lãnh đạo cùng internalOpsSpec) → dùng chung 1 writer
+> worker:     ctx.memoryWriters.for(agent.agentType).afterTurn(...)
+>             không có writer khớp → BỎ ghi, không mượn writer agent khác
+> ```
+>
+> Dùng chung một writer cho mọi agent = agent lãnh đạo bị chưng cất bằng prompt "rút sở thích
+> của khách" — fact ra lệch hoặc rỗng, và hỏng âm thầm (không có lỗi nào bắn ra).
+
 > **Model của distiller.** Distiller (và rolling summary ngắn hạn) là việc nhẹ — rút gọn/phân
 > loại — nhưng chạy ngầm sau *mỗi* turn, tần suất cao. Nên KHÔNG dùng con mạnh của agent loop mà
 > dùng **con nhẹ riêng**: `CONFIG.memoryModel` (env `MEMORY_MODEL`, mặc định = `MODEL`), cùng

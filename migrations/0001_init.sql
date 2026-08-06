@@ -7,10 +7,11 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- memory — DÀI HẠN (§7). Partition (customer_id, channel, conversation_id): read/write filter cả 3.
+-- memory — DÀI HẠN (§7). Partition (owner_kind, owner_id, channel, conversation_id): filter cả 4.
 CREATE TABLE IF NOT EXISTS memory (
   id            uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id    text          NOT NULL,              -- nhóm khách (từ group_map)
+  owner_kind     text          NOT NULL,              -- customer (phòng đại lý) | user (1-1)
+  owner_id       text          NOT NULL,              -- customer_id (group_map) HOẶC senderId
   channel       text          NOT NULL,              -- kênh chứa phòng (tránh đụng id giữa kênh)
   conversation_id text         NOT NULL,              -- phòng sở hữu fact — KHÔNG phải người gõ
   type          text          NOT NULL,              -- preference | context | episode ...
@@ -25,7 +26,7 @@ CREATE INDEX IF NOT EXISTS memory_embedding_hnsw
   ON memory USING hnsw (embedding vector_cosine_ops);
 
 CREATE INDEX IF NOT EXISTS memory_scope
-  ON memory (customer_id, channel, conversation_id);
+  ON memory (owner_kind, owner_id, channel, conversation_id);
 
 -- scheduler_jobs — CRON job def durable (§8). Nguồn rebuild Redis ZSET.
 CREATE TABLE IF NOT EXISTS scheduler_jobs (

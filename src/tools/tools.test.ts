@@ -6,7 +6,7 @@ import { describe, expect, test } from "bun:test";
 import type { Identity } from "../flash-command/types.ts";
 import { buildSkillRegistry } from "../skills/index.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
-import { buildToolRegistry, readStringField } from "./index.ts";
+import { COMMON_TOOLS, buildToolRegistry, readStringField } from "./index.ts";
 import { buildUseSkillTool } from "./impl/use-skill.ts";
 import { buildUseReferenceTool } from "./impl/use-reference.ts";
 
@@ -73,7 +73,7 @@ describe("use_reference", () => {
 
 describe("buildToolRegistry", () => {
   test("có đủ whoami + use_skill + use_reference", () => {
-    const names = buildToolRegistry(skills, GUEST)
+    const names = buildToolRegistry(COMMON_TOOLS, { skills, identity: GUEST })
       .schemas()
       .map((s) => s.name)
       .sort();
@@ -82,7 +82,7 @@ describe("buildToolRegistry", () => {
 
   test("KHÔNG schema nào chứa trường danh tính (chống confused-deputy)", () => {
     const forbidden = ["identity", "role", "user_id", "userId", "customer_id", "customerId", "sender_id", "senderId"];
-    for (const schema of buildToolRegistry(skills, GUEST).schemas()) {
+    for (const schema of buildToolRegistry(COMMON_TOOLS, { skills, identity: GUEST }).schemas()) {
       const serialized = JSON.stringify(schema.inputSchema);
       for (const field of forbidden) {
         expect(serialized).not.toContain(field);

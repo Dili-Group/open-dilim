@@ -43,35 +43,55 @@ export interface BaseChannelConfig {
   readonly agentUid: string;
 }
 
-/** Zalo chat cá nhân: verify HMAC-SHA256 rawBody với `webhookSecret`. */
+/**
+ * Zalo chat cá nhân: verify HMAC-SHA256 rawBody với `webhookSecret`.
+ *
+ * `bridge` = egress CỦA CHÍNH tài khoản này (mỗi tài khoản Zalo chạy bridge riêng). Để trong
+ * config kênh chứ không tách global: một bridge dùng chung cho nhiều kênh = gửi nhầm tài khoản.
+ * undefined = chưa cấu hình egress → kênh đó fallback console (dev), ingest vẫn chạy.
+ */
 export interface ZaloChannelConfig extends BaseChannelConfig {
   readonly webhookSecret: string;
+  readonly bridge?: ZaloBridgeConfig;
 }
 
-// Thêm kênh: khai type extends BaseChannelConfig + helper đọc env + thêm key vào `channels`.
-// vd sau này: ZaloOaChannelConfig { appId, oaSecret }, TelegramChannelConfig { secretToken }.
-function zaloChannel(): ZaloChannelConfig | undefined {
-  const agentUid = optional("ZALO_AGENT_UID");
-  const webhookSecret = optional("ZALO_WEBHOOK_SECRET");
+/**
+ * Đọc config 1 kênh Zalo theo tiền tố env: `<PREFIX>_AGENT_UID`, `<PREFIX>_WEBHOOK_SECRET`,
+ * `<PREFIX>_BRIDGE_URL`, `<PREFIX>_BRIDGE_SECRET`.
+ *
+ * Thiếu uid/secret → undefined = kênh KHÔNG đăng ký: webhook trả 404, không có agent nào phục vụ.
+ * Đó là mặc định đóng, không phải lỗi boot — 4 kênh khai sẵn nhưng chỉ kênh đã mở tài khoản chạy.
+ */
+function zaloChannel(prefix: string): ZaloChannelConfig | undefined {
+  const agentUid = optional(`${prefix}_AGENT_UID`);
+  const webhookSecret = optional(`${prefix}_WEBHOOK_SECRET`);
   if (agentUid === undefined || webhookSecret === undefined) return undefined;
-  return { agentUid, webhookSecret };
+  return { agentUid, webhookSecret, bridge: zaloBridge(prefix) };
 }
 
-// Mỗi key = 1 kênh, type riêng (không Record đồng nhất). undefined = kênh chưa cấu hình.
+// Mỗi key = 1 kênh = 1 tài khoản Zalo riêng, và là KHOÁ ĐỊNH TUYẾN root agent (agents/router.ts).
+// Tên key đi vào: path webhook `/webhook/:channel`, cột `channel` của user_binding/group_map/
+// group_member, và key egress. ĐỔI TÊN KÊNH ĐANG CHẠY = mồ côi toàn bộ định danh đã bind.
+//
+// Thêm kênh: thêm 1 key ở đây + 1 dòng bảng ở agents/router.ts. Platform khác (Telegram) khai
+// type config riêng, không dùng lại ZaloChannelConfig.
 const channels = {
-  zalo: zaloChannel(),
+  zalo: zaloChannel("ZALO"), // đại lý — kênh đang chạy thật
+  "zalo-vanhanh": zaloChannel("ZALO_VANHANH"), // nhân viên vận hành
+  "zalo-sep": zaloChannel("ZALO_SEP"), // ban lãnh đạo
+  "zalo-canhan": zaloChannel("ZALO_CANHAN"), // trợ lý riêng 1-1
 } as const;
 
-// Egress Zalo qua bridge HTTP nội bộ (send text + typing). Tách khỏi ingest channel config:
-// ingest = verify webhook đến; bridge = gọi ra. undefined = chưa cấu hình → egress Zalo tắt
-// (dev fallback console). Cả 2 env phải có cùng nhau (URL vô nghĩa nếu thiếu secret auth).
+// Egress Zalo qua bridge HTTP nội bộ (send text + typing). Ingest = verify webhook đến; bridge =
+// gọi ra — hai chiều tách nhau, nhưng CÙNG một tài khoản nên bridge nằm trong config kênh.
+// Cả 2 env phải có cùng nhau (URL vô nghĩa nếu thiếu secret auth).
 export interface ZaloBridgeConfig {
   readonly baseUrl: string;
   readonly secret: string;
 }
-function zaloBridge(): ZaloBridgeConfig | undefined {
-  const baseUrl = optional("ZALO_BRIDGE_URL");
-  const secret = optional("ZALO_BRIDGE_SECRET");
+function zaloBridge(prefix: string): ZaloBridgeConfig | undefined {
+  const baseUrl = optional(`${prefix}_BRIDGE_URL`);
+  const secret = optional(`${prefix}_BRIDGE_SECRET`);
   if (baseUrl === undefined || secret === undefined) return undefined;
   return { baseUrl, secret };
 }
@@ -130,11 +150,9 @@ export const CONFIG = {
   // HTTP gateway (ingress webhook) nghe cổng này.
   port: portFromEnv(),
 
-  // Kênh chat — message-ingest verify webhook + gate mention theo agentUid per kênh.
+  // Kênh chat — message-ingest verify webhook + gate mention theo agentUid per kênh; egress
+  // (bridge) và root agent phục vụ kênh đều tra theo cùng tên kênh này.
   channels,
-
-  // Egress Zalo qua bridge nội bộ. undefined = chưa cấu hình (dev fallback console).
-  zaloBridge: zaloBridge(),
 
   // Hệ thống vận hành — mọi request kèm header service-token (xem operational/client.ts).
   operational: {

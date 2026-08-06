@@ -25,7 +25,6 @@ export function createGateway(factory: ChannelFactory, deps: IngestDeps) {
     if (ingestor === undefined) return json(404, { error: "unknown_channel" });
 
     const rawBody = await req.text();
-    console.log('rawBody:: ', rawBody)
     if (!ingestor.verify(req.headers, rawBody)) {
       return json(401, { error: "invalid_signature" });
     }

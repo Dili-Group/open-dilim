@@ -8,7 +8,7 @@ import { PgMemoryStore } from "./memory.ts";
 import { RedisHistoryStore } from "./session.ts";
 import { RedisDedupe } from "./dedupe.ts";
 import { LlmDistiller } from "./distiller.ts";
-import { BatchedMemoryWriter, RedisDistillCounter } from "./memory-writer.ts";
+import { BatchedMemoryWriter, MemoryWriterRegistry, RedisDistillCounter } from "./memory-writer.ts";
 import type { Distiller, DistillSpec, MemoryStore, MemoryWriter, SqlExecutor } from "./types.ts";
 
 /** Bọc Bun.sql thành SqlExecutor. `unsafe(text, params)`: text = hằng schema, params tham số hoá. */
@@ -44,12 +44,24 @@ export function buildMemoryWriter(store: MemoryStore, spec: DistillSpec): Memory
   return new BatchedMemoryWriter(store, buildDistiller(spec), new RedisDistillCounter(commandOf(redis)));
 }
 
+/**
+ * Một writer cho MỖI agent (theo `RootAgent.memorySpec`) — agent nhớ khác nhau thì chưng cất
+ * bằng prompt khác nhau. Spec trùng → dùng chung writer.
+ */
+export function buildMemoryWriters(
+  store: MemoryStore,
+  specs: ReadonlyMap<string, DistillSpec>,
+): MemoryWriterRegistry {
+  return new MemoryWriterRegistry(specs, (spec) => buildMemoryWriter(store, spec));
+}
+
 export { PgMemoryStore } from "./memory.ts";
 export { RedisHistoryStore, parseHistoryEntry } from "./session.ts";
 export { RedisDedupe } from "./dedupe.ts";
 export { LlmDistiller, parseFacts, renderTranscript } from "./distiller.ts";
 export {
   BatchedMemoryWriter,
+  MemoryWriterRegistry,
   RedisDistillCounter,
   toDistillTurns,
   DISTILL_EVERY_TURNS,
@@ -57,12 +69,13 @@ export {
 } from "./memory-writer.ts";
 export { toVectorLiteral, DEDUP_COSINE_DISTANCE, RECALL_MAX_COSINE_DISTANCE } from "./vector.ts";
 export { MemoryType, MEMORY_TYPE_VALUES } from "./types.ts";
-export { customerSupportSpec } from "./specs.ts";
+export { customerSupportSpec, internalOpsSpec, personalSpec } from "./specs.ts";
 export type {
   MemoryScope,
   MemoryStore,
   MemoryRecall,
   MemoryWriter,
+  MemoryWriterLookup,
   Distiller,
   DistillSpec,
   DistilledFact,

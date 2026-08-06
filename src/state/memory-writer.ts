@@ -7,7 +7,15 @@
 
 import type { HistoryEntry } from "../types/index.ts";
 import type { RedisCommand } from "../redis/types.ts";
-import type { Distiller, DistillTurn, MemoryScope, MemoryStore, MemoryWriter } from "./types.ts";
+import type {
+  Distiller,
+  DistillSpec,
+  DistillTurn,
+  MemoryScope,
+  MemoryStore,
+  MemoryWriter,
+  MemoryWriterLookup,
+} from "./types.ts";
 
 const KEY_PREFIX = "dilim:distill:";
 
@@ -92,6 +100,36 @@ export class BatchedMemoryWriter implements MemoryWriter {
 }
 
 /** History phòng → transcript cho distiller. Entry rỗng bị bỏ (không có gì để chưng cất). */
+/**
+ * Map agentType → writer của agent đó. Agent nhớ khác nhau (DistillSpec khác) thì phải ghi bằng
+ * writer khác — spec đóng cứng vào distiller nên KHÔNG đổi được lúc chạy.
+ *
+ * Hai agent khai CÙNG một spec (vận hành và lãnh đạo cùng `internalOpsSpec`) thì dùng chung một
+ * writer: dựng hai distiller y hệt chỉ tốn kết nối, không thêm hành vi nào.
+ *
+ * `build` truyền vào thay vì gọi thẳng `buildMemoryWriter` để file này không phải kéo theo
+ * Redis/LLM provider — test dựng registry bằng writer giả.
+ */
+export class MemoryWriterRegistry implements MemoryWriterLookup {
+  private readonly byAgentType = new Map<string, MemoryWriter>();
+
+  constructor(specs: ReadonlyMap<string, DistillSpec>, build: (spec: DistillSpec) => MemoryWriter) {
+    const bySpec = new Map<DistillSpec, MemoryWriter>();
+    for (const [agentType, spec] of specs) {
+      let writer = bySpec.get(spec);
+      if (writer === undefined) {
+        writer = build(spec);
+        bySpec.set(spec, writer);
+      }
+      this.byAgentType.set(agentType, writer);
+    }
+  }
+
+  for(agentType: string): MemoryWriter | undefined {
+    return this.byAgentType.get(agentType);
+  }
+}
+
 export function toDistillTurns(entries: readonly HistoryEntry[]): DistillTurn[] {
   const turns: DistillTurn[] = [];
   for (const entry of entries) {

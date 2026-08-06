@@ -404,7 +404,7 @@ describe("handleEnvelope — MemoryScope", () => {
     );
     expect(groups.calls).toEqual([{ channel: "zalo", groupId: "g1" }]);
     expect(memory.scopes).toEqual([
-      { customerId: "cusX", channel: "zalo", conversationId: "g1" },
+      { ownerKind: "customer", ownerId: "cusX", channel: "zalo", conversationId: "g1" },
     ]);
   });
 
@@ -417,14 +417,36 @@ describe("handleEnvelope — MemoryScope", () => {
     expect(memory.scopes).toHaveLength(0);
   });
 
-  test("chat 1-1 → không tra group_map, không recall", async () => {
+  test("chat 1-1 với agent KHÔNG directOnly → không nhớ gì (fact là của phòng, không của người)", async () => {
     const groups = new FakeGroupCustomer("cusX");
     const memory = await runWith(
       groups,
       { role: "guest", senderId: "u1" },
-      makeEnvelope({ isGroup: false }),
+      makeEnvelope({ isGroup: false }), // channel zalo → dealer agent
     );
     expect(groups.calls).toHaveLength(0);
+    expect(memory.scopes).toHaveLength(0);
+  });
+
+  test("trợ lý riêng + chat 1-1 → scope theo NGƯỜI GÕ, không tra group_map", async () => {
+    const groups = new FakeGroupCustomer("cusX");
+    const memory = await runWith(
+      groups,
+      { role: "guest", senderId: "u7" },
+      makeEnvelope({ isGroup: false, channel: "zalo-canhan", conversationId: "u7", senderId: "u7" }),
+    );
+    expect(groups.calls).toHaveLength(0);
+    expect(memory.scopes).toEqual([
+      { ownerKind: "user", ownerId: "u7", channel: "zalo-canhan", conversationId: "u7" },
+    ]);
+  });
+
+  test("trợ lý riêng lạc vào nhóm → không nhớ (không rõ fact của ai)", async () => {
+    const memory = await runWith(
+      new FakeGroupCustomer("cusX"),
+      { role: "guest", senderId: "u7" },
+      makeEnvelope({ isGroup: true, channel: "zalo-canhan", conversationId: "g9" }),
+    );
     expect(memory.scopes).toHaveLength(0);
   });
 });
@@ -463,7 +485,7 @@ describe("handleEnvelope — ghi nhớ sau lượt", () => {
       ops: NOOP_OPS,
       identity: new FakeResolver({ role: "guest", senderId: envelope.senderId }),
       groupCustomer,
-      memoryWriter: writer,
+      memoryWriters: { for: () => writer },
       agents: buildAgentRegistry({
         provider: new ScriptedProvider([
           { stopReason: "end_turn", content: [{ type: "text", text: "ok anh" }] },
@@ -490,7 +512,7 @@ describe("handleEnvelope — ghi nhớ sau lượt", () => {
     const { writer } = await runTurn(new FakeGroupCustomer("cusX"), envelope);
     expect(writer.calls).toHaveLength(1);
     const call = writer.calls[0];
-    expect(call?.scope).toEqual({ customerId: "cusX", channel: "zalo", conversationId: "g1" });
+    expect(call?.scope).toEqual({ ownerKind: "customer", ownerId: "cusX", channel: "zalo", conversationId: "g1" });
     expect(call?.sourceMsgId).toBe(envelope.msgId);
     expect(call?.turns.at(-1)).toEqual({ senderId: AGENT_SENDER_ID, role: "assistant", text: "ok anh" });
   });
@@ -498,5 +520,88 @@ describe("handleEnvelope — ghi nhớ sau lượt", () => {
   test("chưa bind phòng → không ghi dài hạn (không có chỗ để ghi)", async () => {
     const { writer } = await runTurn(new FakeGroupCustomer(undefined), makeEnvelope({ isGroup: true }));
     expect(writer.calls).toHaveLength(0);
+  });
+
+  test("ghi bằng writer CỦA AGENT vừa chạy (spec đóng cứng vào writer)", async () => {
+    const asked: string[] = [];
+    const writer = new RecordingMemoryWriter();
+    const history = new MemoryHistoryStore();
+    // Kênh zalo-sep → BossAgent: writer phải được tra bằng agentType "boss", không phải mặc định.
+    const envelope = makeEnvelope({ isGroup: true, conversationId: "g1", channel: "zalo-sep" });
+    await history.append({
+      conversationId: envelope.conversationId,
+      msgId: "m1",
+      senderId: envelope.senderId,
+      text: "doanh số tuần này",
+      isGroup: true,
+      role: "user",
+      ts: 1,
+    });
+
+    const ctx: WorkerContext = {
+      history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
+      identity: new FakeResolver({ role: "guest", senderId: envelope.senderId }),
+      groupCustomer: new FakeGroupCustomer("cusX"),
+      memoryWriters: {
+        for: (agentType) => {
+          asked.push(agentType);
+          return writer;
+        },
+      },
+      agents: buildAgentRegistry({
+        provider: new ScriptedProvider([
+          { stopReason: "end_turn", content: [{ type: "text", text: "ok" }] },
+        ]),
+        config: CFG,
+        skills: SKILLS,
+      }),
+      broadcaster: new CapturingBroadcaster(),
+      typing: TYPING,
+    };
+
+    expect((await handleEnvelope(ctx, envelope)).status).toBe("reply");
+    expect(asked).toEqual(["boss"]);
+    expect(writer.calls).toHaveLength(1);
+  });
+
+  test("không có writer cho agent → bỏ ghi, KHÔNG mượn writer agent khác", async () => {
+    const history = new MemoryHistoryStore();
+    const envelope = makeEnvelope({ isGroup: true, conversationId: "g1", channel: "zalo" });
+    await history.append({
+      conversationId: envelope.conversationId,
+      msgId: "m1",
+      senderId: envelope.senderId,
+      text: "hỏi gì đó",
+      isGroup: true,
+      role: "user",
+      ts: 1,
+    });
+
+    const ctx: WorkerContext = {
+      history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
+      identity: new FakeResolver({ role: "guest", senderId: envelope.senderId }),
+      groupCustomer: new FakeGroupCustomer("cusX"),
+      memoryWriters: { for: () => undefined },
+      agents: buildAgentRegistry({
+        provider: new ScriptedProvider([
+          { stopReason: "end_turn", content: [{ type: "text", text: "ok" }] },
+        ]),
+        config: CFG,
+        skills: SKILLS,
+      }),
+      broadcaster: new CapturingBroadcaster(),
+      typing: TYPING,
+    };
+
+    // Lượt vẫn thành công: thiếu trí nhớ dài hạn không được biến lượt thành failed.
+    expect((await handleEnvelope(ctx, envelope)).status).toBe("reply");
   });
 });

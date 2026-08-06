@@ -11,7 +11,7 @@ import type { HistoryEntry } from "../types/index.ts";
 import { assembleTurnContext } from "./assembler.ts";
 import type { ContextSources } from "./types.ts";
 
-const SCOPE: MemoryScope = { customerId: "cus1", channel: "zalo", conversationId: "room1" };
+const SCOPE: MemoryScope = { ownerKind: "customer", ownerId: "cus1", channel: "zalo", conversationId: "room1" };
 const BASE = "PROMPT NỀN";
 
 function entry(over: Partial<HistoryEntry> = {}): HistoryEntry {

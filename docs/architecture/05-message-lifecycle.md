@@ -8,7 +8,7 @@ Hai trục:
 - **`senderId`** = người gửi từng message. Direct luôn 1 người; group đổi theo message.
   **Quyền luôn theo `senderId`, KHÔNG theo phòng** — group không có "quyền group".
 
-`isGroup` do client/channel gửi kèm (giống `agentType`): chỉ đổi **hành vi** (trigger, broadcast),
+`isGroup` do client/channel gửi kèm (giống `channel`): chỉ đổi **hành vi** (trigger, broadcast),
 KHÔNG cấp quyền. Group trigger = **mention @agent** (chỉ mention, không dùng reply/command).
 
 ```
@@ -20,9 +20,9 @@ KHÔNG cấp quyền. Group trigger = **mention @agent** (chỉ mention, không 
 3. ACK 202     push queue
 4. DEDUPE      idempotency theo msgId
 5. ORDER-LOCK  serialize theo conversationId (1 message/lúc/phòng — chống đua state)
-6. AUTH        identity từ senderId → verify quyền + agentType được phép
+6. AUTH        identity từ senderId → vai (nhân viên/đại lý/guest) = nguồn sự thật cho quyền
 7. STATE       load history phòng; mỗi turn gắn {senderId, text} (group đa speaker)
-8. AGENT       registry.resolve(agentType).run() — context biết AI đang hỏi
+8. AGENT       registry.resolve(resolveAgentType(channel)).run() — context biết AI đang hỏi
 9. BROADCAST   direct → DM về user
                group  → publish topic phòng (fan-out mọi member), @ lại người hỏi
 10. AUDIT      log msgId + senderId + tool_calls + result

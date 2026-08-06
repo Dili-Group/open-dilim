@@ -9,11 +9,17 @@ import { ChannelFactory } from "./factory.ts";
 import { createGateway } from "./gateway.ts";
 import { ZaloIngestor } from "./adapters/zalo.ts";
 
-/** Register adapter cho từng kênh ĐÃ cấu hình (bỏ kênh thiếu agentUid/secret). */
+/**
+ * Register adapter cho từng kênh ĐÃ cấu hình (bỏ kênh thiếu agentUid/secret → webhook 404).
+ *
+ * Mọi kênh hiện là Zalo nên duyệt phẳng được. Có platform khác (config shape khác) thì tách
+ * nhánh theo key — KHÔNG nới `ZaloIngestor` để nuốt mọi config.
+ */
 export function buildChannelFactory(): ChannelFactory {
   const factory = new ChannelFactory();
-  const zalo = CONFIG.channels.zalo;
-  if (zalo !== undefined) factory.register(new ZaloIngestor(zalo));
+  for (const [channel, config] of Object.entries(CONFIG.channels)) {
+    if (config !== undefined) factory.register(new ZaloIngestor(channel, config));
+  }
   return factory;
 }
 

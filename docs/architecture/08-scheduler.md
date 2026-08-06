@@ -23,7 +23,7 @@ Envelope {
   msgId:  `cron:{jobId}:{scheduledTs}`,   // ◀ idempotent — chống double-fire
   conversationId: job.target,             // đích broadcast (staff channel / phòng)
   senderId: 'system:cron',
-  agentType: job.agentType,               // validate whitelist NHƯ message thường
+  channel:  job.channel,                  // chọn root agent Y HỆT message thường (§4)
   identity:  job.identity,                // service/user cấu hình — auth gate NHƯ thường
   source:   'cron',                       // ◀ phân biệt nguồn (vs message / approval)
   addressedToAgent: true,
@@ -31,7 +31,7 @@ Envelope {
 }
 ```
 
-Job def: `{ id, schedule (cron/interval), agentType, identity, task, target, enabled, nextRunAt, lastRunAt }`.
+Job def: `{ id, schedule (cron/interval), channel, identity, task, target, enabled, nextRunAt, lastRunAt }`.
 System job (approval-timeout, health-check) code-defined trong `defs/`; business check data-defined trong
 DB (non-dev thêm, giống skills).
 
@@ -39,7 +39,7 @@ DB (non-dev thêm, giống skills).
 
 1. **Fire-once.** Nhiều instance/worker → 2 poller không được cùng bắn 1 job. Leader-lock (Redis) HOẶC
    pop atomic (`ZPOPMIN`/Lua) + idempotent `msgId` dedupe ở worker. Trùng tick → dedupe nuốt.
-2. **Cron KHÔNG bypass quyền.** `agentType` validate whitelist, `identity` qua `auth` y hệt message. Job
+2. **Cron KHÔNG bypass quyền.** `channel` route qua bảng như thường, `identity` qua `auth` y hệt message. Job
    chạy dưới identity service/user cấu hình — không phải "quyền root". Tool WRITE vẫn gate theo identity.
 3. **Execute idempotent.** Job làm WRITE (gửi cảnh báo, tạo ticket) → idempotent theo `msgId`; retry/tick
    trùng không nhân đôi. Write thật rủi ro vẫn qua `pending_action` ([mục 6](./06-approval.md)).
