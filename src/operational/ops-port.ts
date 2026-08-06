@@ -18,19 +18,43 @@ export class OperationalOpsPort implements OpsPort {
    * 200 → user_id. 404 (token không tồn tại/hết hạn) / 410 (token đã dùng) → null (input sai).
    * 401 = sai service key (config), 5xx, network → OperationalError bubble lên (lỗi thật).
    */
-  async resolveUserByToken(token: string): Promise<{ userId: string } | null> {
+  async resolveUserByToken(
+    token: string,
+  ): Promise<{
+    userId: string;
+    roleSlug?: string;
+    fullName?: string;
+    role?: string;
+  } | null> {
     let body: unknown;
     try {
       body = await opPost(VERIFY_PATH, { body: { token } });
     } catch (err) {
-      if (err instanceof OperationalError && (err.status === 404 || err.status === 410)) return null;
+      if (
+        err instanceof OperationalError &&
+        (err.status === 404 || err.status === 410)
+      )
+        return null;
       throw err;
     }
+
     const userId = readUserId(body);
     if (userId === null) {
-      throw new OperationalError("verify: response thiếu user_id", 200, "POST", VERIFY_PATH, "");
+      throw new OperationalError(
+        "verify: response thiếu user_id",
+        200,
+        "POST",
+        VERIFY_PATH,
+        "",
+      );
     }
-    return { userId };
+    // role_slug/full_name optional — thiếu thì bind vẫn chạy (chỉ user_id bắt buộc).
+    return {
+      userId,
+      role: readOptionalString(body, "role"),
+      roleSlug: readOptionalString(body, "role_slug"),
+      fullName: readOptionalString(body, "full_name"),
+    };
   }
 
   /**
@@ -66,11 +90,18 @@ export class OperationalOpsPort implements OpsPort {
   }
 }
 
-/** verify OK: `{ user_id, role, full_name, role_slug }`. Chỉ cần user_id. */
+/** verify OK: `{ user_id, role, full_name, role_slug }`. user_id bắt buộc; còn lại optional. */
 function readUserId(body: unknown): string | null {
   if (typeof body !== "object" || body === null) return null;
   const userId = (body as Record<string, unknown>)["user_id"];
   return typeof userId === "string" && userId !== "" ? userId : null;
+}
+
+/** Đọc field string tuỳ chọn từ response verify. Thiếu / rỗng / sai kiểu → undefined (không bịa). */
+function readOptionalString(body: unknown, key: string): string | undefined {
+  if (typeof body !== "object" || body === null) return undefined;
+  const value = (body as Record<string, unknown>)[key];
+  return typeof value === "string" && value !== "" ? value : undefined;
 }
 
 /**
@@ -82,6 +113,7 @@ function readDealerId(body: unknown): string | null {
   const data = (body as Record<string, unknown>)["data"];
   if (typeof data !== "object" || data === null) return null;
   const dealerId = (data as Record<string, unknown>)["dealer_id"];
-  if (typeof dealerId === "number" && Number.isFinite(dealerId)) return String(dealerId);
+  if (typeof dealerId === "number" && Number.isFinite(dealerId))
+    return String(dealerId);
   return typeof dealerId === "string" && dealerId !== "" ? dealerId : null;
 }

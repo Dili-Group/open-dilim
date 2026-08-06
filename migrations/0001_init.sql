@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS user_binding (
   sender_id     text        NOT NULL,                 -- id gửi tin từ kênh
   user_id       text        NOT NULL,                 -- id hệ vận hành (từ token /ketnoi-hethong)
   op_token      text,                                 -- bearer hệ vận hành; KHÔNG log; null khi revoke
+  role_slug     text,                                 -- vai nhân viên trong hệ vận hành (verify trả)
+  full_name     text,                                 -- tên hiển thị nhân viên (verify trả)
   bound_at      timestamptz NOT NULL DEFAULT now(),
   revoked_at    timestamptz,                          -- null = active
   PRIMARY KEY (channel, sender_id)

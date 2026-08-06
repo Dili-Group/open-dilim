@@ -39,8 +39,19 @@ export type { Mention };
 
 /** Cổng tới hệ vận hành: đổi token nhân viên gõ → user_id (verify server-side). */
 export interface OpsPort {
-  /** null = token không hợp lệ / hết hạn. Không throw cho case "sai token" — đó là input hợp lệ. */
-  resolveUserByToken(token: string): Promise<{ userId: string } | null>;
+  /**
+   * null = token không hợp lệ / hết hạn. Không throw cho case "sai token" — đó là input hợp lệ.
+   * `roleSlug`/`fullName` = vai + tên nhân viên hệ vận hành trả kèm; undefined nếu response thiếu
+   * (không bắt buộc — chỉ `userId` là điều kiện bind).
+   */
+  resolveUserByToken(
+    token: string,
+  ): Promise<{
+    userId: string;
+    roleSlug?: string;
+    fullName?: string;
+    role?: string;
+  } | null>;
   /**
    * Tra đại lý gắn với NHÓM (hệ vận hành: dealers.zalo_group_id), gọi bằng `token` nhân viên đã
    * verify. `groupId` = id nhóm chat (khoá đại lý). customerId inject server-side (không tin
@@ -58,14 +69,27 @@ export interface IdentityRepo {
   /**
    * Upsert user_binding(channel, senderId) → userId; clear revoked_at (bind lại sau đổi máy).
    * `opToken` = bearer hệ vận hành, lưu để ketnoi-daily gọi act-as. KHÔNG log.
+   * `roleSlug`/`fullName` = vai + tên nhân viên (verify trả); undefined giữ nguyên giá trị cũ
+   * (không ghi đè NULL) để lần verify thiếu field không xoá dữ liệu tốt đã có.
    */
-  bindUser(p: { channel: string; senderId: string; userId: string; opToken: string }): Promise<void>;
+  bindUser(p: {
+    channel: string;
+    senderId: string;
+    userId: string;
+    opToken: string;
+    roleSlug?: string;
+    fullName?: string;
+  }): Promise<void>;
   /** True nếu senderId đang là nhân viên active — chặn phong nhầm nhân viên thành đại lý. */
   isBoundUser(p: { channel: string; senderId: string }): Promise<boolean>;
   /** Bearer hệ vận hành của nhân viên active. null = chưa bind / đã revoke. KHÔNG log giá trị. */
   getOpToken(p: { channel: string; senderId: string }): Promise<string | null>;
   /** Upsert group_map(channel, groupId) → customerId, enabled=true. customer_id inject server-side. */
-  upsertGroupMap(p: { channel: string; groupId: string; customerId: string }): Promise<void>;
+  upsertGroupMap(p: {
+    channel: string;
+    groupId: string;
+    customerId: string;
+  }): Promise<void>;
   /** Upsert group_member role=dai_ly, active. `assignedBy` = user_id nhân viên gán (audit). */
   assignDealer(p: {
     channel: string;
@@ -74,7 +98,11 @@ export interface IdentityRepo {
     assignedBy: string;
   }): Promise<void>;
   /** Set group_member.revoked_at = now (kế toán nghỉ). No-op nếu không có row active. */
-  revokeDealer(p: { channel: string; groupId: string; senderId: string }): Promise<void>;
+  revokeDealer(p: {
+    channel: string;
+    groupId: string;
+    senderId: string;
+  }): Promise<void>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

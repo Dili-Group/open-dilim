@@ -137,6 +137,8 @@ export const USER_BINDING = {
     senderId: "sender_id",   // id từ zalo/fb (webhook đã ký → tin được)
     userId: "user_id",       // id trong hệ vận hành
     opToken: "op_token",     // bearer (UUID) gọi hệ vận hành act-as nhân viên. KHÔNG log. Null khi revoke.
+    roleSlug: "role_slug",   // vai nhân viên trong hệ vận hành (verify trả) — null nếu API không kèm
+    fullName: "full_name",   // tên hiển thị nhân viên (verify trả) — để agent xưng hô đúng người
     boundAt: "bound_at",
     revokedAt: "revoked_at", // null = active; set khi đổi thiết bị / token mới
   },
@@ -273,6 +275,8 @@ CREATE TABLE IF NOT EXISTS ${b.table} (
   ${b.col.senderId}     text        NOT NULL,                 -- id gửi tin từ kênh
   ${b.col.userId}       text        NOT NULL,                 -- id hệ vận hành (từ token /ketnoi-hethong)
   ${b.col.opToken}      text,                                 -- bearer hệ vận hành; KHÔNG log; null khi revoke
+  ${b.col.roleSlug}     text,                                 -- vai nhân viên trong hệ vận hành (verify trả)
+  ${b.col.fullName}     text,                                 -- tên hiển thị nhân viên (verify trả)
   ${b.col.boundAt}      timestamptz NOT NULL DEFAULT now(),
   ${b.col.revokedAt}    timestamptz,                          -- null = active
   PRIMARY KEY (${b.col.channel}, ${b.col.senderId})

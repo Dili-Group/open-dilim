@@ -21,12 +21,21 @@ export class SqlIdentityRepo implements IdentityRepo {
     senderId: string;
     userId: string;
     opToken: string;
+    roleSlug?: string;
+    fullName?: string;
   }): Promise<void> {
-    await sql`INSERT INTO user_binding (channel, sender_id, user_id, op_token, bound_at, revoked_at)
-              VALUES (${p.channel}, ${p.senderId}, ${p.userId}, ${p.opToken}, now(), NULL)
+    // roleSlug/fullName undefined → NULL trong VALUES, nhưng COALESCE lúc UPDATE giữ giá trị cũ:
+    // verify lần sau thiếu field không được xoá tên/vai đã lưu.
+    const roleSlug = p.roleSlug ?? null;
+    const fullName = p.fullName ?? null;
+    await sql`INSERT INTO user_binding
+                (channel, sender_id, user_id, op_token, role_slug, full_name, bound_at, revoked_at)
+              VALUES (${p.channel}, ${p.senderId}, ${p.userId}, ${p.opToken}, ${roleSlug}, ${fullName}, now(), NULL)
               ON CONFLICT (channel, sender_id) DO UPDATE
                 SET user_id = EXCLUDED.user_id,
                     op_token = EXCLUDED.op_token,
+                    role_slug = COALESCE(EXCLUDED.role_slug, user_binding.role_slug),
+                    full_name = COALESCE(EXCLUDED.full_name, user_binding.full_name),
                     bound_at = now(),
                     revoked_at = NULL`;
   }

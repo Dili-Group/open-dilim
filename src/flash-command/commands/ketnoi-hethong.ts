@@ -22,14 +22,17 @@ const ketnoiHethong: FlashCommand = {
     }
 
     // Token gõ tay chính là bearer hệ vận hành → lưu lại để ketnoi-daily gọi act-as sau này.
+    // roleSlug/fullName verify trả kèm → lưu luôn (agent xưng hô đúng người, biết vai nhân viên).
     await ctx.repo.bindUser({
       channel: ctx.channel,
       senderId: ctx.identity.senderId,
       userId: resolved.userId,
       opToken: token,
+      roleSlug: resolved.roleSlug,
+      fullName: resolved.fullName,
     });
 
-    return ok(`Đã kết nối tài khoản ${resolved.userId}.`);
+    return ok(`Đã kết nối tài khoản ${resolved?.fullName} với vai trò ${resolved?.role}.`);
   },
 };
 

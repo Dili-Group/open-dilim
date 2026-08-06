@@ -13,7 +13,9 @@ function makeRepo() {
   const calls: string[] = [];
   const repo: IdentityRepo = {
     async bindUser(p) {
-      calls.push(`bind:${p.senderId}=${p.userId} tok=${p.opToken}`);
+      calls.push(
+        `bind:${p.senderId}=${p.userId} tok=${p.opToken} role=${p.roleSlug ?? "-"} name=${p.fullName ?? "-"}`,
+      );
     },
     async isBoundUser(p) {
       return p.senderId === "STAFF"; // chỉ STAFF là nhân viên
@@ -36,7 +38,9 @@ function makeRepo() {
 
 const ops: OpsPort = {
   async resolveUserByToken(token) {
-    return token === "GOOD" ? { userId: "NV_042" } : null;
+    return token === "GOOD"
+      ? { userId: "NV_042", roleSlug: "ke_toan", fullName: "Nguyễn Văn A" }
+      : null;
   },
   async fetchDealerInfo(p) {
     return p.groupId === GROUP ? { customerId: "CUS_9" } : null; // đại lý gắn với nhóm G1
@@ -85,7 +89,7 @@ describe("/ketnoi-hethong", () => {
     const { repo, calls } = makeRepo();
     const r = await flashRegistry.dispatch("/ketnoi-hethong GOOD", input({ identity: guest, repo }));
     expect(r?.ok).toBe(true);
-    expect(calls).toEqual(["bind:U_guest=NV_042 tok=GOOD"]);
+    expect(calls).toEqual(["bind:U_guest=NV_042 tok=GOOD role=ke_toan name=Nguyễn Văn A"]);
   });
   test("thiếu token → fail, không bind", async () => {
     const { repo, calls } = makeRepo();
