@@ -1,37 +1,25 @@
-// order-status.ts — tool ĐỌC trạng thái đơn của ĐÚNG đại lý trong phòng này.
+// status.ts — tool ĐỌC trạng thái đơn của ĐÚNG đại lý trong phòng này.
 //
 // Chống confused-deputy (tools/types.ts): schema CHỈ có `ma_don`. Đại lý nào thì lấy server-side
-// từ ToolContext — ưu tiên chủ phòng (nhân viên gõ trong nhóm đại lý X vẫn phải ra đơn của X),
-// rồi mới tới identity đại lý (chat 1-1). Model KHÔNG có đường khai đại lý khác.
+// (scope.ts) — model KHÔNG có đường khai đại lý khác.
 //
-// Thiếu mã đơn = chuyện thường ("đơn A đi giúp chị nhé"): trả danh sách đơn gần đây để model hỏi
-// lại đúng một câu, thay vì đoán bừa một đơn.
+// Thiếu mã đơn = chuyện thường ("đơn A đi giúp chị nhé"): đây là tool DUY NHẤT chạy được khi chưa
+// có mã — trả danh sách đơn gần đây để model hỏi lại đúng một câu, thay vì đoán bừa một đơn.
 
-import { OrderStatus, type OrderInfo, type OrderPort } from "../../operational/types.ts";
-import { ActorRole } from "../../flash-command/types.ts";
-import { readStringField } from "../input.ts";
-import type { Tool, ToolContext, ToolResult } from "../types.ts";
+import type { OrderInfo, OrderPort } from "../../../operational/types.ts";
+import { readStringField } from "../../input.ts";
+import type { Tool, ToolContext, ToolResult } from "../../types.ts";
+import {
+  NO_CUSTOMER,
+  NO_PORT,
+  STATUS_LABEL,
+  formatDate,
+  formatMoney,
+  resolveCustomer,
+} from "./scope.ts";
 
 /** Số đơn liệt kê khi khách không nói mã — đủ để nhận ra đơn mình hỏi, không nhồi cả lịch sử. */
 const RECENT_LIMIT = 5;
-
-const TIME_ZONE = "Asia/Ho_Chi_Minh";
-const dateFormat = new Intl.DateTimeFormat("sv-SE", {
-  timeZone: TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-
-/** Nhãn tiếng Việt cho từng trạng thái — model đọc nhãn này, không đọc mã enum. */
-const STATUS_LABEL: Record<OrderStatus, string> = {
-  [OrderStatus.ChoXacNhan]: "chờ xác nhận",
-  [OrderStatus.DaXacNhan]: "đã xác nhận, chờ đóng gói",
-  [OrderStatus.DangDongGoi]: "đang đóng gói",
-  [OrderStatus.DangGiao]: "đang giao",
-  [OrderStatus.DaGiao]: "đã giao",
-  [OrderStatus.DaHuy]: "đã huỷ",
-};
 
 export function buildOrderStatusTool(ctx: ToolContext): Tool {
   return {
@@ -54,19 +42,10 @@ export function buildOrderStatusTool(ctx: ToolContext): Tool {
 
 async function runLookup(ctx: ToolContext, input: unknown): Promise<ToolResult> {
   const orders = ctx.orders;
-  if (orders === undefined) {
-    return { content: "Hệ thống tra đơn chưa sẵn sàng — báo khách là em kiểm tra lại sau.", isError: true };
-  }
+  if (orders === undefined) return NO_PORT;
 
   const customerId = resolveCustomer(ctx);
-  if (customerId === undefined) {
-    return {
-      content:
-        "Chưa xác định được đại lý của cuộc trò chuyện này (nhóm chưa /ketnoi-daily). " +
-        "Không tra đơn được — báo khách cần nhân viên kết nối nhóm trước.",
-      isError: true,
-    };
-  }
+  if (customerId === undefined) return NO_CUSTOMER;
 
   const code = readStringField(input, "ma_don");
   if (code === undefined) return renderRecent(orders, customerId);
@@ -74,15 +53,6 @@ async function runLookup(ctx: ToolContext, input: unknown): Promise<ToolResult> 
   const order = await orders.findByCode({ customerId, code });
   if (order === null) return renderNotFound(orders, customerId, code);
   return { content: renderOrder(order) };
-}
-
-/**
- * Đại lý được phép tra: CHỦ PHÒNG trước, rồi tới identity đại lý (chat 1-1). Nhân viên/khách lạ
- * trong phòng chưa bind → undefined, không có đường nào đoán ra đại lý.
- */
-function resolveCustomer(ctx: ToolContext): string | undefined {
-  if (ctx.roomCustomerId !== undefined) return ctx.roomCustomerId;
-  return ctx.identity.role === ActorRole.DaiLy ? ctx.identity.customerId : undefined;
 }
 
 async function renderRecent(orders: OrderPort, customerId: string): Promise<ToolResult> {
@@ -132,12 +102,4 @@ function renderOrder(order: OrderInfo): string {
   if (order.trackingCode !== undefined) lines.push(`- Mã vận đơn: ${order.trackingCode}`);
   if (order.note !== undefined) lines.push(`- Ghi chú: ${order.note}`);
   return lines.join("\n");
-}
-
-function formatDate(ts: number): string {
-  return dateFormat.format(new Date(ts));
-}
-
-function formatMoney(amount: number): string {
-  return `${amount.toLocaleString("vi-VN")}đ`;
 }

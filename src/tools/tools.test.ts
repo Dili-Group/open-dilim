@@ -6,11 +6,21 @@ import { describe, expect, test } from "bun:test";
 import type { Identity } from "../flash-command/types.ts";
 import { buildSkillRegistry } from "../skills/index.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
-import { OrderStatus, type OrderInfo, type OrderPort } from "../operational/types.ts";
+import {
+  OrderStatus,
+  OrderVideoKind,
+  PaymentStatus,
+  type OrderInfo,
+  type OrderPayment,
+  type OrderPort,
+  type OrderVideo,
+} from "../operational/types.ts";
 import { COMMON_TOOLS, ORDER_TOOLS, buildToolRegistry, readStringField } from "./index.ts";
 import { buildUseSkillTool } from "./impl/use-skill.ts";
 import { buildUseReferenceTool } from "./impl/use-reference.ts";
-import { buildOrderStatusTool } from "./impl/order-status.ts";
+import { buildOrderStatusTool } from "./impl/order/status.ts";
+import { buildOrderPaymentTool } from "./impl/order/payment.ts";
+import { buildOrderVideoTool } from "./impl/order/video.ts";
 
 const GUEST: Identity = { role: "guest", senderId: "u1" };
 const DEALER: Identity = { role: "dai_ly", senderId: "u2", customerId: "dealer-9" };
@@ -90,9 +100,56 @@ function makeOrder(over: Partial<OrderInfo> = {}): OrderInfo {
   };
 }
 
+function makePayment(over: Partial<OrderPayment> = {}): OrderPayment {
+  return {
+    code: "DH-1",
+    customerId: "dealer-1",
+    status: PaymentStatus.TraMotPhan,
+    totalAmount: 1_200_000,
+    paidAmount: 200_000,
+    remainingAmount: 1_000_000,
+    dueAt: Date.UTC(2026, 7, 10, 3, 0),
+    method: "chuyển khoản",
+    ...over,
+  };
+}
+
+function makeVideo(over: Partial<OrderVideo> = {}): OrderVideo {
+  return {
+    kind: OrderVideoKind.DongGoi,
+    url: "https://media.example/v/dh-1",
+    recordedAt: Date.UTC(2026, 7, 1, 3, 0),
+    expiresAt: Date.UTC(2026, 7, 2, 3, 0),
+    ...over,
+  };
+}
+
 class FakeOrders implements OrderPort {
   readonly seen: Array<{ customerId: string; code?: string }> = [];
-  constructor(private readonly orders: readonly OrderInfo[]) {}
+  constructor(
+    private readonly orders: readonly OrderInfo[],
+    private readonly payments: readonly OrderPayment[] = [],
+    private readonly clips: readonly OrderVideo[] = [],
+  ) {}
+  payment(p: { customerId: string; code: string }): Promise<OrderPayment | null> {
+    this.seen.push(p);
+    const found = this.payments.find(
+      (x) => x.customerId === p.customerId && x.code.toLowerCase() === p.code.toLowerCase(),
+    );
+    return Promise.resolve(found ?? null);
+  }
+  videos(p: {
+    customerId: string;
+    code: string;
+    kind?: OrderVideoKind;
+  }): Promise<readonly OrderVideo[]> {
+    this.seen.push(p);
+    const owns = this.orders.some(
+      (o) => o.customerId === p.customerId && o.code.toLowerCase() === p.code.toLowerCase(),
+    );
+    if (!owns) return Promise.resolve([]);
+    return Promise.resolve(this.clips.filter((c) => p.kind === undefined || c.kind === p.kind));
+  }
   findByCode(p: { customerId: string; code: string }): Promise<OrderInfo | null> {
     this.seen.push(p);
     const found = this.orders.find(
@@ -156,6 +213,86 @@ describe("tra_don_hang", () => {
   test("khai announce để loop báo khách trước khi tra", () => {
     const tool = buildOrderStatusTool({ skills, identity: GUEST, roomCustomerId: "dealer-1", orders });
     expect(tool.announce).toContain("kiểm tra");
+  });
+});
+
+describe("tra_thanh_toan_don", () => {
+  const orders = new FakeOrders(
+    [makeOrder()],
+    [makePayment(), makePayment({ code: "DH-2", customerId: "dealer-2" })],
+  );
+  const ctx = { skills, identity: GUEST, roomCustomerId: "dealer-1", orders };
+
+  test("có mã đơn → trả tổng / đã trả / còn phải trả", async () => {
+    const result = await buildOrderPaymentTool(ctx).run({ ma_don: "DH-1" });
+    expect(result.isError).toBeFalsy();
+    expect(result.content).toContain("Còn phải trả: 1.000.000đ");
+    expect(result.content).toContain("đã trả một phần");
+  });
+
+  test("quá hạn mà còn nợ → đánh dấu ĐÃ QUÁ HẠN", async () => {
+    const overdue = new FakeOrders([makeOrder()], [makePayment({ dueAt: Date.UTC(2020, 0, 1) })]);
+    const result = await buildOrderPaymentTool({ ...ctx, orders: overdue }).run({ ma_don: "DH-1" });
+    expect(result.content).toContain("ĐÃ QUÁ HẠN");
+  });
+
+  test("trả đủ rồi thì hạn cũ KHÔNG bị gắn quá hạn", async () => {
+    const paid = new FakeOrders(
+      [makeOrder()],
+      [makePayment({ status: PaymentStatus.DaThanhToan, paidAmount: 1_200_000, remainingAmount: 0, dueAt: Date.UTC(2020, 0, 1) })],
+    );
+    const result = await buildOrderPaymentTool({ ...ctx, orders: paid }).run({ ma_don: "DH-1" });
+    expect(result.content).not.toContain("QUÁ HẠN");
+  });
+
+  test("đơn của đại lý khác → không có dữ liệu (không rò số tiền)", async () => {
+    const result = await buildOrderPaymentTool(ctx).run({ ma_don: "DH-2" });
+    expect(result.content).toContain("Không có dữ liệu thanh toán");
+    expect(result.content).not.toContain("đ\n- Đã trả");
+  });
+
+  test("thiếu mã đơn → isError, bảo model chốt đơn trước", async () => {
+    const result = await buildOrderPaymentTool(ctx).run({});
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("tra_don_hang");
+  });
+});
+
+describe("video_don_hang", () => {
+  const clips = [makeVideo(), makeVideo({ kind: OrderVideoKind.KhuiHoan, url: "https://media.example/v/dh-1-hoan" })];
+  const orders = new FakeOrders([makeOrder()], [], clips);
+  const ctx = { skills, identity: GUEST, roomCustomerId: "dealer-1", orders };
+
+  test("không truyền loại → trả mọi video kèm hạn link", async () => {
+    const result = await buildOrderVideoTool(ctx).run({ ma_don: "DH-1" });
+    expect(result.isError).toBeFalsy();
+    expect(result.content).toContain("video đóng gói");
+    expect(result.content).toContain("video khui hàng hoàn");
+    expect(result.content).toContain("Link hết hạn: 2026-08-02");
+  });
+
+  test("lọc theo loại khui_hoan → chỉ video hoàn", async () => {
+    const result = await buildOrderVideoTool(ctx).run({ ma_don: "DH-1", loai: "khui_hoan" });
+    expect(result.content).toContain("khui hàng hoàn");
+    expect(result.content).not.toContain("dh-1-hoan\n  Link hết hạn\n- video đóng gói");
+    expect(result.content.split("- ").length - 1).toBe(1);
+  });
+
+  test("loại lạ do model bịa → isError, KHÔNG âm thầm bỏ filter", async () => {
+    const result = await buildOrderVideoTool(ctx).run({ ma_don: "DH-1", loai: "camera_kho" });
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("dong_goi");
+  });
+
+  test("đơn không thuộc đại lý / chưa có video → nói chưa có, không hứa gửi sau", async () => {
+    const result = await buildOrderVideoTool(ctx).run({ ma_don: "DH-999" });
+    expect(result.isError).toBeFalsy();
+    expect(result.content).toContain("chưa có");
+    expect(result.content).toContain("Không hứa gửi sau");
+  });
+
+  test("thiếu mã đơn → isError", async () => {
+    expect((await buildOrderVideoTool(ctx).run({})).isError).toBe(true);
   });
 });
 

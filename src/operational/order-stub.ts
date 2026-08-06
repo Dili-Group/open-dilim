@@ -7,9 +7,20 @@
 // Mốc thời gian tính lệch theo `now` lúc gọi (không phải hằng epoch) để đơn "đang giao" luôn có
 // ngày giao dự kiến ở tương lai dù chạy dev lúc nào.
 
-import { OrderStatus, type OrderInfo, type OrderPort } from "./types.ts";
+import {
+  OrderStatus,
+  OrderVideoKind,
+  PaymentStatus,
+  type OrderInfo,
+  type OrderPayment,
+  type OrderPort,
+  type OrderVideo,
+} from "./types.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+/** Hạn link video mẫu. Impl thật lấy hạn do dịch vụ media cấp, không tự đặt. */
+const VIDEO_LINK_TTL_MS = 24 * HOUR_MS;
 
 /** Đơn mẫu, mô tả theo LỆCH ngày so với hiện tại thay vì mốc tuyệt đối. */
 interface StubOrder {
@@ -62,6 +73,43 @@ const STUB_ORDERS: readonly StubOrder[] = [
   },
 ];
 
+/** Tiền của từng đơn mẫu, tra theo mã. Đơn không có mặt ở đây = chưa phát sinh công nợ. */
+const STUB_PAYMENTS: Readonly<Record<string, Omit<OrderPayment, "code" | "customerId" | "dueAt">>> = {
+  "DH-1042": {
+    status: PaymentStatus.TraMotPhan,
+    totalAmount: 12_400_000,
+    paidAmount: 4_000_000,
+    remainingAmount: 8_400_000,
+    method: "chuyển khoản",
+  },
+  "DH-1031": {
+    status: PaymentStatus.DaThanhToan,
+    totalAmount: 5_800_000,
+    paidAmount: 5_800_000,
+    remainingAmount: 0,
+    method: "chuyển khoản",
+  },
+  "DH-1055": {
+    status: PaymentStatus.ChuaThanhToan,
+    totalAmount: 3_150_000,
+    paidAmount: 0,
+    remainingAmount: 3_150_000,
+    method: "COD",
+  },
+};
+
+/** Hạn thanh toán tính theo lệch ngày so với hiện tại (undefined = không có hạn). */
+const STUB_DUE_IN_DAYS: Readonly<Record<string, number>> = { "DH-1042": 5 };
+
+/** Video từng đơn: loại + quay cách đây bao nhiêu ngày. */
+const STUB_VIDEOS: Readonly<Record<string, ReadonlyArray<{ kind: OrderVideoKind; daysAgo: number }>>> = {
+  "DH-1042": [{ kind: OrderVideoKind.DongGoi, daysAgo: 2 }],
+  "DH-1031": [
+    { kind: OrderVideoKind.DongGoi, daysAgo: 9 },
+    { kind: OrderVideoKind.KhuiHoan, daysAgo: 3 },
+  ],
+};
+
 function toOrderInfo(stub: StubOrder, now: number): OrderInfo {
   return {
     code: stub.code,
@@ -78,14 +126,9 @@ function toOrderInfo(stub: StubOrder, now: number): OrderInfo {
 }
 
 export class StubOrderPort implements OrderPort {
-  /** So mã KHÔNG phân biệt hoa thường (khách gõ "dh-1042"), nhưng customerId thì khớp tuyệt đối. */
   findByCode(p: { customerId: string; code: string }): Promise<OrderInfo | null> {
-    const wanted = p.code.trim().toLowerCase();
-    const now = Date.now();
-    const found = STUB_ORDERS.find(
-      (o) => o.customerId === p.customerId && o.code.toLowerCase() === wanted,
-    );
-    return Promise.resolve(found === undefined ? null : toOrderInfo(found, now));
+    const found = owns(p.customerId, p.code);
+    return Promise.resolve(found === undefined ? null : toOrderInfo(found, Date.now()));
   }
 
   recent(p: { customerId: string; limit: number }): Promise<readonly OrderInfo[]> {
@@ -96,4 +139,46 @@ export class StubOrderPort implements OrderPort {
       .slice(0, Math.max(0, p.limit));
     return Promise.resolve(orders);
   }
+
+  /** Chốt quyền sở hữu TRƯỚC (owns), rồi mới tra tiền — đơn của đại lý khác phải ra null. */
+  payment(p: { customerId: string; code: string }): Promise<OrderPayment | null> {
+    const order = owns(p.customerId, p.code);
+    if (order === undefined) return Promise.resolve(null);
+    const amounts = STUB_PAYMENTS[order.code];
+    if (amounts === undefined) return Promise.resolve(null);
+    const dueInDays = STUB_DUE_IN_DAYS[order.code];
+    return Promise.resolve({
+      code: order.code,
+      customerId: order.customerId,
+      ...amounts,
+      dueAt: dueInDays === undefined ? undefined : Date.now() + dueInDays * DAY_MS,
+    });
+  }
+
+  videos(p: {
+    customerId: string;
+    code: string;
+    kind?: OrderVideoKind;
+  }): Promise<readonly OrderVideo[]> {
+    const order = owns(p.customerId, p.code);
+    if (order === undefined) return Promise.resolve([]);
+    const now = Date.now();
+    const clips = (STUB_VIDEOS[order.code] ?? []).filter(
+      (v) => p.kind === undefined || v.kind === p.kind,
+    );
+    return Promise.resolve(
+      clips.map((v) => ({
+        kind: v.kind,
+        url: `https://media.dili.example/video/${order.code.toLowerCase()}-${v.kind}`,
+        recordedAt: now - v.daysAgo * DAY_MS,
+        expiresAt: now + VIDEO_LINK_TTL_MS,
+      })),
+    );
+  }
+}
+
+/** Đơn mã `code` CÓ thuộc đại lý này không. undefined = không (kể cả mã có thật ở đại lý khác). */
+function owns(customerId: string, code: string): StubOrder | undefined {
+  const wanted = code.trim().toLowerCase();
+  return STUB_ORDERS.find((o) => o.customerId === customerId && o.code.toLowerCase() === wanted);
 }

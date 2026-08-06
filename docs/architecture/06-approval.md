@@ -35,6 +35,15 @@ Cả 2 dùng chung cơ chế suspend/resume — khác ở: ai duyệt, auth chec
 `approvals/gate.ts` (suspend) → `state/pending.ts` (lưu) → `broadcast/` (phát yêu cầu) →
 `message-ingest/` (nhận reply) → `auth/permissions.ts` (verify quyền) → `approvals/resolver.ts` (resume).
 
+## Trạng thái hiện tại (chưa có gate)
+
+Bảng `pending_actions` đã có trong schema, module `approvals/` thì CHƯA. Hệ quả cho tầng nghiệp vụ:
+mọi tool đang khai đều **CHỈ ĐỌC**, không có đường ghi nào cho agent.
+
+Việc GHI mà khách hay yêu cầu (huỷ đơn, sửa đơn) hiện xử lý bằng cách: agent tra trạng thái thật,
+nói rõ còn làm được hay không, rồi **chuyển nhân viên vận hành** — xem skill `don-hang`
+(`references/huy-don.md`). Dựng xong gate thì chỗ đó mới thành tầng A (khách tự xác nhận).
+
 ## 3 điểm dễ sai (async)
 
 1. **Approval reply ≠ message thường** — phân biệt ở ingest qua `meta.approvalId` / command (`/approve <id>`), không thì worker tưởng câu hỏi mới.

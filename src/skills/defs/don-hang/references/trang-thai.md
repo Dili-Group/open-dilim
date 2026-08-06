@@ -1,4 +1,4 @@
-# tra-don / trang-thai.md — nói gì cho từng trạng thái đơn
+# don-hang / trang-thai.md — nói gì cho từng trạng thái đơn
 
 `tra_don_hang` trả nhãn tiếng Việt sẵn. Bảng này là **việc kế tiếp** đi kèm mỗi nhãn — phần khách
 thật sự cần, ngoài chữ trạng thái.
