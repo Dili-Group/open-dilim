@@ -9,7 +9,7 @@
 // Ngưỡng đo bằng KÝ TỰ, không token: đếm token thật là 1 network call count_tokens mỗi lượt
 // (cùng lý do với cap khối memory ở context/memory-block.ts).
 
-import type { LLMProvider } from "../llm/types.ts";
+import { singleSystem, type LLMProvider } from "../llm/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import type { RedisCommand } from "../redis/types.ts";
 
@@ -124,7 +124,7 @@ export class LlmCompactor implements ConversationCompactor {
     try {
       const result = await this.provider.chat(
         {
-          system: SYSTEM_PROMPT,
+          system: singleSystem(SYSTEM_PROMPT),
           messages: [{ role: "user", content: [{ type: "text", text: sections.join("\n") }] }],
           tools: [],
           // Trần output theo trần bản tóm (ký tự → token, ước lượng rộng tay để không cắt giữa câu).

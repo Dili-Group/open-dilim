@@ -36,8 +36,30 @@ export interface LlmToolSchema {
   readonly inputSchema: Record<string, unknown>;
 }
 
+/**
+ * Một khối system prompt. Chia khối để đánh dấu ĐƯỜNG BIÊN ổn định/biến động cho prompt cache:
+ * provider đặt breakpoint cache ngay sau khối cuối có `cache: true`, và phần trước đó (gồm cả
+ * tool schema — chúng render TRƯỚC system) được tái dùng ở lượt sau thay vì trả tiền lại.
+ *
+ * Cache là PREFIX MATCH: lệch 1 byte ở phần trước breakpoint là hỏng cả cache. Vì vậy mọi thứ
+ * đổi theo lượt (bản tóm, khối memory) phải nằm ở khối SAU breakpoint.
+ */
+export interface LlmSystemBlock {
+  readonly text: string;
+  /** Đặt breakpoint cache sau khối này. Bỏ trống = khối biến động, không cache. */
+  readonly cache?: boolean;
+}
+
+/**
+ * System prompt 1 khối, không cache — cho lượt phụ (định tuyến sub-agent, chưng cất, nén): prompt
+ * ngắn, gọi thưa, không chạm ngưỡng tối thiểu để cache có lợi.
+ */
+export function singleSystem(text: string): readonly LlmSystemBlock[] {
+  return [{ text }];
+}
+
 export interface ChatRequest {
-  readonly system: string;
+  readonly system: readonly LlmSystemBlock[];
   readonly messages: readonly LlmMessage[];
   readonly tools: readonly LlmToolSchema[];
   readonly maxTokens: number;

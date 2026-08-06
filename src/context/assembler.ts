@@ -1,10 +1,13 @@
 // assembler.ts — ghép ngữ cảnh 1 lượt: history → messages, và prompt nền + catalog skill +
-// khối memory → chuỗi system.
+// khối memory → các khối system.
+//
+// System chia LÀM HAI KHỐI theo nhịp đổi (ổn định → biến động), không phải theo chủ đề: khối đầu
+// mang breakpoint prompt cache, nên mọi thứ đổi theo lượt phải nằm ở khối sau. Xem LlmSystemBlock.
 //
 // Hàm thuần nhận deps làm tham số đầu, KHÔNG interface/class ContextAssembler: 1 call site thật
 // (DefaultAgent.run) — dựng port cho nó là abstraction cho code dùng một lần.
 
-import type { LlmMessage } from "../llm/types.ts";
+import type { LlmMessage, LlmSystemBlock } from "../llm/types.ts";
 import { renderSkillCatalog } from "../skills/selector.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import { renderMemoryBlock } from "./memory-block.ts";
@@ -26,9 +29,9 @@ const turnTimeFormat = new Intl.DateTimeFormat("sv-SE", {
 });
 
 /**
- * Dựng đúng 2 thứ model thấy. Thứ tự section: prompt nền → catalog skill → khối memory, tức ỔN
- * ĐỊNH → BIẾN ĐỘNG (prompt nền + catalog giống hệt nhau mọi lượt, khối memory đổi từng lượt) —
- * đúng thứ tự prefix cache, được miễn phí ngay bây giờ.
+ * Dựng đúng 2 thứ model thấy. Thứ tự section: prompt nền → catalog skill → bản tóm → khối memory,
+ * tức ỔN ĐỊNH → BIẾN ĐỘNG, và ranh giới giữa hai nhóm chính là breakpoint prompt cache
+ * (provider đặt `cache_control` ở khối đầu — xem llm/providers/anthropic.ts).
  *
  * Ngân sách §7: history KHÔNG BAO GIỜ bị cắt để nhường memory; khối memory có cap riêng. Đó
  * chính là luật "ngắn hạn thắng dài hạn khi tràn".
@@ -37,27 +40,52 @@ export async function assembleTurnContext(
   sources: ContextSources,
   input: TurnInput,
 ): Promise<TurnContext> {
-  const sections = [sources.basePrompt, renderSkillCatalog(sources.skills)];
+  // Khối ỔN ĐỊNH: giống hệt nhau ở MỌI lượt của agent này, mọi phòng → phần đem cache.
+  const stable = [sources.basePrompt, renderSkillCatalog(sources.skills)];
 
-  // Bản tóm đứng TRƯỚC khối memory và sau catalog: nó đổi hiếm (chỉ khi nén) nên vẫn thuộc nửa ổn
-  // định của prompt, còn khối memory đổi từng lượt.
+  // Khối BIẾN ĐỘNG: đổi theo lượt/phòng → phải nằm SAU breakpoint cache, nếu không mỗi lượt là
+  // một prefix mới và cache không bao giờ trúng. Bản tóm đổi hiếm nhưng theo PHÒNG, nên vẫn ở đây.
+  const volatile: string[] = [];
   if (input.summary !== undefined && input.summary !== "") {
-    sections.push(renderSummaryBlock(input.summary));
+    volatile.push(renderSummaryBlock(input.summary));
   }
 
   // Recall chỉ chạy khi CÓ CẢ store lẫn scope. Thiếu scope = chưa biết memory thuộc về khách nào
   // → không được đoán (đoán sai = rò sang khách khác).
   const queryText = lastUserText(input.history);
   if (sources.memory !== undefined && input.memoryScope !== undefined && queryText !== undefined) {
-    sections.push(
+    volatile.push(
       await renderMemoryBlock(sources.memory, input.memoryScope, queryText, input.signal),
     );
   }
 
   return {
-    system: sections.filter((section) => section !== "").join(SECTION_SEPARATOR),
+    system: buildSystemBlocks(stable, volatile),
     messages: toMessages(input.history),
   };
+}
+
+/**
+ * Gộp mỗi nhóm thành 1 khối và đánh dấu cache ở cuối nhóm ổn định. Một breakpoint là đủ (API cho
+ * tối đa 4) — và cache khối ổn định là cache luôn cả tool schema, vì tool render TRƯỚC system.
+ *
+ * Khối rỗng bị loại: API từ chối text block rỗng, và một khối rỗng vẫn làm lệch prefix.
+ */
+function buildSystemBlocks(
+  stable: readonly string[],
+  volatile: readonly string[],
+): readonly LlmSystemBlock[] {
+  const blocks: LlmSystemBlock[] = [];
+  const stableText = joinSections(stable);
+  if (stableText !== "") blocks.push({ text: stableText, cache: true });
+
+  const volatileText = joinSections(volatile);
+  if (volatileText !== "") blocks.push({ text: volatileText });
+  return blocks;
+}
+
+function joinSections(sections: readonly string[]): string {
+  return sections.filter((section) => section !== "").join(SECTION_SEPARATOR);
 }
 
 /**

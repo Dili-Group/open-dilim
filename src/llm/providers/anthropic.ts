@@ -9,6 +9,7 @@ import type {
   LLMProvider,
   LlmContentBlock,
   LlmMessage,
+  LlmSystemBlock,
   StopReason,
 } from "../types.ts";
 
@@ -27,7 +28,7 @@ export class AnthropicProvider implements LLMProvider {
       {
         model: this.model,
         max_tokens: req.maxTokens,
-        system: req.system,
+        system: toApiSystem(req.system),
         output_config: { effort: req.effort },
         messages: req.messages.map(toApiMessage),
         tools: req.tools.map((t) => ({
@@ -39,11 +40,44 @@ export class AnthropicProvider implements LLMProvider {
       { signal },
     );
 
+    logCacheUsage(message.usage);
     return {
       content: fromApiContent(message.content),
       stopReason: mapStopReason(message.stop_reason),
     };
   }
+}
+
+/**
+ * Khối system → text block, khối `cache` mang `cache_control` (breakpoint prompt cache).
+ *
+ * Thứ tự render của API là tools → system → messages, nên breakpoint ở khối system cuối cùng của
+ * phần ổn định cache LUÔN CẢ tool schema. Cache ephemeral: TTL 5 phút, write 1.25×, read 0.1× →
+ * hoà vốn từ request thứ 2 trong cùng phòng/agent.
+ *
+ * Prefix ngắn hơn ngưỡng tối thiểu của model (opus-4-8: 1024 token) thì API LẶNG LẼ không cache —
+ * không lỗi, chỉ là `cache_read_input_tokens` mãi bằng 0. Đó là lý do có logCacheUsage.
+ */
+export function toApiSystem(blocks: readonly LlmSystemBlock[]): Anthropic.TextBlockParam[] {
+  return blocks.map((block) => ({
+    type: "text" as const,
+    text: block.text,
+    ...(block.cache === true ? { cache_control: { type: "ephemeral" as const } } : {}),
+  }));
+}
+
+/**
+ * Số liệu cache mỗi lượt — CHỈ con số, không nội dung (không rò PII). Đây là cách duy nhất biết
+ * cache có trúng hay không: `read` mãi bằng 0 giữa các lượt cùng phòng = prefix đang bị phá
+ * (prompt lệch byte, đổi bộ tool giữa chừng) hoặc prefix chưa đủ dài để cache.
+ */
+function logCacheUsage(usage: Anthropic.Usage): void {
+  // Dòng SỐ LIỆU, không phải log debug: không có nó thì không biết prompt cache trúng hay trượt.
+  // eslint-disable-next-line no-console
+  console.log(
+    `[llm] tokens in=${usage.input_tokens} out=${usage.output_tokens} ` +
+      `cache_read=${usage.cache_read_input_tokens ?? 0} cache_write=${usage.cache_creation_input_tokens ?? 0}`,
+  );
 }
 
 function toApiMessage(msg: LlmMessage): Anthropic.MessageParam {

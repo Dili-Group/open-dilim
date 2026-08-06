@@ -9,10 +9,15 @@ import { RECALL_MAX_COSINE_DISTANCE } from "../state/vector.ts";
 import type { MemoryRecall, MemoryScope, RecallOptions, RecalledFact } from "../state/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import { assembleTurnContext } from "./assembler.ts";
-import type { ContextSources } from "./types.ts";
+import type { ContextSources, TurnContext } from "./types.ts";
 
 const SCOPE: MemoryScope = { ownerKind: "customer", ownerId: "cus1", channel: "zalo", conversationId: "room1" };
 const BASE = "PROMPT NỀN";
+
+/** Nội dung system gộp lại — phần lớn test soi NỘI DUNG, chia khối là chuyện của cache. */
+function sys(ctx: TurnContext): string {
+  return ctx.system.map((block) => block.text).join("\n\n");
+}
 
 function entry(over: Partial<HistoryEntry> = {}): HistoryEntry {
   return {
@@ -55,6 +60,46 @@ function sources(over: Partial<ContextSources> = {}): ContextSources {
   return { basePrompt: BASE, skills: new SkillRegistry(), ...over };
 }
 
+describe("assembleTurnContext — chia khối cho prompt cache", () => {
+  test("khối 1 = phần ổn định và MANG breakpoint; phần biến động ở khối sau, KHÔNG cache", async () => {
+    const skills = new SkillRegistry();
+    skills.register(skill("refund", "quy trình hoàn tiền"));
+    const memory = new FakeMemory([fact("Khách tên An")]);
+
+    const ctx = await assembleTurnContext(sources({ skills, memory }), {
+      history: [entry()],
+      summary: "khách đã chốt giao thứ 5",
+      memoryScope: SCOPE,
+    });
+
+    expect(ctx.system).toHaveLength(2);
+    const [stable, volatileBlock] = ctx.system;
+    expect(stable?.cache).toBe(true);
+    expect(stable?.text).toContain(BASE);
+    expect(stable?.text).toContain("refund");
+    // Chốt chặn hồi quy: thứ đổi theo lượt lọt vào khối cache là cache không bao giờ trúng nữa.
+    expect(stable?.text).not.toContain("GHI NHỚ DÀI HẠN");
+    expect(stable?.text).not.toContain("khách đã chốt giao thứ 5");
+
+    expect(volatileBlock?.cache).toBeUndefined();
+    expect(volatileBlock?.text).toContain("khách đã chốt giao thứ 5");
+    expect(volatileBlock?.text).toContain("GHI NHỚ DÀI HẠN");
+  });
+
+  test("không có phần biến động → đúng 1 khối, vẫn cache được", async () => {
+    const ctx = await assembleTurnContext(sources(), { history: [entry()] });
+    expect(ctx.system).toEqual([{ text: BASE, cache: true }]);
+  });
+
+  test("không khối nào rỗng (API từ chối text block rỗng)", async () => {
+    const ctx = await assembleTurnContext(sources({ skills: new SkillRegistry() }), {
+      history: [entry()],
+      summary: "",
+    });
+    for (const block of ctx.system) expect(block.text).not.toBe("");
+  });
+});
+
 describe("assembleTurnContext — system", () => {
   test("thứ tự section: prompt nền → catalog skill → khối memory", async () => {
     const skills = new SkillRegistry();
@@ -66,9 +111,9 @@ describe("assembleTurnContext — system", () => {
       memoryScope: SCOPE,
     });
 
-    const iBase = ctx.system.indexOf(BASE);
-    const iCatalog = ctx.system.indexOf("refund");
-    const iMemory = ctx.system.indexOf("GHI NHỚ DÀI HẠN");
+    const iBase = sys(ctx).indexOf(BASE);
+    const iCatalog = sys(ctx).indexOf("refund");
+    const iMemory = sys(ctx).indexOf("GHI NHỚ DÀI HẠN");
     expect(iBase).toBe(0);
     expect(iCatalog).toBeGreaterThan(iBase);
     expect(iMemory).toBeGreaterThan(iCatalog);
@@ -76,15 +121,15 @@ describe("assembleTurnContext — system", () => {
 
   test("registry rỗng → không có section catalog, không header mồ côi", async () => {
     const ctx = await assembleTurnContext(sources(), { history: [entry()] });
-    expect(ctx.system).toBe(BASE);
-    expect(ctx.system).not.toContain("Skill có sẵn");
+    expect(sys(ctx)).toBe(BASE);
+    expect(sys(ctx)).not.toContain("Skill có sẵn");
   });
 
   test("không có memoryScope → KHÔNG gọi recall, không section memory", async () => {
     const memory = new FakeMemory([fact("không được dùng")]);
     const ctx = await assembleTurnContext(sources({ memory }), { history: [entry()] });
     expect(memory.recallCalls).toHaveLength(0);
-    expect(ctx.system).not.toContain("GHI NHỚ DÀI HẠN");
+    expect(sys(ctx)).not.toContain("GHI NHỚ DÀI HẠN");
   });
 
   test("có bản tóm → chèn section, nêu rõ là ngữ cảnh cũ chứ không phải tin mới", async () => {
@@ -92,22 +137,22 @@ describe("assembleTurnContext — system", () => {
       history: [entry()],
       summary: "khách đã chốt giao thứ 5",
     });
-    expect(ctx.system).toContain("khách đã chốt giao thứ 5");
-    expect(ctx.system).toContain("đã trôi khỏi lịch sử");
+    expect(sys(ctx)).toContain("khách đã chốt giao thứ 5");
+    expect(sys(ctx)).toContain("đã trôi khỏi lịch sử");
     // Đứng sau prompt nền: phần ổn định nhất vẫn dẫn đầu (prefix cache).
-    expect(ctx.system.indexOf(BASE)).toBeLessThan(ctx.system.indexOf("khách đã chốt"));
+    expect(sys(ctx).indexOf(BASE)).toBeLessThan(sys(ctx).indexOf("khách đã chốt"));
   });
 
   test("bản tóm rỗng/thiếu → không có section thừa", async () => {
     const withEmpty = await assembleTurnContext(sources(), { history: [entry()], summary: "" });
     const without = await assembleTurnContext(sources(), { history: [entry()] });
-    expect(withEmpty.system).toBe(BASE);
-    expect(without.system).toBe(BASE);
+    expect(sys(withEmpty)).toBe(BASE);
+    expect(sys(without)).toBe(BASE);
   });
 
   test("có scope nhưng chưa nối store → không section memory", async () => {
     const ctx = await assembleTurnContext(sources(), { history: [entry()], memoryScope: SCOPE });
-    expect(ctx.system).not.toContain("GHI NHỚ DÀI HẠN");
+    expect(sys(ctx)).not.toContain("GHI NHỚ DÀI HẠN");
   });
 });
 
@@ -133,8 +178,8 @@ describe("assembleTurnContext — khối memory (§7)", () => {
       history: [entry()],
       memoryScope: SCOPE,
     });
-    expect(ctx.system).toContain("không có ghi nhớ nào đủ liên quan");
-    expect(ctx.system).toContain("KHÔNG suy đoán");
+    expect(sys(ctx)).toContain("không có ghi nhớ nào đủ liên quan");
+    expect(sys(ctx)).toContain("KHÔNG suy đoán");
   });
 
   test("provenance: mỗi fact kèm ngày ghi (chốt #2)", async () => {
@@ -143,8 +188,8 @@ describe("assembleTurnContext — khối memory (§7)", () => {
       history: [entry()],
       memoryScope: SCOPE,
     });
-    expect(ctx.system).toContain("(ghi 2026-08-04)");
-    expect(ctx.system).toContain("Khách thích giao sáng");
+    expect(sys(ctx)).toContain("(ghi 2026-08-04)");
+    expect(sys(ctx)).toContain("Khách thích giao sáng");
   });
 
   test("cap cắt NGUYÊN fact từ đuôi, không cắt giữa fact", async () => {
@@ -157,7 +202,7 @@ describe("assembleTurnContext — khối memory (§7)", () => {
       memoryScope: SCOPE,
     });
 
-    const lines = ctx.system.split("\n").filter((l) => l.startsWith("- "));
+    const lines = sys(ctx).split("\n").filter((l) => l.startsWith("- "));
     expect(lines.length).toBeLessThan(facts.length); // có cắt thật
     // Fact đầu (liên quan nhất) được giữ; mọi dòng giữ lại đều NGUYÊN VẸN.
     expect(lines[0]).toContain(`0-${long}`);
@@ -170,8 +215,8 @@ describe("assembleTurnContext — khối memory (§7)", () => {
       history: [entry()],
       memoryScope: SCOPE,
     });
-    expect(ctx.system).toContain(BASE);
-    expect(ctx.system).not.toContain("GHI NHỚ DÀI HẠN");
+    expect(sys(ctx)).toContain(BASE);
+    expect(sys(ctx)).not.toContain("GHI NHỚ DÀI HẠN");
     expect(ctx.messages).toHaveLength(1);
   });
 

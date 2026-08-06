@@ -7,7 +7,7 @@
 // context/ CHỈ import module lá (skills/selector, state/types, llm/types, types/) — KHÔNG import
 // barrel index.ts của tầng khác (kéo theo db/client → config.ts fail-fast env, test hết chạy).
 
-import type { LlmMessage } from "../llm/types.ts";
+import type { LlmMessage, LlmSystemBlock } from "../llm/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 import type { MemoryRecall, MemoryScope } from "../state/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
@@ -41,6 +41,7 @@ export interface TurnInput {
 
 /** Đúng 2 thứ model thấy trong 1 lượt. */
 export interface TurnContext {
-  readonly system: string;
+  /** Khối ổn định (mang breakpoint cache) trước, khối biến động sau. Xem `LlmSystemBlock`. */
+  readonly system: readonly LlmSystemBlock[];
   readonly messages: readonly LlmMessage[];
 }

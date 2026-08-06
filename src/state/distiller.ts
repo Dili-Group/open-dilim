@@ -4,7 +4,7 @@
 // Output model = UNTRUSTED → validate.
 
 import type { Effort } from "../config.ts";
-import type { LLMProvider, LlmContentBlock } from "../llm/types.ts";
+import { singleSystem, type LLMProvider, type LlmContentBlock } from "../llm/types.ts";
 import type { DistilledFact, DistillSpec, DistillTurn, Distiller } from "./types.ts";
 
 // Distill là việc nhẹ → effort thấp, output ngắn (fact vài câu, không văn xuôi).
@@ -35,7 +35,7 @@ export class LlmDistiller implements Distiller {
     try {
       const result = await this.provider.chat(
         {
-          system: this.spec.system + "\n" + outputContract(this.spec),
+          system: singleSystem(this.spec.system + "\n" + outputContract(this.spec)),
           messages: [{ role: "user", content: [{ type: "text", text: renderTranscript(turns) }] }],
           tools: [],
           maxTokens: DISTILL_MAX_TOKENS,

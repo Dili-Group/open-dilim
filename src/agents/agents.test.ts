@@ -2,7 +2,7 @@
 // KHÔNG import config.ts runtime (fail-fast env) — chỉ type + prompt tách rời.
 
 import { describe, expect, test } from "bun:test";
-import type { ChatRequest, ChatResult, LLMProvider, LlmMessage } from "../llm/types.ts";
+import { singleSystem, type ChatRequest, type ChatResult, type LLMProvider, type LlmMessage } from "../llm/types.ts";
 import type { Identity } from "../flash-command/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import { SkillRegistry } from "../skills/registry.ts";
@@ -30,6 +30,11 @@ class ScriptedProvider implements LLMProvider {
   }
 }
 
+/** System giờ là nhiều khối (khối ổn định mang breakpoint cache) — test soi nội dung thì gộp lại. */
+function systemText(req: ChatRequest | undefined): string {
+  return (req?.system ?? []).map((block) => block.text).join("\n\n");
+}
+
 const GUEST: Identity = { role: "guest", senderId: "u1" };
 const HISTORY: HistoryEntry[] = [
   { conversationId: "c1", msgId: "m1", senderId: "u1", text: "bạn là ai", isGroup: false, role: "user", ts: 1 },
@@ -43,7 +48,7 @@ const MESSAGES: LlmMessage[] = [{ role: "user", content: [{ type: "text", text: 
 function loop(provider: LLMProvider) {
   return runAgentLoop({
     provider,
-    system: "s",
+    system: singleSystem("s"),
     messages: MESSAGES,
     registry: buildToolRegistry(COMMON_TOOLS, { skills: SKILLS, identity: GUEST }),
     maxTokens: CFG.maxTokens,
@@ -131,7 +136,7 @@ describe("announce giữa lượt", () => {
   ): Promise<string> {
     return runAgentLoop({
       provider: new ScriptedProvider(script),
-      system: "s",
+      system: singleSystem("s"),
       messages: MESSAGES,
       registry: buildToolRegistry(factories, { skills: SKILLS, identity: GUEST }),
       maxTokens: CFG.maxTokens,
@@ -216,7 +221,7 @@ describe("AgentRegistry", () => {
     ]);
     const registry = buildAgentRegistry(agentDeps(provider));
     await registry.resolve(AgentType.Dealer).run({ identity: GUEST, history: HISTORY });
-    expect(provider.seen[0]?.system).toContain("ĐẠI LÝ");
+    expect(systemText(provider.seen[0])).toContain("ĐẠI LÝ");
   });
 });
 
@@ -282,8 +287,8 @@ describe("orchestrator (sub-agent)", () => {
     // Lượt 0 = định tuyến: không tool, không prompt agent.
     expect(provider.seen[0]?.tools).toEqual([]);
     // Lượt 1 = sub trả lời: prompt sub thay prompt root, tool cũng của sub.
-    expect(provider.seen[1]?.system).toContain("PROMPT_SUB");
-    expect(provider.seen[1]?.system).not.toContain("PROMPT_ROOT");
+    expect(systemText(provider.seen[1])).toContain("PROMPT_SUB");
+    expect(systemText(provider.seen[1])).not.toContain("PROMPT_ROOT");
     expect(provider.seen[1]?.tools.map((t) => t.name)).toEqual([SUB_TOOL_NAME]);
   });
 
@@ -293,7 +298,7 @@ describe("orchestrator (sub-agent)", () => {
       identity: GUEST,
       history: HISTORY,
     });
-    expect(provider.seen[1]?.system).toContain("PROMPT_ROOT");
+    expect(systemText(provider.seen[1])).toContain("PROMPT_ROOT");
   });
 
   test("trả tên lạ → root tự trả lời (không đoán sub gần đúng)", async () => {
@@ -302,7 +307,7 @@ describe("orchestrator (sub-agent)", () => {
       identity: GUEST,
       history: HISTORY,
     });
-    expect(provider.seen[1]?.system).toContain("PROMPT_ROOT");
+    expect(systemText(provider.seen[1])).toContain("PROMPT_ROOT");
   });
 
   test("root không khai sub → KHÔNG tốn lượt LLM định tuyến nào", async () => {
@@ -310,6 +315,6 @@ describe("orchestrator (sub-agent)", () => {
     const noSub: RootAgentProfile = { ...ROOT_WITH_SUB, subAgents: undefined };
     await buildRootAgent(noSub, agentDeps(provider)).run({ identity: GUEST, history: HISTORY });
     expect(provider.seen).toHaveLength(1);
-    expect(provider.seen[0]?.system).toContain("PROMPT_ROOT");
+    expect(systemText(provider.seen[0])).toContain("PROMPT_ROOT");
   });
 });

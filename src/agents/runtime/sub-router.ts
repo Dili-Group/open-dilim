@@ -4,7 +4,7 @@
 //
 // Chỉ chạy khi root có sub-agent. Root không khai sub → không tốn lượt LLM nào (xem runtime/build-agent.ts).
 
-import type { LLMProvider, LlmContentBlock } from "../../llm/types.ts";
+import { singleSystem, type LLMProvider, type LlmContentBlock } from "../../llm/types.ts";
 import type { HistoryEntry } from "../../types/index.ts";
 import type { SubAgent } from "../types.ts";
 
@@ -34,7 +34,8 @@ export async function chooseSubAgent(input: OrchestrateInput): Promise<SubAgent 
 
   const result = await input.provider.chat(
     {
-      system: buildRouterPrompt(input.subAgents),
+      // Không cache: prompt định tuyến ngắn, dưới ngưỡng cache của mọi model.
+      system: singleSystem(buildRouterPrompt(input.subAgents)),
       messages: [{ role: "user", content: [{ type: "text", text: question }] }],
       tools: [],
       maxTokens: ROUTE_MAX_TOKENS,

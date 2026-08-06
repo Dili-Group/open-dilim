@@ -7,13 +7,14 @@ import type {
   LLMProvider,
   LlmContentBlock,
   LlmMessage,
+  LlmSystemBlock,
   LlmToolUseBlock,
 } from "../../llm/types.ts";
 import { runToolCall, type ToolRegistry } from "../../tools/index.ts";
 
 export interface AgentLoopInput {
   readonly provider: LLMProvider;
-  readonly system: string;
+  readonly system: readonly LlmSystemBlock[];
   readonly messages: readonly LlmMessage[];
   readonly registry: ToolRegistry;
   readonly maxTokens: number;
