@@ -1,0 +1,23 @@
+# Bun tương thích npm → ecosystem npm_and_yarn đọc được bun.lock.
+version: 2
+
+updates:
+  - package-ecosystem: npm_and_yarn
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    # Gom patch/minor thành một PR; major tách riêng để review kỹ.
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci(deps)"

@@ -14,7 +14,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: dilim-agent:${IMAGE_TAG:-latest}
+    # CI deploy set AGENT_IMAGE_REF = ghcr.io/<org>/<repo>@sha256:... (pin digest, không tag).
+    # Build tay tại chỗ (`bun run prod:up`) không set biến này → dùng tag local như trước.
+    image: ${AGENT_IMAGE_REF:-dilim-agent:latest}
     container_name: dilim-agent-prod
     restart: unless-stopped
     depends_on:

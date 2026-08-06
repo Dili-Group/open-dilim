@@ -3,6 +3,8 @@
 node_modules
 taxlegal
 .claude
+.github
+scripts
 docs
 *.md
 !README.md

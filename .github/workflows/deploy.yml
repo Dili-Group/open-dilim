@@ -1,0 +1,102 @@
+# deploy.yml — đường duy nhất lên production.
+#   push main → test → build & push GHCR → deploy VPS qua SSH (chờ approval).
+# Deploy pin theo DIGEST, không theo tag: prod chạy đúng image vừa build.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Không huỷ giữa chừng: kill lúc đang deploy để lại trạng thái nửa vời trên prod.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build & push image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      ref: ${{ steps.ref.outputs.value }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+
+      # Chạy lại test ở đây: main có thể được push thẳng, không phải lúc nào cũng qua PR.
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test
+
+      - name: Đăng nhập GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build & push
+        id: ref
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # GHCR chỉ nhận tên viết thường; github.repository giữ nguyên hoa/thường của org.
+          image="ghcr.io/${REPO,,}"
+          docker build -t "$image:${GITHUB_SHA}" -t "$image:latest" .
+          docker push "$image:${GITHUB_SHA}"
+          docker push "$image:latest"
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image:${GITHUB_SHA}")
+          echo "value=$digest" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: deploy production
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Required reviewer cấu hình ở Settings → Environments → production.
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Chuẩn bị SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          # Pin host key: không dùng StrictHostKeyChecking=no (mở đường cho MITM).
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          PATH_ON_SERVER: ${{ vars.DEPLOY_PATH }}
+          IMAGE_REF: ${{ needs.build.outputs.ref }}
+        run: |
+          set -euo pipefail
+          ssh_run() { ssh -i ~/.ssh/deploy_key "$USER@$HOST" "$@"; }
+
+          # Server không cần clone git: CI đẩy compose + migrations + script mỗi lần deploy.
+          tar -czf bundle.tgz docker-compose.prod.yml migrations scripts/deploy-remote.sh
+          scp -i ~/.ssh/deploy_key bundle.tgz "$USER@$HOST:$PATH_ON_SERVER/"
+          ssh_run "cd '$PATH_ON_SERVER' && tar -xzf bundle.tgz && rm bundle.tgz"
+
+          # Token ngắn hạn qua stdin (argv lộ trên `ps` của server) → server không giữ credential.
+          printf '%s\n' "${{ secrets.GITHUB_TOKEN }}" | ssh_run \
+            "cd '$PATH_ON_SERVER' && GHCR_USER='${{ github.actor }}' bash scripts/deploy-remote.sh '$IMAGE_REF'"
+
+      - if: always()
+        run: rm -f ~/.ssh/deploy_key

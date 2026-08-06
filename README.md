@@ -96,3 +96,4 @@ taxlegal/       # repo tham khảo, KHÔNG phải code agent này
 ```
 
 Quy ước code & rules: [`CLAUDE.md`](CLAUDE.md).
+CI/CD & deploy production: [`docs/CI-CD.md`](docs/CI-CD.md).

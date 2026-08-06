@@ -8,8 +8,10 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production
 
 FROM oven/bun:1.3.11-alpine AS runtime
+# apk upgrade: vá package OS (openssl, musl, zlib...) mà base image chưa kịp cập nhật —
+# cổng Trivy trong workflow Release chặn deploy khi còn CVE CRITICAL đã có bản vá.
 # tini: PID 1 tử tế, forward SIGTERM tới bun (index.ts nghe SIGTERM để shutdown sạch).
-RUN apk add --no-cache tini
+RUN apk upgrade --no-cache && apk add --no-cache tini
 WORKDIR /app
 
 ENV NODE_ENV=production
