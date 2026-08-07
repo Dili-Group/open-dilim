@@ -2,16 +2,20 @@
 //
 // Thêm lệnh mới: tạo file trong commands/, import + register ở đây. Không sửa registry.ts.
 
+import block from "./commands/block.ts";
 import huyKetnoi from "./commands/huy-ketnoi.ts";
 import ketnoiDaily from "./commands/ketnoi-daily.ts";
 import ketnoiHethong from "./commands/ketnoi-hethong.ts";
+import unlock from "./commands/unlock.ts";
 import { FlashRegistry } from "./registry.ts";
 
 /** Registry mặc định, đã nạp lệnh hiện có. Dùng chung toàn app (stateless — an toàn share). */
 export const flashRegistry = new FlashRegistry()
   .register(ketnoiHethong)
   .register(ketnoiDaily)
-  .register(huyKetnoi);
+  .register(huyKetnoi)
+  .register(block)
+  .register(unlock);
 
 export { FlashRegistry, parseCommand } from "./registry.ts";
 export type { DispatchInput, ParsedCommand } from "./registry.ts";

@@ -32,6 +32,15 @@ function makeRepo() {
     async revokeDealer(p) {
       calls.push(`revoke:${p.senderId}@${p.groupId}`);
     },
+    async blockGroup(p) {
+      calls.push(`block:${p.groupId} by=${p.blockedBy}`);
+    },
+    async unblockGroup(p) {
+      calls.push(`unblock:${p.groupId}`);
+    },
+    async isGroupBlocked(p) {
+      return p.groupId === "G_BLOCKED";
+    },
   };
   return { repo, calls };
 }
@@ -155,5 +164,32 @@ describe("/huy-ketnoi", () => {
     const r = await flashRegistry.dispatch("/huy-ketnoi @A", input({ repo, mentions: [{ uid: "U_A" }] }));
     expect(r?.ok).toBe(true);
     expect(calls).toEqual(["revoke:U_A@G1"]);
+  });
+});
+
+describe("/block + /unlock", () => {
+  test("nhân viên gõ /block → ghi group_block kèm người chặn", async () => {
+    const { repo, calls } = makeRepo();
+    const r = await flashRegistry.dispatch("/block", input({ repo }));
+    expect(r?.ok).toBe(true);
+    expect(calls).toEqual(["block:G1 by=NV_042"]);
+  });
+  test("nhân viên gõ /unlock → xoá group_block", async () => {
+    const { repo, calls } = makeRepo();
+    const r = await flashRegistry.dispatch("/unlock", input({ repo }));
+    expect(r?.ok).toBe(true);
+    expect(calls).toEqual(["unblock:G1"]);
+  });
+  test("guest gõ → chặn quyền, không đụng repo", async () => {
+    const { repo, calls } = makeRepo();
+    const r = await flashRegistry.dispatch("/block", input({ repo, identity: guest }));
+    expect(r?.ok).toBe(false);
+    expect(calls).toEqual([]);
+  });
+  test("ngoài group → fail cả hai lệnh", async () => {
+    const { repo, calls } = makeRepo();
+    expect((await flashRegistry.dispatch("/block", input({ repo, groupId: undefined })))?.ok).toBe(false);
+    expect((await flashRegistry.dispatch("/unlock", input({ repo, groupId: undefined })))?.ok).toBe(false);
+    expect(calls).toEqual([]);
   });
 });

@@ -120,4 +120,13 @@ CREATE INDEX IF NOT EXISTS group_member_role
   ON group_member (channel, group_id, role)
   WHERE revoked_at IS NULL;
 
+-- group_block — nhóm bị /block: worker bỏ qua tin thường (flash command vẫn chạy).
+CREATE TABLE IF NOT EXISTS group_block (
+  channel     text        NOT NULL,
+  group_id     text        NOT NULL,
+  blocked_by   text        NOT NULL,                 -- user_id nhân viên chặn (audit)
+  blocked_at   timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (channel, group_id)
+);
+
 COMMIT;

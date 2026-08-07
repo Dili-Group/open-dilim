@@ -43,6 +43,9 @@ const NOOP_REPO: IdentityRepo = {
   upsertGroupMap: () => Promise.resolve(),
   assignDealer: () => Promise.resolve(),
   revokeDealer: () => Promise.resolve(),
+  blockGroup: () => Promise.resolve(),
+  unblockGroup: () => Promise.resolve(),
+  isGroupBlocked: () => Promise.resolve(false),
 };
 const NOOP_OPS: OpsPort = {
   resolveUserByToken: () => Promise.resolve(null),
@@ -430,6 +433,64 @@ describe("handleEnvelope", () => {
     // Reply lưu vào history như lượt agent (role=agent) để LLM turn sau thấy.
     const recent = await history.recent("c1", 10);
     expect(recent.at(-1)).toMatchObject({ role: "agent", text: "pong" });
+  });
+
+  test("nhóm đã /block → ignored, KHÔNG chạy LLM, không broadcast", async () => {
+    const history = new MemoryHistoryStore();
+    await history.append({
+      conversationId: "g1",
+      msgId: "m1",
+      senderId: "u1",
+      text: "đơn của em sao rồi",
+      isGroup: true,
+      role: "user",
+      ts: 1,
+    });
+    const broadcaster = new CapturingBroadcaster();
+    const ctx: WorkerContext = {
+      history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: { ...NOOP_REPO, isGroupBlocked: () => Promise.resolve(true) },
+      ops: NOOP_OPS,
+      identity: new FakeResolver({ role: "guest", senderId: "u1" }),
+      // Script LLM rỗng: chạy tới bước agent là hỏng ở đó, không ra "ignored".
+      agents: buildAgentRegistry({ provider: new ScriptedProvider([]), config: CFG, skills: SKILLS }),
+      broadcaster,
+      typing: TYPING,
+    };
+
+    const result = await handleEnvelope(
+      ctx,
+      makeEnvelope({ conversationId: "g1", isGroup: true, text: "đơn của em sao rồi" }),
+    );
+
+    expect(result).toEqual({ status: "ignored", reason: "group_blocked" });
+    expect(broadcaster.sent).toHaveLength(0);
+  });
+
+  test("nhóm đã /block vẫn chạy flash command (để /unlock gỡ được)", async () => {
+    const history = new MemoryHistoryStore();
+    const broadcaster = new CapturingBroadcaster();
+    const ctx: WorkerContext = {
+      history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: { ...NOOP_REPO, isGroupBlocked: () => Promise.resolve(true) },
+      ops: NOOP_OPS,
+      identity: new FakeResolver({ role: "nhan_vien", senderId: "u1", userId: "nv1" }),
+      agents: buildAgentRegistry({ provider: new ScriptedProvider([]), config: CFG, skills: SKILLS }),
+      broadcaster,
+      typing: TYPING,
+    };
+
+    const result = await handleEnvelope(
+      ctx,
+      makeEnvelope({ conversationId: "g1", isGroup: true, text: "/unlock" }),
+    );
+
+    expect(result.status).toBe("reply");
+    expect(broadcaster.sent).toHaveLength(1);
   });
 });
 

@@ -103,6 +103,15 @@ export interface IdentityRepo {
     groupId: string;
     senderId: string;
   }): Promise<void>;
+  /**
+   * Chặn nhóm: agent ngừng trả lời tin thường ở đây (flash command VẪN chạy để /unlock gỡ được).
+   * Idempotent — chặn lại nhóm đang chặn chỉ cập nhật ai chặn. `blockedBy` = user_id nhân viên.
+   */
+  blockGroup(p: { channel: string; groupId: string; blockedBy: string }): Promise<void>;
+  /** Gỡ chặn nhóm. No-op nếu nhóm không bị chặn. */
+  unblockGroup(p: { channel: string; groupId: string }): Promise<void>;
+  /** True = nhóm đang bị chặn. Worker kiểm trước khi chạy agent. */
+  isGroupBlocked(p: { channel: string; groupId: string }): Promise<boolean>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

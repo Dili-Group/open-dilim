@@ -60,16 +60,19 @@ export interface HistoryEntry {
 export type LifecycleStep = "auth" | "state" | "agent" | "broadcast";
 
 /**
- * Kết quả 1 lượt worker chạy 1 Envelope (§1 "worker → emit AgentResult"). Union RỜI RẠC vì 3 kết
+ * Kết quả 1 lượt worker chạy 1 Envelope (§1 "worker → emit AgentResult"). Union RỜI RẠC vì 4 kết
  * cục khác BẢN CHẤT, không phải "text + mấy cái cờ":
  *  - reply     : có text cho người dùng → broadcast (§5 bước 9).
  *  - suspended : chạm approval gate (§6) → pending_action đã lưu + yêu cầu duyệt đã phát bởi gate,
  *                worker THOÁT, lượt này KHÔNG có text trả. Chỉ mang `approvalId` — phần còn lại của
  *                pending_action nằm ở DB, không ai phía trên đọc.
+ *  - ignored   : lượt CỐ Ý không xử lý (vd nhóm đã /block) — không lỗi, không trả lời. Tách khỏi
+ *                `failed` để pool ack chứ không retry, và tách khỏi `reply` rỗng để log đọc ra lý do.
  *  - failed    : lượt hỏng, KHÔNG có text hợp lệ để gửi. Lỗi là GIÁ TRỊ, không phải exception →
  *                caller buộc phải narrow union trước khi chạm `.text`.
  */
 export type AgentResult =
   | { readonly status: "reply"; readonly text: string }
   | { readonly status: "suspended"; readonly approvalId: string }
+  | { readonly status: "ignored"; readonly reason: string }
   | { readonly status: "failed"; readonly step: LifecycleStep; readonly error: Error };

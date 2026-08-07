@@ -177,6 +177,21 @@ export const GROUP_MEMBER = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// group_block — nhóm bị TẮT agent (/block). CÓ row = chặn, /unlock xoá row.
+// Tách khỏi group_map.enabled: chặn là quyết định vận hành tạm thời, không được đụng
+// quyền đại lý lẫn trí nhớ của nhóm (enabled=false tắt cả hai).
+// ─────────────────────────────────────────────────────────────────────────────
+export const GROUP_BLOCK = {
+  table: "group_block",
+  col: {
+    channel: "channel",
+    groupId: "group_id",
+    blockedBy: "blocked_by", // user_id nhân viên chặn (audit: ai chặn nhóm nào)
+    blockedAt: "blocked_at",
+  },
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // DDL builder — generate init migration từ constants trên.
 // Idempotent (IF NOT EXISTS), bọc BEGIN/COMMIT. Chạy lại an toàn.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -187,6 +202,7 @@ export function buildInitSql(): string {
   const g = GROUP_MAP;
   const b = USER_BINDING;
   const gm = GROUP_MEMBER;
+  const gb = GROUP_BLOCK;
   const statusList = PENDING_STATUS_VALUES.join(", ");
   const roleList = GROUP_ROLE_VALUES.map((r) => `'${r}'`).join(", ");
 
@@ -311,6 +327,15 @@ CREATE TABLE IF NOT EXISTS ${gm.table} (
 CREATE INDEX IF NOT EXISTS ${gm.idx.role}
   ON ${gm.table} (${gm.col.channel}, ${gm.col.groupId}, ${gm.col.role})
   WHERE ${gm.col.revokedAt} IS NULL;
+
+-- group_block — nhóm bị /block: worker bỏ qua tin thường (flash command vẫn chạy).
+CREATE TABLE IF NOT EXISTS ${gb.table} (
+  ${gb.col.channel}     text        NOT NULL,
+  ${gb.col.groupId}     text        NOT NULL,
+  ${gb.col.blockedBy}   text        NOT NULL,                 -- user_id nhân viên chặn (audit)
+  ${gb.col.blockedAt}   timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (${gb.col.channel}, ${gb.col.groupId})
+);
 
 COMMIT;
 `;

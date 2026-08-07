@@ -67,6 +67,16 @@ export async function handleEnvelope(
       return { status: "reply", text: flash.reply };
     }
 
+    // 6c. BLOCK — nhóm đã /block: agent im lặng. Kiểm SAU flash để /unlock gõ được từ chính nhóm
+    // đang bị chặn. Tin vẫn nằm history (ingest đã ghi) nên bật lại là có đủ ngữ cảnh.
+    if (envelope.isGroup) {
+      const blocked = await ctx.identityRepo.isGroupBlocked({
+        channel: envelope.channel,
+        groupId: envelope.conversationId,
+      });
+      if (blocked) return { status: "ignored", reason: "group_blocked" };
+    }
+
     // 7. STATE — nạp history phòng (đã gồm chính message này do ingest append trước khi publish).
     step = "state";
     const history = await ctx.history.recent(envelope.conversationId, HISTORY_WINDOW_TURNS);

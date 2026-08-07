@@ -100,4 +100,30 @@ export class SqlIdentityRepo implements IdentityRepo {
                 AND revoked_at IS NULL`;
     await this.send("DEL", [authCacheKey(p.channel, p.senderId, p.groupId)]);
   }
+
+  /** Upsert group_block — có row = nhóm đang bị chặn. Gõ /block lại chỉ đổi ai chặn + thời điểm. */
+  async blockGroup(p: { channel: string; groupId: string; blockedBy: string }): Promise<void> {
+    await sql`INSERT INTO group_block (channel, group_id, blocked_by, blocked_at)
+              VALUES (${p.channel}, ${p.groupId}, ${p.blockedBy}, now())
+              ON CONFLICT (channel, group_id) DO UPDATE
+                SET blocked_by = EXCLUDED.blocked_by,
+                    blocked_at = now()`;
+  }
+
+  /** Xoá row group_block (không giữ vết: chặn là trạng thái tạm, không phải quyền). */
+  async unblockGroup(p: { channel: string; groupId: string }): Promise<void> {
+    await sql`DELETE FROM group_block
+              WHERE channel = ${p.channel} AND group_id = ${p.groupId}`;
+  }
+
+  /** True = có row group_block. Worker gọi mỗi tin nhóm nhắm agent → query chạy thẳng PK. */
+  async isGroupBlocked(p: { channel: string; groupId: string }): Promise<boolean> {
+    const groupId = firstString(
+      await sql`SELECT group_id FROM group_block
+                WHERE channel = ${p.channel} AND group_id = ${p.groupId}
+                LIMIT 1`,
+      "group_id",
+    );
+    return groupId !== undefined;
+  }
 }
