@@ -87,11 +87,11 @@
 │   │   └── timeout.ts           #   quét pending hết hạn → auto-deny/escalate (chạy như 1 scheduler job)
 │   │
 │   ├── scheduler/               # CRON — trigger agent theo lịch (periodic check)
-│   │   ├── poller.ts            #   tick leader-locked: quét job đến hạn → dựng Envelope → push broker
-│   │   ├── store.ts             #   job def: Postgres (durable) + Redis ZSET (due-index theo nextRunAt)
-│   │   ├── registry.ts          #   map jobId → task builder (system job code-defined)
-│   │   └── defs/                #   job code-defined (approval-timeout, health-check); business job ở DB
-│   │       └── approval-timeout.ts
+│   │   ├── poller.ts            #   tick: quét job đến hạn → CAS claim → bắn; cô lập lỗi theo job
+│   │   ├── repo.ts              #   job def Postgres; claim = CAS trên next_run_at (fire-once)
+│   │   ├── schedule.ts          #   cron 5 trường → mốc kế tiếp, giờ VN cố định (+07:00)
+│   │   ├── fire.ts              #   dựng Envelope source=cron → ghi history phòng → push broker
+│   │   └── types.ts             #   port: JobRepo / publisher / history / dedupe
 │   │
 │   ├── context/                 # CONTEXT — sở hữu "model thấy gì trong 1 lượt"
 │   │   ├── assembler.ts         #   ghép: prompt nền + catalog skill + khối memory → system; history → messages

@@ -28,12 +28,12 @@ CREATE INDEX IF NOT EXISTS memory_embedding_hnsw
 CREATE INDEX IF NOT EXISTS memory_scope
   ON memory (owner_kind, owner_id, channel, conversation_id);
 
--- scheduler_jobs — CRON job def durable (§8). Nguồn rebuild Redis ZSET.
+-- scheduler_jobs — CRON job def durable (§8). next_run_at vừa là due-index vừa là ô CAS claim.
 CREATE TABLE IF NOT EXISTS scheduler_jobs (
   id           text        PRIMARY KEY,              -- slug ổn định hoặc uuid
-  schedule     text        NOT NULL,                 -- cron expr hoặc interval
-  agent_type    text        NOT NULL,                 -- validate whitelist NHƯ message
-  identity     text        NOT NULL,                 -- service/user chạy job — auth gate
+  schedule     text        NOT NULL,                 -- cron 5 trường (giờ VN)
+  channel      text        NOT NULL,                 -- chọn root agent + adapter egress NHƯ message
+  identity     text        NOT NULL,                 -- senderId chạy job — auth resolve y hệt message
   task         text        NOT NULL,                 -- "kiểm tra gì"
   target       text        NOT NULL,                 -- đích broadcast
   enabled      boolean     NOT NULL DEFAULT true,

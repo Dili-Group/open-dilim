@@ -33,6 +33,10 @@ export type Identity =
 import type { Mention } from "../types/index.ts";
 export type { Mention };
 
+// Port quản job cron — định nghĩa ở tầng scheduler (chủ sở hữu khái niệm), flash-command chỉ dùng.
+import type { JobAdmin, JobSummary } from "../scheduler/types.ts";
+export type { JobAdmin, JobSummary };
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Ports — seam I/O. Implementation cấp lúc khởi động, không nằm ở đây.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -129,6 +133,8 @@ export interface FlashContext {
   readonly mentions: readonly Mention[];
   readonly repo: IdentityRepo;
   readonly ops: OpsPort;
+  /** Quản job cron của CHÍNH phòng này (`/lich`). Xem scheduler §8. */
+  readonly jobs: JobAdmin;
 }
 
 /**

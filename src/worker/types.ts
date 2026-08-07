@@ -10,6 +10,7 @@ import type { Broadcaster } from "../broadcast/types.ts";
 import type { TypingFactory } from "../broadcast/typing-factory.ts";
 import type { FlashRegistry } from "../flash-command/registry.ts";
 import type { IdentityRepo, OpsPort } from "../flash-command/types.ts";
+import type { JobAdmin } from "../scheduler/types.ts";
 
 /**
  * 1 message đã giao cho worker, kèm quyền định đoạt: `ack` = xong, gỡ khỏi queue; `retryLater` =
@@ -51,6 +52,8 @@ export interface WorkerContext {
   readonly identityRepo: IdentityRepo;
   /** Port hệ vận hành (verify token, tra đại lý) cho flash command. */
   readonly ops: OpsPort;
+  /** Port quản job cron của phòng (`/lich`) — flash command dùng, agent KHÔNG chạm. */
+  readonly jobs: JobAdmin;
   /**
    * Tra chủ sở hữu phòng để dựng MemoryScope (memory thuộc PHÒNG, không thuộc người gõ).
    * undefined = chưa nối tầng memory → lượt chạy không có trí nhớ dài hạn, không phải lỗi.

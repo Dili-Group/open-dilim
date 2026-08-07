@@ -14,7 +14,14 @@ describe("registry (defs thật)", () => {
   test("buildSkillRegistry nạp mọi skill trong defs/", async () => {
     const registry = await buildSkillRegistry();
     const names = registry.catalog().map((m) => m.name).sort();
-    expect(names).toEqual(["chiet-khau", "don-hang", "giuc-don", "het-hang"]);
+    expect(names).toEqual([
+      "bao-cao-cuoi-ngay",
+      "chiet-khau",
+      "don-hang",
+      "giuc-don",
+      "het-hang",
+      "lap-lich",
+    ]);
   });
 
   test("het-hang nêu đủ ba hướng và không hứa tồn kho", async () => {
@@ -24,6 +31,14 @@ describe("registry (defs thật)", () => {
     expect(await readBody(skill!)).toContain("KHÔNG có dữ liệu tồn kho");
     expect([...(await listReferences(skill!))].sort()).toEqual(["mau-cau.md", "phuong-an.md"]);
     expect(await readReference(skill!, "phuong-an.md")).toContain("kho hoàn");
+  });
+
+  test("lap-lich: nhân viên gõ được ở nhóm đại lý lẫn nhóm vận hành, agent không tự đặt", async () => {
+    const registry = await buildSkillRegistry();
+    const skill = registry.get("lap-lich");
+    expect(skill).toBeDefined();
+    expect(skill?.meta.agents).toEqual(["dealer", "operations"]);
+    expect(await readBody(skill!)).toContain("Agent KHÔNG đặt được lịch");
   });
 
   test("catalog chỉ trả meta (name/description)", async () => {

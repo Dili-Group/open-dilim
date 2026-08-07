@@ -3,7 +3,8 @@
 // Luồng: text → parseCommand → resolve tên → guard vai → handler. Mọi lỗi (không phải lệnh,
 // tên lạ, thiếu quyền, handler ném) trả về structured, KHÔNG crash caller (cô lập per-message).
 
-import { fail, type FlashCommand, type FlashContext, type FlashResult, type Identity, type Mention, type OpsPort, type IdentityRepo } from "./types.ts";
+import { foldVietnamese } from "./normalize.ts";
+import { fail, type FlashCommand, type FlashContext, type FlashResult, type Identity, type JobAdmin, type Mention, type OpsPort, type IdentityRepo } from "./types.ts";
 
 const COMMAND_PREFIX = "/";
 
@@ -23,7 +24,8 @@ export function parseCommand(text: string): ParsedCommand | null {
   // "/" trơ hoặc "/   " → không có tên → không coi là lệnh.
   if (name === undefined) return null;
 
-  return { name: name.toLowerCase(), args: tokens.slice(1) };
+  // Bỏ dấu ngay tại parse: `/lịch` và `/lich` là MỘT lệnh (xem normalize.ts). args giữ nguyên dấu.
+  return { name: foldVietnamese(name), args: tokens.slice(1) };
 }
 
 /**
@@ -37,6 +39,7 @@ export type DispatchInput = {
   readonly mentions: readonly Mention[];
   readonly repo: IdentityRepo;
   readonly ops: OpsPort;
+  readonly jobs: JobAdmin;
 };
 
 export class FlashRegistry {
@@ -44,7 +47,7 @@ export class FlashRegistry {
 
   /** Đăng ký 1 lệnh. Trùng tên → throw (lỗi lập trình, phát hiện lúc khởi động). */
   register(command: FlashCommand): this {
-    const key = command.name.toLowerCase();
+    const key = foldVietnamese(command.name);
     if (this.#commands.has(key)) {
       throw new Error(`Flash command trùng tên: ${key}`);
     }
@@ -53,7 +56,7 @@ export class FlashRegistry {
   }
 
   get(name: string): FlashCommand | undefined {
-    return this.#commands.get(name.toLowerCase());
+    return this.#commands.get(foldVietnamese(name));
   }
 
   /** Liệt kê lệnh (help / introspection). */
@@ -87,6 +90,7 @@ export class FlashRegistry {
       mentions: input.mentions,
       repo: input.repo,
       ops: input.ops,
+      jobs: input.jobs,
     };
 
     try {

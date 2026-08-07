@@ -30,6 +30,7 @@ import { OperationalOpsPort } from "../operational/ops-port.ts";
 import { AgentApiClient } from "../operational/agent-api.ts";
 import { AgentApiOrderPort } from "../operational/order-api.ts";
 import { AgentApiDealerPort } from "../operational/profile-api.ts";
+import { AgentApiDailyPort } from "../operational/daily-api.ts";
 import {
   buildDedupe,
   buildHistoryStore,
@@ -39,6 +40,7 @@ import {
   type MemoryStore,
 } from "../state/index.ts";
 import { startWorkers } from "../worker/index.ts";
+import { SqlJobRepo, startScheduler } from "../scheduler/index.ts";
 import { checkInfra, loadConfig } from "./env.ts";
 import { type RunningSystem, type Services } from "./container.ts";
 
@@ -77,6 +79,7 @@ export async function bootstrap(): Promise<Services> {
   const agentApi = new AgentApiClient(config.agentApi);
   const orders = new AgentApiOrderPort(agentApi);
   const dealer = new AgentApiDealerPort(agentApi);
+  const daily = new AgentApiDailyPort(agentApi);
   const agents = buildAgentRegistry({
     provider: llm,
     config,
@@ -84,6 +87,7 @@ export async function bootstrap(): Promise<Services> {
     memory,
     orders,
     dealer,
+    daily,
   });
   assertSkillAgentScopes(skills, agents);
 
@@ -116,6 +120,9 @@ export async function bootstrap(): Promise<Services> {
   // Port flash command: ghi định danh (Postgres) + gọi hệ vận hành (verify token, tra đại lý).
   const identityRepo = new SqlIdentityRepo(commandOf(redis));
   const ops = new OperationalOpsPort();
+  // MỘT instance cho cả hai đầu: poller đọc/claim, flash command `/lich` thêm-sửa-xoá. Cùng bảng
+  // scheduler_jobs → việc nhân viên vừa đặt là việc tick sau lên lịch.
+  const jobs = new SqlJobRepo();
 
   return {
     config,
@@ -124,6 +131,7 @@ export async function bootstrap(): Promise<Services> {
     flash: flashRegistry,
     identityRepo,
     ops,
+    jobs,
     llm,
     agents,
     broadcaster,
@@ -154,6 +162,7 @@ export async function start(): Promise<RunningSystem> {
     flash: services.flash,
     identityRepo: services.identityRepo,
     ops: services.ops,
+    jobs: services.jobs,
     groupCustomer: services.groupCustomer,
     memoryWriters: services.memoryWriters,
     compactor: services.compactor,
@@ -165,7 +174,20 @@ export async function start(): Promise<RunningSystem> {
     turnTimeoutMs: services.config.turnTimeoutMs,
   });
 
+  // Nguồn trigger theo THỜI GIAN (§8). Dùng lại đúng broker/history/dedupe của ingest → lượt cron
+  // đi chung queue, chung history phòng, chung cửa sổ dedupe với tin người dùng.
+  const scheduler = startScheduler(
+    {
+      repo: services.jobs,
+      broker: services.ingestDeps.broker,
+      history: services.historyWriter,
+      dedupe: services.ingestDeps.dedupe,
+    },
+    services.config.schedulerTickMs,
+  );
+
   async function stop(): Promise<void> {
+    await scheduler.stop(); // ngừng bắn job mới TRƯỚC khi drain worker
     await workers.stop(); // ngừng nhận việc mới, chờ worker đang chạy xong
     await server.stop(true); // đóng cả connection đang mở
     await closeDb();

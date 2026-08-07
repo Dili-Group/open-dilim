@@ -129,6 +129,8 @@ const DEFAULT_AGENT_MAX_ITERATIONS = 8;
 // Trần thời gian MỘT lượt (auth → agent → broadcast). Số vòng lặp có trần rồi, nhưng mỗi vòng
 // vẫn treo được (SDK LLM tự retry, mạng lặng) mà lock phòng thì đang giữ → phải có deadline.
 const DEFAULT_TURN_TIMEOUT_MS = 20_000;
+// Nhịp quét job cron. Lịch nhỏ nhất là phút → 30s đủ để không trễ quá một phút.
+const DEFAULT_SCHEDULER_TICK_MS = 30_000;
 
 const provider = oneOf("PROVIDER", PROVIDERS, "anthropic");
 
@@ -181,6 +183,9 @@ export const CONFIG = {
   workerCount: positiveIntEnv("WORKER_COUNT", DEFAULT_WORKER_COUNT),
   agentMaxIterations: DEFAULT_AGENT_MAX_ITERATIONS,
   turnTimeoutMs: positiveIntEnv("TURN_TIMEOUT_MS", DEFAULT_TURN_TIMEOUT_MS),
+
+  // Scheduler (§8) — job def nằm ở bảng scheduler_jobs, đây chỉ là nhịp quét.
+  schedulerTickMs: positiveIntEnv("SCHEDULER_TICK_MS", DEFAULT_SCHEDULER_TICK_MS),
 } as const;
 
 export type Config = typeof CONFIG;

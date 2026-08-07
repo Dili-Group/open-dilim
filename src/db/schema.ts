@@ -62,14 +62,15 @@ export const MEMORY = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// scheduler_jobs — CRON job def durable (§8). Redis ZSET là due-index runtime.
+// scheduler_jobs — CRON job def durable (§8). Index `next_run_at` LÀ due-index; poller claim
+// bằng compare-and-swap trên cột đó (không có ZSET/leader-lock — xem docs §8).
 // ─────────────────────────────────────────────────────────────────────────────
 export const SCHEDULER_JOBS = {
   table: "scheduler_jobs",
   col: {
     id: "id",
     schedule: "schedule",
-    agentType: "agent_type",
+    channel: "channel",
     identity: "identity",
     task: "task",
     target: "target",
@@ -236,12 +237,12 @@ CREATE INDEX IF NOT EXISTS ${m.idx.embeddingHnsw}
 CREATE INDEX IF NOT EXISTS ${m.idx.scope}
   ON ${m.table} (${m.col.ownerKind}, ${m.col.ownerId}, ${m.col.channel}, ${m.col.conversationId});
 
--- scheduler_jobs — CRON job def durable (§8). Nguồn rebuild Redis ZSET.
+-- scheduler_jobs — CRON job def durable (§8). next_run_at vừa là due-index vừa là ô CAS claim.
 CREATE TABLE IF NOT EXISTS ${s.table} (
   ${s.col.id}           text        PRIMARY KEY,              -- slug ổn định hoặc uuid
-  ${s.col.schedule}     text        NOT NULL,                 -- cron expr hoặc interval
-  ${s.col.agentType}    text        NOT NULL,                 -- validate whitelist NHƯ message
-  ${s.col.identity}     text        NOT NULL,                 -- service/user chạy job — auth gate
+  ${s.col.schedule}     text        NOT NULL,                 -- cron 5 trường (giờ VN)
+  ${s.col.channel}      text        NOT NULL,                 -- chọn root agent + adapter egress NHƯ message
+  ${s.col.identity}     text        NOT NULL,                 -- senderId chạy job — auth resolve y hệt message
   ${s.col.task}         text        NOT NULL,                 -- "kiểm tra gì"
   ${s.col.target}       text        NOT NULL,                 -- đích broadcast
   ${s.col.enabled}      boolean     NOT NULL DEFAULT true,

@@ -9,6 +9,7 @@ import type { IngestDeps } from "../message-ingest/index.ts";
 import type { SkillRegistry } from "../skills/index.ts";
 import type { FlashRegistry } from "../flash-command/index.ts";
 import type { IdentityRepo, OpsPort } from "../flash-command/types.ts";
+import type { JobAdmin, JobRepo } from "../scheduler/types.ts";
 import type { LLMProvider } from "../llm/index.ts";
 import type { AgentRegistry } from "../agents/index.ts";
 import type { Broadcaster, TypingFactory } from "../broadcast/index.ts";
@@ -29,6 +30,11 @@ export interface Services {
   readonly identityRepo: IdentityRepo;
   /** Port hệ vận hành cho flash command (verify token, tra đại lý). */
   readonly ops: OpsPort;
+  /**
+   * Job cron — MỘT instance, hai góc nhìn (như broker): `JobAdmin` cho flash command `/lich`
+   * (thêm/sửa/tắt/xoá theo phòng), `JobRepo` cho poller (quét tới hạn + CAS claim).
+   */
+  readonly jobs: JobAdmin & JobRepo;
   /** LLM provider (chọn theo config). */
   readonly llm: LLMProvider;
   /** Root agent registry (worker resolve+run). */

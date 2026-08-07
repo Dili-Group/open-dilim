@@ -3,7 +3,7 @@
 
 import { describe, expect, test } from "bun:test";
 import type { ChatRequest, ChatResult, LLMProvider } from "../llm/types.ts";
-import type { Identity, IdentityRepo, OpsPort } from "../flash-command/types.ts";
+import type { Identity, IdentityRepo, JobAdmin, OpsPort } from "../flash-command/types.ts";
 import { FlashRegistry, flashRegistry, ok } from "../flash-command/index.ts";
 import { AGENT_SENDER_ID, type Envelope, type HistoryEntry } from "../types/index.ts";
 import type { GroupCustomerLookup, GroupLookupInput, IdentityResolver } from "../auth/types.ts";
@@ -37,6 +37,15 @@ const TYPING = new TypingFactory();
 
 // Port flash-command rỗng: các test dưới gửi text thường (không phải `/lệnh`) → dispatch trả null,
 // không chạm repo/ops. Chỉ cần thoả kiểu WorkerContext.
+// Port job cron rỗng: test worker không gõ /lich, chỉ cần thoả kiểu WorkerContext.
+const NOOP_JOBS: JobAdmin = {
+  create: () => Promise.resolve(),
+  listByTarget: () => Promise.resolve([]),
+  update: () => Promise.resolve(false),
+  setEnabled: () => Promise.resolve(false),
+  remove: () => Promise.resolve(false),
+};
+
 const NOOP_REPO: IdentityRepo = {
   bindUser: () => Promise.resolve(),
   isBoundUser: () => Promise.resolve(false),
@@ -248,6 +257,7 @@ describe("startWorkers — deadline mỗi lượt", () => {
       flash: flashRegistry,
       identityRepo: NOOP_REPO,
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       identity: new FakeResolver({ role: "guest", senderId: "u1" }),
       agents: buildAgentRegistry({ provider, config: CFG, skills: SKILLS }),
       broadcaster,
@@ -280,6 +290,7 @@ describe("handleEnvelope", () => {
       flash: flashRegistry,
       identityRepo: NOOP_REPO,
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       identity: new FakeResolver(identity),
       agents: buildAgentRegistry({ provider, config: CFG, skills: SKILLS }),
       broadcaster,
@@ -368,6 +379,7 @@ describe("handleEnvelope", () => {
       flash: flashRegistry,
       identityRepo: NOOP_REPO,
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       identity: new FakeResolver({ role: "nhan_vien", senderId: "u1", userId: "nv1" }),
       // Phòng đã /ketnoi-daily → tool tra đơn có phạm vi đại lý dù NGƯỜI GÕ là nhân viên.
       groupCustomer: new FakeGroupCustomer("dealer-1"),
@@ -437,6 +449,7 @@ describe("handleEnvelope", () => {
       flash: flashRegistry,
       identityRepo: NOOP_REPO,
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       identity: new ThrowingResolver(),
       agents: buildAgentRegistry({
         provider: new ScriptedProvider([]),
@@ -471,6 +484,7 @@ describe("handleEnvelope", () => {
       flash: flashRegistry,
       identityRepo: NOOP_REPO,
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       identity: new FakeResolver({ role: "guest", senderId: "u1" }),
       agents: buildAgentRegistry({
         provider: new ScriptedProvider([
@@ -504,6 +518,7 @@ describe("handleEnvelope", () => {
       flash,
       identityRepo: NOOP_REPO,
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       // Script LLM rỗng: nếu handler chạy tới bước agent thì hỏng ở đó, không trả "pong".
       agents: buildAgentRegistry({ provider: new ScriptedProvider([]), config: CFG, skills: SKILLS }),
       broadcaster,
@@ -538,6 +553,7 @@ describe("handleEnvelope", () => {
       flash: flashRegistry,
       identityRepo: { ...NOOP_REPO, isGroupBlocked: () => Promise.resolve(true) },
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       identity: new FakeResolver({ role: "guest", senderId: "u1" }),
       // Script LLM rỗng: chạy tới bước agent là hỏng ở đó, không ra "ignored".
       agents: buildAgentRegistry({ provider: new ScriptedProvider([]), config: CFG, skills: SKILLS }),
@@ -563,6 +579,7 @@ describe("handleEnvelope", () => {
       flash: flashRegistry,
       identityRepo: { ...NOOP_REPO, isGroupBlocked: () => Promise.resolve(true) },
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       identity: new FakeResolver({ role: "nhan_vien", senderId: "u1", userId: "nv1" }),
       agents: buildAgentRegistry({ provider: new ScriptedProvider([]), config: CFG, skills: SKILLS }),
       broadcaster,
@@ -603,6 +620,7 @@ describe("handleEnvelope — MemoryScope", () => {
       flash: flashRegistry,
       identityRepo: NOOP_REPO,
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       identity: new FakeResolver(identity),
       groupCustomer,
       agents: buildAgentRegistry({
@@ -710,6 +728,7 @@ describe("handleEnvelope — ghi nhớ sau lượt", () => {
       flash: flashRegistry,
       identityRepo: NOOP_REPO,
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       identity: new FakeResolver({ role: "guest", senderId: envelope.senderId }),
       groupCustomer,
       memoryWriters: { for: () => writer },
@@ -771,6 +790,7 @@ describe("handleEnvelope — ghi nhớ sau lượt", () => {
       flash: flashRegistry,
       identityRepo: NOOP_REPO,
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       identity: new FakeResolver({ role: "guest", senderId: envelope.senderId }),
       groupCustomer: new FakeGroupCustomer("cusX"),
       memoryWriters: {
@@ -815,6 +835,7 @@ describe("handleEnvelope — ghi nhớ sau lượt", () => {
       flash: flashRegistry,
       identityRepo: NOOP_REPO,
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       identity: new FakeResolver({ role: "guest", senderId: envelope.senderId }),
       // Chưa /ketnoi-daily → không có scope → không distill. Nén vẫn phải chạy.
       groupCustomer: new FakeGroupCustomer(undefined),
@@ -860,6 +881,7 @@ describe("handleEnvelope — ghi nhớ sau lượt", () => {
       flash: flashRegistry,
       identityRepo: NOOP_REPO,
       ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
       identity: new FakeResolver({ role: "guest", senderId: envelope.senderId }),
       groupCustomer: new FakeGroupCustomer("cusX"),
       memoryWriters: { for: () => undefined },

@@ -43,6 +43,7 @@ export async function handleEnvelope(
       mentions: envelope.mentions,
       repo: ctx.identityRepo,
       ops: ctx.ops,
+      jobs: ctx.jobs,
     });
     if (flash !== null) {
       step = "broadcast";
