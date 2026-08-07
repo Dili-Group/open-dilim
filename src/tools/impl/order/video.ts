@@ -1,93 +1,98 @@
-// video.ts — tool lấy LINK video quay đơn: lúc đóng hàng (`dong_goi`) và lúc khui kiện hàng đại
-// lý trả về (`khui_hoan`). Hai loại phục vụ hai tranh chấp khác nhau — thiếu hàng lúc nhận, và
-// thiếu hàng lúc hoàn.
+// video.ts — tool lấy LINK video camera của đơn (quay lúc quét/đóng gói), để đại lý đối chiếu khi
+// tranh chấp thiếu hàng.
 //
-// Link LUÔN có hạn (OrderVideo.expiresAt) và tool luôn in hạn ra: link gửi vào nhóm chat là link
-// đi xa hơn nhóm chat, khách phải biết nó sống được bao lâu.
+// LINK SỐNG 15 PHÚT. Vì vậy tool KHÔNG cache và prompt phải bắt model gọi lại tool ngay lúc gửi:
+// link dán lại từ lịch sử chat là link đã chết, khách bấm vào chỉ thấy lỗi rồi mất niềm tin.
 //
-// `loai` do model sinh = untrusted → whitelist đúng 2 giá trị, giá trị lạ trả isError để model tự
-// sửa (KHÔNG im lặng bỏ filter, vì bỏ filter là trả nhầm loại video cho một vụ tranh chấp).
+// Rỗng KHÔNG phải lỗi: đơn chưa quét/chưa đóng gói thì chưa có gì để xem.
 
-import { OrderVideoKind, type OrderVideo } from "../../../operational/types.ts";
+import { AgentApiError } from "../../../operational/agent-api.ts";
+import type { OrderCameraLink } from "../../../operational/types.ts";
 import { readStringField } from "../../input.ts";
 import type { Tool, ToolContext, ToolResult } from "../../types.ts";
 import {
-  NEED_ORDER_CODE,
+  LOOKUP_FAILED,
+  NEED_TRACKING_NUMBER,
   NO_CUSTOMER,
   NO_PORT,
-  formatDate,
-  resolveCustomer,
+  formatDateTime,
+  line,
+  resolvePrincipal,
 } from "./scope.ts";
 
-const KIND_LABEL: Record<OrderVideoKind, string> = {
-  [OrderVideoKind.DongGoi]: "video đóng gói (lúc gửi hàng đi)",
-  [OrderVideoKind.KhuiHoan]: "video khui hàng hoàn (lúc nhận hàng trả về)",
-};
-
-const KINDS: readonly string[] = Object.values(OrderVideoKind);
+/** Câu bắt buộc kèm mọi link — khách phải biết nó sống được bao lâu. */
+const TTL_NOTE = "Mỗi link chỉ có hiệu lực 15 phút — nói rõ câu này khi gửi cho khách.";
 
 export function buildOrderVideoTool(ctx: ToolContext): Tool {
   return {
     name: "video_don_hang",
     description:
-      "Lấy link video quay đơn hàng: `dong_goi` (lúc đóng gói gửi đi) hoặc `khui_hoan` (lúc khui " +
-      "kiện hàng đại lý trả về). Bắt buộc `ma_don`; bỏ trống `loai` để lấy mọi video có của đơn. " +
-      "Link có hạn — gửi kèm hạn cho khách. CHỈ ĐỌC.",
+      "Lấy link video camera của một đơn (quay lúc quét/đóng gói hàng). Bắt buộc `ma_van_don`. " +
+      "Link hết hạn sau 15 phút: gọi tool NGAY lúc chuẩn bị gửi cho khách, KHÔNG gửi lại link cũ " +
+      "đã có trong lịch sử chat. CHỈ ĐỌC.",
     inputSchema: {
       type: "object",
       properties: {
-        ma_don: { type: "string", description: 'Mã đơn, ví dụ "DH-1042".' },
-        loai: {
-          type: "string",
-          enum: [...KINDS],
-          description: "dong_goi = quay lúc đóng hàng đi; khui_hoan = quay lúc khui hàng hoàn về.",
-        },
+        ma_van_don: { type: "string", description: 'Mã vận đơn, ví dụ "VTP0093412".' },
       },
-      required: ["ma_don"],
+      required: ["ma_van_don"],
     },
     announce: "Dạ để em lấy video của đơn giúp anh/chị ạ.",
-    run: (input: unknown): Promise<ToolResult> => runLookup(ctx, input),
+    run: (input: unknown, signal?: AbortSignal): Promise<ToolResult> => runLookup(ctx, input, signal),
   };
 }
 
-async function runLookup(ctx: ToolContext, input: unknown): Promise<ToolResult> {
+async function runLookup(
+  ctx: ToolContext,
+  input: unknown,
+  signal: AbortSignal | undefined,
+): Promise<ToolResult> {
   const orders = ctx.orders;
   if (orders === undefined) return NO_PORT;
 
-  const customerId = resolveCustomer(ctx);
-  if (customerId === undefined) return NO_CUSTOMER;
+  const principal = resolvePrincipal(ctx);
+  if (principal === undefined) return NO_CUSTOMER;
 
-  const code = readStringField(input, "ma_don");
-  if (code === undefined) return NEED_ORDER_CODE;
+  const trackingNumber = readStringField(input, "ma_van_don");
+  if (trackingNumber === undefined) return NEED_TRACKING_NUMBER;
 
-  const rawKind = readStringField(input, "loai");
-  if (rawKind !== undefined && !isKind(rawKind)) {
-    return { content: `Giá trị "loai" không hợp lệ: ${rawKind}. Chỉ nhận: ${KINDS.join(", ")}.`, isError: true };
+  let links: readonly OrderCameraLink[];
+  try {
+    links = await orders.cameraLinks({ ...principal, trackingNumber, signal });
+  } catch (err) {
+    if (err instanceof AgentApiError) {
+      // message chỉ có method/path/status/code — KHÔNG có service token.
+      console.error("[video_don_hang] API vận hành lỗi:", err.message);
+      return LOOKUP_FAILED;
+    }
+    throw err;
   }
 
-  const clips = await orders.videos({ customerId, code, kind: rawKind });
-  if (clips.length === 0) return { content: renderEmpty(code, rawKind) };
-  return { content: [`Video đơn ${code}:`, ...clips.map(renderClip)].join("\n") };
-}
-
-function isKind(value: string): value is OrderVideoKind {
-  return KINDS.includes(value);
+  if (links.length === 0) return { content: renderEmpty(trackingNumber) };
+  return {
+    content: [`Video đơn ${trackingNumber}:`, ...links.map(renderLink), TTL_NOTE].join("\n"),
+  };
 }
 
 /**
- * Rỗng KHÔNG phải lỗi: đơn chưa tới bước đóng gói, hoặc chưa có hàng hoàn nào. Nói rõ "chưa có"
- * để model không diễn dịch thành "hệ thống lỗi" rồi hứa gửi sau.
+ * Rỗng = chưa có lần quét nào gắn camera (chưa đóng gói / không quay), hoặc đơn không thuộc đại lý
+ * này. Nói rõ "chưa có" để model không diễn dịch thành "hệ thống lỗi" rồi hứa gửi sau.
  */
-function renderEmpty(code: string, kind: OrderVideoKind | undefined): string {
-  const what = kind === undefined ? "video nào" : KIND_LABEL[kind];
-  return `Đơn "${code}" chưa có ${what} (hoặc mã đơn không thuộc đại lý này). Không hứa gửi sau khi chưa có.`;
+function renderEmpty(trackingNumber: string): string {
+  return (
+    `Đơn "${trackingNumber}" chưa có video camera nào (chưa tới bước đóng gói, không quay, hoặc mã ` +
+    "đơn không thuộc đại lý này). Không hứa gửi sau khi chưa có."
+  );
 }
 
-function renderClip(clip: OrderVideo): string {
+function renderLink(link: OrderCameraLink): string {
   return [
-    `- ${KIND_LABEL[clip.kind]}`,
-    `  Quay ngày: ${formatDate(clip.recordedAt)}`,
-    `  Link: ${clip.url}`,
-    `  Link hết hạn: ${formatDate(clip.expiresAt)}`,
-  ].join("\n");
+    `- Lần quét ${link.sessionCode ?? "(không rõ mã)"}`,
+    line("  Thời điểm quét", formatDateTime(link.scannedAt)),
+    line("  Số camera", link.cameraCount === undefined ? undefined : String(link.cameraCount)),
+    `  Link: ${link.url}`,
+    line("  Hết hạn lúc", formatDateTime(link.expiresAt)),
+  ]
+    .filter((value): value is string => value !== undefined)
+    .join("\n");
 }

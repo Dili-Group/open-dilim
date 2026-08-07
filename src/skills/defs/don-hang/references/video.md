@@ -1,34 +1,32 @@
-# don-hang / video.md — video đóng gói & khui hàng hoàn
+# don-hang / video.md — video camera của đơn
 
-Tool `video_don_hang` trả link video kèm ngày quay và **hạn link**. Hai loại, đừng lẫn:
+Tool `video_don_hang` trả link video camera của từng **lần quét** đơn (kho quay lúc soạn/đóng gói),
+kèm thời điểm quét và **giờ hết hạn**. Bắt buộc có `ma_van_don`.
 
-| `loai` | Quay lúc nào | Dùng để giải quyết |
-|---|---|---|
-| `dong_goi` | Lúc kho đóng hàng gửi đi | Khách nhận báo thiếu/sai hàng |
-| `khui_hoan` | Lúc kho khui kiện hàng đại lý trả về | Tranh chấp hàng hoàn: thiếu món, sai món, hàng hỏng |
+## Link sống 15 phút
 
-Khách chỉ nói "cho em xin video đơn A" → gọi **không có `loai`** để lấy hết video của đơn, rồi đưa
-đúng cái khách cần. Khách đang nói về hàng hoàn thì mới lấy `khui_hoan`.
+Đây là ràng buộc quan trọng nhất của việc này:
 
-## Trả lời
+- Gọi tool **ngay lúc chuẩn bị gửi** link cho khách. Không gọi trước rồi để đó nói chuyện khác.
+- **Không gửi lại link cũ** đã có trong lịch sử chat — link đó chắc chắn đã chết.
+- Khách xin lại sau vài phút → gọi tool lần nữa lấy link mới, đừng dán lại link cũ.
+- Luôn kèm câu "link có hiệu lực 15 phút" để khách bấm ngay.
 
-Gửi link kèm **hạn link** — nói thẳng là link hết hạn ngày nào để khách tải/xem sớm:
+> Dạ video đóng gói đơn VTP0093412 đây ạ: <link>. Link có hiệu lực 15 phút thôi, anh/chị mở giúp em
+> ngay nhé ạ.
 
-> Dạ video đóng gói đơn DH-1042 quay ngày 04/08 đây ạ: <link>. Link xem được tới hết 07/08, anh/chị
-> tải về giúp em nếu cần giữ lại ạ.
-
-Nhiều video (cả đóng gói lẫn khui hoàn) → ghi rõ cái nào là cái nào.
+Nhiều lần quét → gửi kèm thời điểm quét của từng link để khách biết cái nào là cái nào.
 
 ## Chưa có video
 
-Tool trả "chưa có" → nói đúng là chưa có, kèm lý do hợp lý theo trạng thái đơn (đơn chưa tới bước
-đóng gói, chưa có hàng hoàn nào về kho). **Không hứa gửi sau.** Khách cần gấp → chuyển nhân viên
-vận hành kiểm tra kho.
+Tool trả "chưa có video" → nói đúng là chưa có, kèm lý do hợp lý theo trạng thái đơn (đơn chưa tới
+bước soạn/đóng gói, lần quét đó không gắn camera). **Không hứa gửi sau.** Khách cần gấp → chuyển
+nhân viên vận hành kiểm tra kho.
 
 ## Không được
 
 - Đưa link video của đơn khác, đại lý khác — tool đã chặn ở phạm vi đại lý, đừng lách bằng cách
-  đoán mã đơn.
-- Bịa link, sửa link, hay nói link "dùng vĩnh viễn".
+  đoán mã vận đơn.
+- Bịa link, sửa link, hay nói link "dùng vĩnh viễn" / "xem lại lúc nào cũng được".
 - Kết luận đúng/sai tranh chấp dựa trên video. Agent đưa bằng chứng; kết luận thiếu hàng, đền bù,
   hoàn tiền là việc của nhân viên vận hành (hoàn/trả: skill `refund`).

@@ -1,0 +1,308 @@
+// order-api.ts — OrderPort chạy thật trên API vận hành `/agent/*`.
+//
+// Việc của file này là BOUNDARY: JSON backend là `unknown`, mọi field đọc qua reader có kiểm kiểu.
+// Field thiếu/sai kiểu → undefined (tool sẽ bỏ dòng đó khi render) chứ KHÔNG bịa giá trị mặc định —
+// model thấy "0đ" sẽ nói "không phải trả gì", thấy dòng vắng thì hỏi lại.
+//
+// 404 (ORDER_NOT_FOUND) → null/[] : đó là câu trả lời hợp lệ ("đại lý này không có đơn đó"), không
+// phải sự cố. Mọi lỗi khác bubble lên để tool báo trục trặc thay vì báo "không có đơn".
+
+import {
+  AgentApiError,
+  AgentApiErrorCode,
+  readEnvelopeData,
+  readEnvelopeMeta,
+  type AgentApiClient,
+  type AgentApiPrincipal,
+} from "./agent-api.ts";
+import type {
+  OrderCameraLink,
+  OrderDetail,
+  OrderItem,
+  OrderPayment,
+  OrderPaymentBank,
+  OrderPaymentItem,
+  OrderPort,
+  OrderPrincipal,
+  OrderSearchPage,
+  OrderSummary,
+  OrderTransition,
+} from "./types.ts";
+
+const ORDERS_PATH = "/agent/orders";
+/** Trần backend cho page_size. Xin quá số này backend từ chối. */
+const MAX_PAGE_SIZE = 500;
+const DEFAULT_PAGE_SIZE = 20;
+
+export class AgentApiOrderPort implements OrderPort {
+  constructor(private readonly api: AgentApiClient) {}
+
+  async search(
+    p: OrderPrincipal & {
+      search?: string;
+      status?: number;
+      pageSize?: number;
+      signal?: AbortSignal;
+    },
+  ): Promise<OrderSearchPage> {
+    const pageSize = Math.min(Math.max(1, p.pageSize ?? DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE);
+    const body = await this.api.get(ORDERS_PATH, {
+      principal: toPrincipal(p),
+      query: { search: p.search, status: p.status, page: 1, page_size: pageSize },
+      signal: p.signal,
+    });
+
+    const data = readEnvelopeData(body, ORDERS_PATH);
+    if (!Array.isArray(data)) {
+      throw new AgentApiError(
+        `GET ${ORDERS_PATH} trả "data" không phải mảng`,
+        200,
+        AgentApiErrorCode.InvalidResponse,
+        ORDERS_PATH,
+      );
+    }
+    const orders = data.map(readSummary).filter(isPresent);
+    const total = readNumber(readEnvelopeMeta(body), "total") ?? orders.length;
+    return { orders, total };
+  }
+
+  async detail(
+    p: OrderPrincipal & { trackingNumber: string; signal?: AbortSignal },
+  ): Promise<OrderDetail | null> {
+    const path = `${ORDERS_PATH}/${encodeURIComponent(p.trackingNumber)}`;
+    const body = await this.notFoundToNull(path, p);
+    if (body === null) return null;
+
+    const data = readEnvelopeData(body, path);
+    const summary = readSummary(data);
+    if (summary === undefined) {
+      throw new AgentApiError(
+        `GET ${path} trả đơn thiếu tracking_number`,
+        200,
+        AgentApiErrorCode.InvalidResponse,
+        path,
+      );
+    }
+    const record = asRecord(data) ?? {};
+    return {
+      ...summary,
+      source: readString(record, "source"),
+      shippingAddress: readString(record, "shipping_address"),
+      province: readString(record, "province"),
+      district: readString(record, "district"),
+      ward: readString(record, "ward"),
+      subtotal: readMoney(record, "subtotal"),
+      discount: readMoney(record, "discount"),
+      notes: readString(record, "notes"),
+      staffName: readString(record, "staff_name"),
+      transitions: readList(record, "transitions").map(readTransition),
+    };
+  }
+
+  async payment(
+    p: OrderPrincipal & { trackingNumber: string; signal?: AbortSignal },
+  ): Promise<OrderPayment | null> {
+    const path = `${ORDERS_PATH}/${encodeURIComponent(p.trackingNumber)}/payment`;
+    const body = await this.notFoundToNull(path, p);
+    if (body === null) return null;
+
+    const record = asRecord(readEnvelopeData(body, path));
+    // Không có `amount` thì cả câu trả lời vô nghĩa (đại lý hỏi đúng con số này) → lỗi shape, để tool
+    // báo trục trặc, KHÔNG in một khối chuyển khoản thiếu số tiền.
+    const amount = record === undefined ? undefined : readMoney(record, "amount");
+    if (record === undefined || amount === undefined) {
+      throw new AgentApiError(
+        `GET ${path} trả thiếu "amount"`,
+        200,
+        AgentApiErrorCode.InvalidResponse,
+        path,
+      );
+    }
+    return {
+      trackingNumber: readString(record, "tracking_number") ?? p.trackingNumber,
+      amount,
+      baseAmount: readMoney(record, "base_amount"),
+      packagingFee: readMoney(record, "packaging_fee"),
+      dealerCode: readString(record, "dealer_code"),
+      dealerName: readString(record, "dealer_name"),
+      carrier: readNumber(record, "carrier"),
+      items: readList(record, "items").map(readPaymentItem).filter(isPresent),
+      bank: readBank(record),
+      transferContent: readString(record, "transfer_content"),
+      qrUrl: readString(record, "qr_url"),
+    };
+  }
+
+  async cameraLinks(
+    p: OrderPrincipal & { trackingNumber: string; signal?: AbortSignal },
+  ): Promise<readonly OrderCameraLink[]> {
+    const path = `${ORDERS_PATH}/${encodeURIComponent(p.trackingNumber)}/camera-links`;
+    const body = await this.notFoundToNull(path, p);
+    if (body === null) return [];
+
+    const data = readEnvelopeData(body, path);
+    if (!Array.isArray(data)) return [];
+    return data.map(readCameraLink).filter(isPresent);
+  }
+
+  /** 404 = đơn không thuộc đại lý này → null. Lỗi khác bubble (tool phân biệt "không có" vs "hỏng"). */
+  private async notFoundToNull(
+    path: string,
+    p: OrderPrincipal & { signal?: AbortSignal },
+  ): Promise<unknown> {
+    try {
+      return await this.api.get(path, { principal: toPrincipal(p), signal: p.signal });
+    } catch (err) {
+      if (err instanceof AgentApiError && err.status === 404) return null;
+      throw err;
+    }
+  }
+}
+
+function toPrincipal(p: OrderPrincipal): AgentApiPrincipal {
+  return { dealerId: p.dealerId, staffId: p.staffId };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reader — mọi field đi qua đây. Không `as` ép kiểu để làm im lỗi.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function readString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function readNumber(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  // Backend có thể trả bigint/enum dạng chuỗi số — nhận, nhưng chỉ khi là số nguyên thuần.
+  if (typeof value === "string" && /^-?\d+$/.test(value.trim())) return Number(value.trim());
+  return undefined;
+}
+
+function readBoolean(record: Record<string, unknown>, key: string): boolean | undefined {
+  const value = record[key];
+  return typeof value === "boolean" ? value : undefined;
+}
+
+/** Tiền: NUMERIC(15,2) → chuỗi. Nhận cả number (giữ nguyên chữ số, KHÔNG tính toán gì lên nó). */
+function readMoney(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  if (typeof value === "string" && value.trim() !== "") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return undefined;
+}
+
+function readList(record: Record<string, unknown>, key: string): readonly unknown[] {
+  const value = record[key];
+  return Array.isArray(value) ? value : [];
+}
+
+function isPresent<T>(value: T | undefined): value is T {
+  return value !== undefined;
+}
+
+/** Đơn KHÔNG có tracking_number là đơn không tra lại được → bỏ, đừng đưa cho model một mã rỗng. */
+function readSummary(value: unknown): OrderSummary | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const trackingNumber = readString(record, "tracking_number");
+  if (trackingNumber === undefined) return undefined;
+
+  const items = readList(record, "items").map(readItem).filter(isPresent);
+  return {
+    trackingNumber,
+    status: readNumber(record, "status"),
+    carrier: readNumber(record, "carrier"),
+    totalAmount: readMoney(record, "total_amount"),
+    codAmount: readMoney(record, "cod_amount"),
+    shippingFee: readMoney(record, "shipping_fee"),
+    customerName: readString(record, "customer_name"),
+    customerPhone: readString(record, "customer_phone"),
+    isNewCustomer: readBoolean(record, "is_new_customer"),
+    createdAt: readString(record, "created_at"),
+    updatedAt: readString(record, "updated_at"),
+    items: items.length === 0 ? undefined : items,
+  };
+}
+
+function readItem(value: unknown): OrderItem | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const name = readString(record, "item_name");
+  if (name === undefined) return undefined;
+  return {
+    name,
+    sku: readString(record, "sku") ?? "",
+    quantity: readNumber(record, "quantity") ?? 0,
+    unitPrice: readMoney(record, "unit_price") ?? "",
+    lineTotal: readMoney(record, "line_total") ?? "",
+  };
+}
+
+/** Dòng không có `order_item_id` thì không đối chiếu được với gì → bỏ. */
+function readPaymentItem(value: unknown): OrderPaymentItem | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const orderItemId = readString(record, "order_item_id") ?? numberAsString(record, "order_item_id");
+  if (orderItemId === undefined) return undefined;
+  return {
+    orderItemId,
+    unitPrice: readMoney(record, "dealer_unit_price"),
+    lineTotal: readMoney(record, "dealer_line_total"),
+  };
+}
+
+/** Backend có thể trả id bigint dạng số. Giữ nguyên chữ số, không tính toán gì lên nó. */
+function numberAsString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = readNumber(record, key);
+  return value === undefined ? undefined : String(value);
+}
+
+/** Không field nào đọc được → undefined để tool bỏ hẳn khối chuyển khoản, không in nửa vời. */
+function readBank(record: Record<string, unknown>): OrderPaymentBank | undefined {
+  const bank = asRecord(record["bank"]);
+  if (bank === undefined) return undefined;
+  const result: OrderPaymentBank = {
+    bankCode: readString(bank, "bank_code"),
+    bankName: readString(bank, "bank_name"),
+    accountNumber: readString(bank, "account_number"),
+    accountName: readString(bank, "account_name"),
+  };
+  return Object.values(result).every((value) => value === undefined) ? undefined : result;
+}
+
+function readTransition(value: unknown): OrderTransition {
+  const record = asRecord(value) ?? {};
+  return {
+    event: readString(record, "event"),
+    fromState: readNumber(record, "from_state"),
+    toState: readNumber(record, "to_state"),
+    actorName: readString(record, "actor_name"),
+    reason: readString(record, "reason"),
+    createdAt: readString(record, "created_at"),
+  };
+}
+
+/** Không có `url` thì cái link đó vô dụng với đại lý → bỏ. */
+function readCameraLink(value: unknown): OrderCameraLink | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const url = readString(record, "url");
+  if (url === undefined) return undefined;
+  return {
+    url,
+    sessionCode: readString(record, "session_code"),
+    scannedAt: readString(record, "scanned_at"),
+    cameraCount: readNumber(record, "camera_count"),
+    expiresAt: readString(record, "expires_at"),
+  };
+}

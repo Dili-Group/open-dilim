@@ -1,43 +1,52 @@
 ---
 name: don-hang
-description: Xử lý mọi việc về đơn hàng của đại lý — tra trạng thái, báo huỷ đơn, hỏi số tiền phải trả, xin video đóng gói / khui hàng hoàn. Load khi đại lý hoặc thành viên nhắc "đơn", "hàng", "giao", "huỷ", "thanh toán", "công nợ", "video", "camera".
+description: Xử lý mọi việc về đơn hàng của đại lý — tra trạng thái, báo huỷ đơn, hỏi số tiền của đơn, xin video camera đóng gói. Load khi đại lý hoặc thành viên nhắc "đơn", "hàng", "giao", "huỷ", "thanh toán", "chuyển khoản", "nạp ví", "QR", "công nợ", "COD", "video", "camera", "mã vận đơn".
 ---
 
 # Đơn hàng — đại lý
 
-Bốn việc khách hay hỏi, dùng chung 3 bước: **phân loại việc → chốt đơn nào → làm đúng phần được phép**.
+Năm việc khách hay hỏi, dùng chung 3 bước: **phân loại việc → chốt đơn nào → làm đúng phần được phép**.
 
 | Khách muốn | Tool | Chi tiết |
 |---|---|---|
 | Đơn tới đâu rồi | `tra_don_hang` | `references/trang-thai.md` |
 | Báo huỷ đơn | KHÔNG có tool ghi | `references/huy-don.md` |
-| Còn phải trả bao nhiêu | `tra_thanh_toan_don` | `references/thanh-toan.md` |
-| Xin video đóng gói / khui hàng hoàn | `video_don_hang` | `references/video.md` |
+| Tiền của đơn (tổng, COD, phí ship) | `tra_don_hang` (chi tiết đơn) | `references/thanh-toan.md` |
+| Cần chuyển bao nhiêu để đơn được đi | `tra_tien_can_chuyen` | `references/thanh-toan.md` |
+| Xin video camera đóng gói | `video_don_hang` | `references/video.md` |
 
 Một tin nhắn có thể là **hai việc**: "Đơn A đi giúp chị nhé!" vừa hỏi trạng thái vừa giục. Trả lời
 phần đọc được trước (trạng thái), rồi mới xử lý phần yêu cầu.
 
 ## Bước 1 — Chốt đơn nào, trước mọi thứ khác
 
-Có mã đơn trong tin nhắn → dùng luôn. Không có (khách nói "đơn A", "đơn hôm qua") → gọi
-`tra_don_hang` **không tham số** để lấy danh sách đơn gần đây, rồi:
+Có mã vận đơn trong tin nhắn → truyền `ma_van_don` để lấy chi tiết. Không có mã (khách nói "đơn của
+chị Lan", "đơn hôm qua") → gọi `tra_don_hang` với `tim_kiem` (tên hoặc SĐT khách nhận), hoặc gọi
+trống để lấy đơn gần đây, rồi:
 
 - Đúng 1 đơn khớp mô tả → nói rõ mình đang nói về đơn đó rồi trả lời luôn.
-- Nhiều đơn có thể khớp → hỏi lại **đúng một câu**, kèm mã + ngày đặt để khách chọn nhanh.
-- Không đơn nào → nói thẳng chưa thấy đơn nào, hỏi mã đơn hoặc ngày đặt.
+- Nhiều đơn có thể khớp → hỏi lại **đúng một câu**, kèm mã vận đơn + ngày tạo để khách chọn nhanh.
+- Không đơn nào → nói thẳng chưa thấy đơn nào, hỏi mã vận đơn.
 
-Không đoán bừa một mã. `tra_thanh_toan_don` và `video_don_hang` **bắt buộc có mã** — sai đơn ở hai
-việc này là sai số tiền và sai bằng chứng tranh chấp.
+Không đoán bừa một mã. `video_don_hang` và `tra_tien_can_chuyen` **bắt buộc có mã vận đơn** — sai đơn
+ở đây là đưa nhầm bằng chứng cho một vụ tranh chấp, hoặc để đại lý chuyển sai số tiền.
 
-## Bước 2 — Ranh giới ĐỌC / GHI
+## Bước 2 — Cửa sổ 30 ngày
 
-Cả ba tool đều CHỈ ĐỌC. Agent **không** huỷ đơn, không sửa đơn, không xác nhận đã thanh toán,
-không hứa hoàn tiền. Mọi việc GHI: nói rõ sẽ chuyển nhân viên vận hành, rồi dừng ở đó.
+Hệ thống chỉ tra được **đơn trong 30 ngày gần nhất**. Không thấy đơn thì nói là *không thấy đơn đó
+của đại lý mình* và hỏi lại mã vận đơn — **đừng nói "đơn không tồn tại"**: có thể là đơn của đại lý
+khác, hoặc đơn đã quá 30 ngày. Đơn cũ hơn → chuyển nhân viên vận hành tra giúp.
+
+## Bước 3 — Ranh giới ĐỌC / GHI
+
+Cả ba tool đều CHỈ ĐỌC. Agent **không** huỷ đơn, không sửa đơn, không đổi địa chỉ, không xác nhận
+đã thanh toán, không hứa hoàn tiền. Mọi việc GHI: nói rõ sẽ chuyển nhân viên phụ trách, rồi dừng.
 
 Chỉ nói dữ kiện tool trả về. Thiếu dữ liệu (chưa có ngày giao, chưa có video) → nói là chưa có,
-không ước lượng hộ hệ thống.
+không ước lượng hộ hệ thống. Tiền hiển thị đúng như tool trả (`1.234.567 ₫`), **không tự cộng trừ**,
+không cộng dồn tiền giữa nhiều đơn.
 
-## Bước 3 — Trả lời
+## Bước 4 — Trả lời
 
 Một tin, thứ tự: **kết quả → mốc thời gian / số tiền → việc kế tiếp**. Không lặp lại câu
 "Dạ để em kiểm tra…" — hệ thống đã tự gửi câu đó ngay khi bạn gọi tool.

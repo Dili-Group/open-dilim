@@ -27,7 +27,8 @@ import {
   SqlIdentityResolver,
 } from "../auth/index.ts";
 import { OperationalOpsPort } from "../operational/ops-port.ts";
-import { StubOrderPort } from "../operational/order-stub.ts";
+import { AgentApiClient } from "../operational/agent-api.ts";
+import { AgentApiOrderPort } from "../operational/order-api.ts";
 import {
   buildDedupe,
   buildHistoryStore,
@@ -69,13 +70,14 @@ export async function bootstrap(): Promise<Services> {
 
   // skills đi thẳng vào agent: catalog vào system prompt + backing cho tool use_skill.
   // memory = cổng CHỈ-ĐỌC; scope (phòng nào) do worker cấp từng lượt qua groupCustomer.
-  // orders = STUB tới khi hệ vận hành có endpoint đơn hàng: đổi sang impl HTTP ở đúng dòng này.
+  // orders = API vận hành `/agent/*`; đại lý của từng lượt đi lên header, client không giữ state.
+  const orders = new AgentApiOrderPort(new AgentApiClient(config.agentApi));
   const agents = buildAgentRegistry({
     provider: llm,
     config,
     skills,
     memory,
-    orders: new StubOrderPort(),
+    orders,
   });
 
   // Đường GHI dựng SAU agents vì nó theo `memorySpec` của từng agent: agent vận hành nhớ việc,

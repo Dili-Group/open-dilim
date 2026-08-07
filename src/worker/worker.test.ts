@@ -19,7 +19,6 @@ import { TypingFactory } from "../broadcast/typing-factory.ts";
 import { MemoryBroker, MemoryHistoryStore } from "../bootstrap/deps-memory.ts";
 import { HISTORY_WINDOW_TURNS } from "../state/session.ts";
 import type { ConversationCompactor } from "../state/compactor.ts";
-import { StubOrderPort } from "../operational/order-stub.ts";
 import { SkillRegistry } from "../skills/registry.ts";
 import { buildAgentRegistry } from "../agents/registry.ts";
 import type { AgentConfig } from "../agents/types.ts";
@@ -284,7 +283,7 @@ describe("handleEnvelope", () => {
       identity: new FakeResolver({ role: "nhan_vien", senderId: "u1", userId: "nv1" }),
       // Phòng đã /ketnoi-daily → tool tra đơn có phạm vi đại lý dù NGƯỜI GÕ là nhân viên.
       groupCustomer: new FakeGroupCustomer("dealer-1"),
-      agents: buildAgentRegistry({ provider, config: CFG, skills: SKILLS, orders: new StubOrderPort() }),
+      agents: buildAgentRegistry({ provider, config: CFG, skills: SKILLS }),
       broadcaster,
       typing: TYPING,
     };

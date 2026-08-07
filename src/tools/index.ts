@@ -22,8 +22,12 @@ export const COMMON_TOOLS: readonly ToolFactory[] = [
  * Tool đọc dữ liệu đơn hàng — CHỈ agent phục vụ đại lý được khai (tool tự chặn phạm vi theo đại
  * lý chủ phòng, nhưng agent không phục vụ đại lý thì cũng không có việc gì gọi nó).
  *
- * Cả ba đều CHỈ ĐỌC. Huỷ/sửa đơn là WRITE → chưa có tool nào, đi qua nhân viên vận hành cho tới
- * khi dựng xong approval gate (§6) — xem skill `don-hang`.
+ * Cả ba đều CHỈ ĐỌC. Huỷ/sửa đơn, xác nhận đã thanh toán là WRITE → chưa có tool nào, đi qua nhân
+ * viên vận hành cho tới khi dựng xong approval gate (§6) — xem skill `don-hang`.
+ *
+ * HAI loại tiền, hai tool: tiền của đơn theo giá bán + COD khách trả nằm trong `tra_don_hang`; tiền
+ * ĐẠI LÝ chuyển cho công ty để đơn được đi nằm ở `tra_tien_can_chuyen` (endpoint riêng, giá theo bậc
+ * chiết khấu). Không tool nào tự ghép số của tool kia.
  */
 export const ORDER_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildOrderStatusTool(ctx),

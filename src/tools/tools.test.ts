@@ -1,21 +1,25 @@
 // Test tool use_skill / use_reference: chạy trên skill def THẬT (đọc filesystem), input model
 // sinh là untrusted nên mọi shape rác phải ra isError chứ không throw. Kèm chốt chặn
 // confused-deputy: KHÔNG schema tool nào được chứa trường danh tính.
+//
+// Tool đơn hàng test trên OrderPort GIẢ (không mạng): thứ cần chốt là PHẠM VI ĐẠI LÝ — đại lý nào
+// đi vào port, và đơn của đại lý khác không được rò ra câu trả lời.
 
 import { describe, expect, test } from "bun:test";
 import type { Identity } from "../flash-command/types.ts";
 import { buildSkillRegistry } from "../skills/index.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
-import {
-  OrderStatus,
-  OrderVideoKind,
-  PaymentStatus,
-  type OrderInfo,
-  type OrderPayment,
-  type OrderPort,
-  type OrderVideo,
+import { AgentApiError, AgentApiErrorCode } from "../operational/agent-api.ts";
+import type {
+  OrderCameraLink,
+  OrderDetail,
+  OrderPayment,
+  OrderPort,
+  OrderPrincipal,
+  OrderSearchPage,
 } from "../operational/types.ts";
 import { COMMON_TOOLS, ORDER_TOOLS, buildToolRegistry, readStringField } from "./index.ts";
+import { readIntegerField } from "./input.ts";
 import { buildUseSkillTool } from "./impl/use-skill.ts";
 import { buildUseReferenceTool } from "./impl/use-reference.ts";
 import { buildOrderStatusTool } from "./impl/order/status.ts";
@@ -24,6 +28,7 @@ import { buildOrderVideoTool } from "./impl/order/video.ts";
 
 const GUEST: Identity = { role: "guest", senderId: "u1" };
 const DEALER: Identity = { role: "dai_ly", senderId: "u2", customerId: "dealer-9" };
+const STAFF: Identity = { role: "nhan_vien", senderId: "u3", userId: "77" };
 
 // Registry thật từ src/skills/defs (có "refund" kèm references/policy.md).
 const skills: SkillRegistry = await buildSkillRegistry();
@@ -39,6 +44,19 @@ describe("readStringField", () => {
     expect(readStringField({}, "name")).toBeUndefined();
     expect(readStringField({ name: 7 }, "name")).toBeUndefined();
     expect(readStringField({ name: "   " }, "name")).toBeUndefined();
+  });
+});
+
+describe("readIntegerField", () => {
+  test("nhận số nguyên và chuỗi số nguyên (model hay trả '6')", () => {
+    expect(readIntegerField({ status: 6 }, "status")).toBe(6);
+    expect(readIntegerField({ status: "-1" }, "status")).toBe(-1);
+  });
+
+  test("số thực / chữ / thiếu → undefined", () => {
+    expect(readIntegerField({ status: 6.5 }, "status")).toBeUndefined();
+    expect(readIntegerField({ status: "giao xong" }, "status")).toBeUndefined();
+    expect(readIntegerField({}, "status")).toBeUndefined();
   });
 });
 
@@ -84,215 +102,312 @@ describe("use_reference", () => {
   });
 });
 
-// Cổng đơn giả: chỉ đại lý "dealer-1" có đơn. Dùng để chốt phạm vi — tra mã của đại lý khác
-// phải ra rỗng, không phải ra đơn.
-function makeOrder(over: Partial<OrderInfo> = {}): OrderInfo {
+// ─────────────────────────────────────────────────────────────────────────────
+// Cổng đơn giả. Mỗi đơn gắn CHỦ (dealerId); port chỉ trả đơn của đúng đại lý gọi lên — hệt như
+// backend ép theo header x-dealer-id. Đơn của đại lý khác ra null/[] chứ không ra dữ liệu.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface OwnedOrder {
+  readonly dealerId: string;
+  readonly order: OrderDetail;
+}
+
+function makeOrder(over: Partial<OrderDetail> = {}): OrderDetail {
   return {
-    code: "DH-1",
-    customerId: "dealer-1",
-    status: OrderStatus.DangGiao,
-    placedAt: Date.UTC(2026, 7, 1, 3, 0),
-    expectedDeliveryAt: Date.UTC(2026, 7, 4, 3, 0),
-    totalAmount: 1_200_000,
-    carrier: "Viettel Post",
-    trackingCode: "VTP01",
+    trackingNumber: "VTP01",
+    status: 5,
+    carrier: 1,
+    totalAmount: "1234567.00",
+    customerName: "Nguyễn A",
+    customerPhone: "0900000001",
+    createdAt: "2026-08-01T03:00:00Z",
+    transitions: [
+      { fromState: 0, toState: 5, actorName: "Kho 1", createdAt: "2026-08-01T04:00:00Z" },
+    ],
+    ...over,
+  };
+}
+
+function makeLink(over: Partial<OrderCameraLink> = {}): OrderCameraLink {
+  return {
+    sessionCode: "SS-1",
+    scannedAt: "2026-08-01T03:30:00Z",
+    cameraCount: 2,
+    url: "https://media.example/v/VTP01?token=abc",
+    expiresAt: "2026-08-01T03:45:00Z",
     ...over,
   };
 }
 
 function makePayment(over: Partial<OrderPayment> = {}): OrderPayment {
   return {
-    code: "DH-1",
-    customerId: "dealer-1",
-    status: PaymentStatus.TraMotPhan,
-    totalAmount: 1_200_000,
-    paidAmount: 200_000,
-    remainingAmount: 1_000_000,
-    dueAt: Date.UTC(2026, 7, 10, 3, 0),
-    method: "chuyển khoản",
-    ...over,
-  };
-}
-
-function makeVideo(over: Partial<OrderVideo> = {}): OrderVideo {
-  return {
-    kind: OrderVideoKind.DongGoi,
-    url: "https://media.example/v/dh-1",
-    recordedAt: Date.UTC(2026, 7, 1, 3, 0),
-    expiresAt: Date.UTC(2026, 7, 2, 3, 0),
+    trackingNumber: "VTP01",
+    amount: "1005000.00",
+    baseAmount: "1000000.00",
+    packagingFee: "5000.00",
+    dealerCode: "DL001",
+    dealerName: "Đại lý A",
+    carrier: 0,
+    items: [{ orderItemId: "9", unitPrice: "500000", lineTotal: "1000000" }],
+    bank: {
+      bankCode: "VCB",
+      bankName: "Vietcombank",
+      accountNumber: "0011000123456",
+      accountName: "CONG TY DILI",
+    },
+    transferContent: "NAP DL001",
+    qrUrl: "https://qr.example/abc",
     ...over,
   };
 }
 
 class FakeOrders implements OrderPort {
-  readonly seen: Array<{ customerId: string; code?: string }> = [];
+  readonly seen: OrderPrincipal[] = [];
   constructor(
-    private readonly orders: readonly OrderInfo[],
-    private readonly payments: readonly OrderPayment[] = [],
-    private readonly clips: readonly OrderVideo[] = [],
+    private readonly owned: readonly OwnedOrder[],
+    private readonly links: Readonly<Record<string, readonly OrderCameraLink[]>> = {},
+    private readonly payments: Readonly<Record<string, OrderPayment>> = {},
   ) {}
-  payment(p: { customerId: string; code: string }): Promise<OrderPayment | null> {
-    this.seen.push(p);
-    const found = this.payments.find(
-      (x) => x.customerId === p.customerId && x.code.toLowerCase() === p.code.toLowerCase(),
-    );
-    return Promise.resolve(found ?? null);
+
+  search(p: OrderPrincipal & { search?: string; status?: number }): Promise<OrderSearchPage> {
+    this.seen.push({ dealerId: p.dealerId, staffId: p.staffId });
+    const orders = this.mine(p.dealerId)
+      .filter((o) => p.status === undefined || o.status === p.status)
+      .filter((o) => p.search === undefined || matches(o, p.search));
+    return Promise.resolve({ orders, total: orders.length });
   }
-  videos(p: {
-    customerId: string;
-    code: string;
-    kind?: OrderVideoKind;
-  }): Promise<readonly OrderVideo[]> {
-    this.seen.push(p);
-    const owns = this.orders.some(
-      (o) => o.customerId === p.customerId && o.code.toLowerCase() === p.code.toLowerCase(),
-    );
-    if (!owns) return Promise.resolve([]);
-    return Promise.resolve(this.clips.filter((c) => p.kind === undefined || c.kind === p.kind));
+
+  detail(p: OrderPrincipal & { trackingNumber: string }): Promise<OrderDetail | null> {
+    this.seen.push({ dealerId: p.dealerId, staffId: p.staffId });
+    return Promise.resolve(this.find(p.dealerId, p.trackingNumber) ?? null);
   }
-  findByCode(p: { customerId: string; code: string }): Promise<OrderInfo | null> {
-    this.seen.push(p);
-    const found = this.orders.find(
-      (o) => o.customerId === p.customerId && o.code.toLowerCase() === p.code.toLowerCase(),
-    );
-    return Promise.resolve(found ?? null);
+
+  payment(p: OrderPrincipal & { trackingNumber: string }): Promise<OrderPayment | null> {
+    this.seen.push({ dealerId: p.dealerId, staffId: p.staffId });
+    if (this.find(p.dealerId, p.trackingNumber) === undefined) return Promise.resolve(null);
+    return Promise.resolve(this.payments[p.trackingNumber] ?? null);
   }
-  recent(p: { customerId: string; limit: number }): Promise<readonly OrderInfo[]> {
-    this.seen.push({ customerId: p.customerId });
-    return Promise.resolve(this.orders.filter((o) => o.customerId === p.customerId).slice(0, p.limit));
+
+  cameraLinks(p: OrderPrincipal & { trackingNumber: string }): Promise<readonly OrderCameraLink[]> {
+    this.seen.push({ dealerId: p.dealerId, staffId: p.staffId });
+    if (this.find(p.dealerId, p.trackingNumber) === undefined) return Promise.resolve([]);
+    return Promise.resolve(this.links[p.trackingNumber] ?? []);
+  }
+
+  private mine(dealerId: string): OrderDetail[] {
+    return this.owned.filter((o) => o.dealerId === dealerId).map((o) => o.order);
+  }
+
+  private find(dealerId: string, trackingNumber: string): OrderDetail | undefined {
+    return this.mine(dealerId).find(
+      (o) => o.trackingNumber.toLowerCase() === trackingNumber.toLowerCase(),
+    );
+  }
+}
+
+function matches(order: OrderDetail, search: string): boolean {
+  const needle = search.toLowerCase();
+  return [order.trackingNumber, order.customerName, order.customerPhone].some(
+    (field) => field !== undefined && field.toLowerCase().includes(needle),
+  );
+}
+
+/** Cổng luôn hỏng — chốt rằng sự cố API KHÔNG bị kể lại thành "không tìm thấy đơn". */
+class BrokenOrders implements OrderPort {
+  private fail(): never {
+    throw new AgentApiError("GET /agent/orders trả 500", 500, AgentApiErrorCode.Transport, "/agent/orders");
+  }
+  search(): Promise<OrderSearchPage> {
+    this.fail();
+  }
+  detail(): Promise<OrderDetail | null> {
+    this.fail();
+  }
+  payment(): Promise<OrderPayment | null> {
+    this.fail();
+  }
+  cameraLinks(): Promise<readonly OrderCameraLink[]> {
+    this.fail();
   }
 }
 
 describe("tra_don_hang", () => {
-  const orders = new FakeOrders([makeOrder(), makeOrder({ code: "DH-2", customerId: "dealer-2" })]);
+  const orders = new FakeOrders([
+    { dealerId: "dealer-1", order: makeOrder() },
+    {
+      dealerId: "dealer-2",
+      order: makeOrder({ trackingNumber: "VTP02", customerName: "Trần B", customerPhone: "0900000002" }),
+    },
+  ]);
+  const ctx = { skills, identity: GUEST, roomCustomerId: "dealer-1", orders };
 
-  test("có mã đơn của CHỦ PHÒNG → trả chi tiết đơn", async () => {
-    const tool = buildOrderStatusTool({ skills, identity: GUEST, roomCustomerId: "dealer-1", orders });
-    const result = await tool.run({ ma_don: "dh-1" });
+  test("có mã vận đơn của CHỦ PHÒNG → chi tiết + tiền định dạng VN + lịch sử", async () => {
+    const result = await buildOrderStatusTool(ctx).run({ ma_van_don: "vtp01" });
     expect(result.isError).toBeFalsy();
-    expect(result.content).toContain("Đơn DH-1");
-    expect(result.content).toContain("đang giao");
+    expect(result.content).toContain("Đơn VTP01");
+    expect(result.content).toContain("đang vận chuyển");
+    expect(result.content).toContain("1.234.567 ₫");
+    expect(result.content).toContain("Viettel Post");
+    expect(result.content).toContain("Lịch sử trạng thái");
+  });
+
+  test("mã của đại lý KHÁC → không thấy, cấm nói 'đơn không tồn tại', không rò khách kia", async () => {
+    const result = await buildOrderStatusTool(ctx).run({ ma_van_don: "VTP02" });
+    expect(result.content).toContain("Không thấy đơn");
+    expect(result.content).toContain("30 ngày");
+    expect(result.content).not.toContain("Trần B");
+  });
+
+  test("không mã → liệt kê đơn gần đây + bảo chốt mã rồi gọi lại", async () => {
+    const result = await buildOrderStatusTool(ctx).run({});
+    expect(result.isError).toBeFalsy();
     expect(result.content).toContain("VTP01");
+    expect(result.content).toContain("ma_van_don");
   });
 
-  test("mã đơn của đại lý KHÁC → không tìm thấy (không rò dữ liệu)", async () => {
-    const tool = buildOrderStatusTool({ skills, identity: GUEST, roomCustomerId: "dealer-1", orders });
-    const result = await tool.run({ ma_don: "DH-2" });
-    expect(result.content).toContain("Không có đơn nào");
-    expect(result.content).not.toContain("dealer-2");
+  test("tim_kiem theo SĐT khách → lọc đúng, không đụng đơn đại lý khác", async () => {
+    const found = await buildOrderStatusTool(ctx).run({ tim_kiem: "0900000001" });
+    expect(found.content).toContain("VTP01");
+    const miss = await buildOrderStatusTool(ctx).run({ tim_kiem: "0900000002" });
+    expect(miss.content).toContain("Không thấy");
   });
 
-  test("thiếu mã đơn → liệt kê đơn gần đây + nhắc hỏi lại", async () => {
-    const tool = buildOrderStatusTool({ skills, identity: GUEST, roomCustomerId: "dealer-1", orders });
-    const result = await tool.run({});
-    expect(result.isError).toBeFalsy();
-    expect(result.content).toContain("DH-1");
-    expect(result.content).toContain("Hỏi lại khách");
+  test("trang_thai lọc theo mã số", async () => {
+    const hit = await buildOrderStatusTool(ctx).run({ trang_thai: 5 });
+    expect(hit.content).toContain("VTP01");
+    const none = await buildOrderStatusTool(ctx).run({ trang_thai: 14 });
+    expect(none.content).toContain("Không thấy");
   });
 
   test("chat 1-1 (không có chủ phòng) → dùng customerId của identity đại lý", async () => {
-    const own = new FakeOrders([makeOrder({ code: "DH-9", customerId: "dealer-9" })]);
+    const own = new FakeOrders([{ dealerId: "dealer-9", order: makeOrder({ trackingNumber: "VTP09" }) }]);
     const tool = buildOrderStatusTool({ skills, identity: DEALER, orders: own });
-    expect((await tool.run({ ma_don: "DH-9" })).content).toContain("Đơn DH-9");
-    expect(own.seen[0]?.customerId).toBe("dealer-9");
+    expect((await tool.run({ ma_van_don: "VTP09" })).content).toContain("Đơn VTP09");
+    expect(own.seen[0]?.dealerId).toBe("dealer-9");
+  });
+
+  test("nhân viên gõ trong nhóm đại lý → dealer = chủ phòng, staff = người gõ (audit)", async () => {
+    const staffCtx = { skills, identity: STAFF, roomCustomerId: "dealer-1", orders: new FakeOrders([]) };
+    await buildOrderStatusTool(staffCtx).run({});
+    expect(staffCtx.orders.seen[0]).toEqual({ dealerId: "dealer-1", staffId: "77" });
   });
 
   test("không xác định được đại lý → isError, KHÔNG tra bừa", async () => {
-    const untouched = new FakeOrders([makeOrder()]);
+    const untouched = new FakeOrders([{ dealerId: "dealer-1", order: makeOrder() }]);
     const tool = buildOrderStatusTool({ skills, identity: GUEST, orders: untouched });
-    const result = await tool.run({ ma_don: "DH-1" });
+    const result = await tool.run({ ma_van_don: "VTP01" });
     expect(result.isError).toBe(true);
     expect(untouched.seen).toHaveLength(0);
   });
 
   test("chưa nối cổng đơn → isError structured, KHÔNG throw", async () => {
     const tool = buildOrderStatusTool({ skills, identity: GUEST, roomCustomerId: "dealer-1" });
-    expect((await tool.run({ ma_don: "DH-1" })).isError).toBe(true);
+    expect((await tool.run({ ma_van_don: "VTP01" })).isError).toBe(true);
+  });
+
+  test("API vận hành lỗi → báo trục trặc, KHÔNG kể thành 'không tìm thấy đơn'", async () => {
+    const tool = buildOrderStatusTool({ ...ctx, orders: new BrokenOrders() });
+    const result = await tool.run({ ma_van_don: "VTP01" });
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("KHÔNG nói là không tìm thấy");
   });
 
   test("khai announce để loop báo khách trước khi tra", () => {
-    const tool = buildOrderStatusTool({ skills, identity: GUEST, roomCustomerId: "dealer-1", orders });
-    expect(tool.announce).toContain("kiểm tra");
+    expect(buildOrderStatusTool(ctx).announce).toContain("kiểm tra");
   });
 });
 
-describe("tra_thanh_toan_don", () => {
+describe("tra_tien_can_chuyen", () => {
   const orders = new FakeOrders(
-    [makeOrder()],
-    [makePayment(), makePayment({ code: "DH-2", customerId: "dealer-2" })],
+    [
+      { dealerId: "dealer-1", order: makeOrder() },
+      { dealerId: "dealer-2", order: makeOrder({ trackingNumber: "VTP02" }) },
+    ],
+    {},
+    { VTP01: makePayment(), VTP02: makePayment({ trackingNumber: "VTP02", amount: "999.00" }) },
   );
   const ctx = { skills, identity: GUEST, roomCustomerId: "dealer-1", orders };
 
-  test("có mã đơn → trả tổng / đã trả / còn phải trả", async () => {
-    const result = await buildOrderPaymentTool(ctx).run({ ma_don: "DH-1" });
+  test("in số cần chuyển + tách giá đại lý/phí hộp + khối chuyển khoản", async () => {
+    const result = await buildOrderPaymentTool(ctx).run({ ma_van_don: "VTP01" });
     expect(result.isError).toBeFalsy();
-    expect(result.content).toContain("Còn phải trả: 1.000.000đ");
-    expect(result.content).toContain("đã trả một phần");
+    expect(result.content).toContain("SỐ TIỀN CẦN CHUYỂN: 1.005.000 ₫");
+    expect(result.content).toContain("Giá đại lý: 1.000.000 ₫");
+    expect(result.content).toContain("Phí hộp giấy: 5.000 ₫");
+    expect(result.content).toContain("0011000123456");
+    expect(result.content).toContain("Link QR: https://qr.example/abc");
   });
 
-  test("quá hạn mà còn nợ → đánh dấu ĐÃ QUÁ HẠN", async () => {
-    const overdue = new FakeOrders([makeOrder()], [makePayment({ dueAt: Date.UTC(2020, 0, 1) })]);
-    const result = await buildOrderPaymentTool({ ...ctx, orders: overdue }).run({ ma_don: "DH-1" });
-    expect(result.content).toContain("ĐÃ QUÁ HẠN");
+  test("nội dung chuyển khoản in NGUYÊN VĂN + cấm hiểu nhầm thành COD", async () => {
+    const result = await buildOrderPaymentTool(ctx).run({ ma_van_don: "VTP01" });
+    expect(result.content).toContain("Nội dung chuyển khoản: NAP DL001");
+    expect(result.content).toContain("NGUYÊN VĂN");
+    expect(result.content).toContain("KHÔNG phải tiền COD");
   });
 
-  test("trả đủ rồi thì hạn cũ KHÔNG bị gắn quá hạn", async () => {
-    const paid = new FakeOrders(
-      [makeOrder()],
-      [makePayment({ status: PaymentStatus.DaThanhToan, paidAmount: 1_200_000, remainingAmount: 0, dueAt: Date.UTC(2020, 0, 1) })],
-    );
-    const result = await buildOrderPaymentTool({ ...ctx, orders: paid }).run({ ma_don: "DH-1" });
-    expect(result.content).not.toContain("QUÁ HẠN");
+  test("đơn của đại lý khác → không thấy, KHÔNG rò số tiền", async () => {
+    const result = await buildOrderPaymentTool(ctx).run({ ma_van_don: "VTP02" });
+    expect(result.content).toContain("Không thấy đơn");
+    expect(result.content).not.toContain("999");
   });
 
-  test("đơn của đại lý khác → không có dữ liệu (không rò số tiền)", async () => {
-    const result = await buildOrderPaymentTool(ctx).run({ ma_don: "DH-2" });
-    expect(result.content).toContain("Không có dữ liệu thanh toán");
-    expect(result.content).not.toContain("đ\n- Đã trả");
-  });
-
-  test("thiếu mã đơn → isError, bảo model chốt đơn trước", async () => {
+  test("thiếu mã vận đơn → isError, bảo model chốt đơn trước", async () => {
     const result = await buildOrderPaymentTool(ctx).run({});
     expect(result.isError).toBe(true);
     expect(result.content).toContain("tra_don_hang");
   });
+
+  test("API vận hành lỗi → báo trục trặc, KHÔNG kể thành 'không có đơn'", async () => {
+    const tool = buildOrderPaymentTool({ ...ctx, orders: new BrokenOrders() });
+    const result = await tool.run({ ma_van_don: "VTP01" });
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("KHÔNG nói là không tìm thấy");
+  });
+
+  test("không xác định được đại lý → isError, KHÔNG tra bừa", async () => {
+    const untouched = new FakeOrders(
+      [{ dealerId: "dealer-1", order: makeOrder() }],
+      {},
+      { VTP01: makePayment() },
+    );
+    const tool = buildOrderPaymentTool({ skills, identity: GUEST, orders: untouched });
+    expect((await tool.run({ ma_van_don: "VTP01" })).isError).toBe(true);
+    expect(untouched.seen).toHaveLength(0);
+  });
 });
 
 describe("video_don_hang", () => {
-  const clips = [makeVideo(), makeVideo({ kind: OrderVideoKind.KhuiHoan, url: "https://media.example/v/dh-1-hoan" })];
-  const orders = new FakeOrders([makeOrder()], [], clips);
+  const orders = new FakeOrders([{ dealerId: "dealer-1", order: makeOrder() }], {
+    VTP01: [makeLink()],
+  });
   const ctx = { skills, identity: GUEST, roomCustomerId: "dealer-1", orders };
 
-  test("không truyền loại → trả mọi video kèm hạn link", async () => {
-    const result = await buildOrderVideoTool(ctx).run({ ma_don: "DH-1" });
+  test("có video → trả link kèm hạn + nhắc 15 phút", async () => {
+    const result = await buildOrderVideoTool(ctx).run({ ma_van_don: "VTP01" });
     expect(result.isError).toBeFalsy();
-    expect(result.content).toContain("video đóng gói");
-    expect(result.content).toContain("video khui hàng hoàn");
-    expect(result.content).toContain("Link hết hạn: 2026-08-02");
+    expect(result.content).toContain("https://media.example/v/VTP01?token=abc");
+    expect(result.content).toContain("15 phút");
+    expect(result.content).toContain("Hết hạn lúc");
   });
 
-  test("lọc theo loại khui_hoan → chỉ video hoàn", async () => {
-    const result = await buildOrderVideoTool(ctx).run({ ma_don: "DH-1", loai: "khui_hoan" });
-    expect(result.content).toContain("khui hàng hoàn");
-    expect(result.content).not.toContain("dh-1-hoan\n  Link hết hạn\n- video đóng gói");
-    expect(result.content.split("- ").length - 1).toBe(1);
-  });
-
-  test("loại lạ do model bịa → isError, KHÔNG âm thầm bỏ filter", async () => {
-    const result = await buildOrderVideoTool(ctx).run({ ma_don: "DH-1", loai: "camera_kho" });
-    expect(result.isError).toBe(true);
-    expect(result.content).toContain("dong_goi");
-  });
-
-  test("đơn không thuộc đại lý / chưa có video → nói chưa có, không hứa gửi sau", async () => {
-    const result = await buildOrderVideoTool(ctx).run({ ma_don: "DH-999" });
+  test("đơn không thuộc đại lý / chưa quay → nói chưa có, không hứa gửi sau", async () => {
+    const result = await buildOrderVideoTool(ctx).run({ ma_van_don: "VTP999" });
     expect(result.isError).toBeFalsy();
-    expect(result.content).toContain("chưa có");
+    expect(result.content).toContain("chưa có video");
     expect(result.content).toContain("Không hứa gửi sau");
   });
 
-  test("thiếu mã đơn → isError", async () => {
-    expect((await buildOrderVideoTool(ctx).run({})).isError).toBe(true);
+  test("API vận hành lỗi → báo trục trặc, KHÔNG kể thành 'chưa có video'", async () => {
+    const tool = buildOrderVideoTool({ ...ctx, orders: new BrokenOrders() });
+    const result = await tool.run({ ma_van_don: "VTP01" });
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("KHÔNG nói là không tìm thấy");
+  });
+
+  test("thiếu mã vận đơn → isError, bảo model chốt đơn trước", async () => {
+    const result = await buildOrderVideoTool(ctx).run({});
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("tra_don_hang");
   });
 });
 
@@ -306,7 +421,7 @@ describe("buildToolRegistry", () => {
   });
 
   test("KHÔNG schema nào chứa trường danh tính (chống confused-deputy)", () => {
-    const forbidden = ["identity", "role", "user_id", "userId", "customer_id", "customerId", "sender_id", "senderId"];
+    const forbidden = ["identity", "role", "user_id", "userId", "customer_id", "customerId", "sender_id", "senderId", "dealer_id", "dealerId"];
     const all = [...COMMON_TOOLS, ...ORDER_TOOLS];
     for (const schema of buildToolRegistry(all, { skills, identity: GUEST }).schemas()) {
       const serialized = JSON.stringify(schema.inputSchema);

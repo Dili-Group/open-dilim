@@ -160,6 +160,14 @@ export const CONFIG = {
     serviceToken: required("OPERATIONAL_SERVICE_TOKEN"),
   },
 
+  // API nghiệp vụ `/agent/*` (tra đơn, camera). Base URL + token RIÊNG với agent-session ở trên:
+  // hai bề mặt khác nhau, scope token khác nhau — dùng chung một biến là cấp thừa quyền.
+  // Vd DILIM_API_URL=https://api.dilisupplement.com/api (kèm cả tiền tố /api).
+  agentApi: {
+    baseUrl: required("DILIM_API_URL"),
+    serviceToken: required("SERVICE_TOKEN_AGENT_API"),
+  },
+
   // LLM
   provider,
   model: required("MODEL"),
