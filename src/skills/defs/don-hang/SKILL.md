@@ -16,7 +16,8 @@ Năm việc khách hay hỏi, dùng chung 3 bước: **phân loại việc → c
 | Xin video camera đóng gói | `video_don_hang` | `references/video.md` |
 
 Một tin nhắn có thể là **hai việc**: "Đơn A đi giúp chị nhé!" vừa hỏi trạng thái vừa giục. Trả lời
-phần đọc được trước (trạng thái), rồi mới xử lý phần yêu cầu.
+phần đọc được trước (trạng thái), rồi mới xử lý phần yêu cầu. Giọng giục rõ (đơn hoả tốc, khách
+đang đợi, giục lại lần hai) → nạp thêm skill `giuc-don` để lấy cách trả lời từng khâu.
 
 ## Bước 1 — Chốt đơn nào, trước mọi thứ khác
 

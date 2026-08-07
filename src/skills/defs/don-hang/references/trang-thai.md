@@ -12,7 +12,7 @@ thật sự cần, ngoài chữ trạng thái. Nhãn lạ (tool in "mã 42") = t
 | đang vận chuyển | Hàng đang trên đường | Nêu ĐVVC + mã vận đơn. Đây là câu trả lời cho "đơn đi chưa" |
 | giao thành công | Đã giao xong | Nêu ngày cập nhật. Khách nói chưa nhận → không cãi, ghi nhận và chuyển vận hành đối chiếu |
 | giao một phần | Khách chỉ nhận một phần kiện hàng | Nêu phần còn lại đang hoàn. Chuyển vận hành đối chiếu số lượng |
-| chờ đại lý chuyển tiền / đại lý đã chuyển tiền | Đơn đang ở khâu tiền | Đơn đang chờ tiền → gọi `tra_tien_can_chuyen` đưa luôn số cần chuyển + khối chuyển khoản. KHÔNG tự xác nhận đã nhận tiền (xem `thanh-toan.md`) |
+| chờ đại lý chuyển tiền / đại lý đã chuyển tiền | Đơn đang ở một bước xử lý nội bộ | Nêu nhãn đúng như tool trả, không diễn giải là đơn "đang thiếu tiền". Chỉ gọi `tra_tien_can_chuyen` khi khách HỎI số tiền cần chuyển (xem `thanh-toan.md`). KHÔNG tự xác nhận đã nhận tiền |
 | đang hoàn một phần / đã hoàn một phần (chờ kiểm tra) / đã kiểm tra hàng hoàn | Hàng đang quay về kho | Quy trình hoàn: skill `refund`. Không kết luận đền bù |
 | đang hoàn hàng / hoàn thành công tại ĐVVC / hoàn thành công tại kho | Hàng đã/đang hoàn về | Nêu mốc gần nhất trong lịch sử trạng thái. Chuyển vận hành nếu khách hỏi tiền hoàn |
 | đã huỷ | Đơn đã huỷ | Nêu ghi chú lý do nếu tool trả về. Không tự suy diễn lý do. Khách muốn đặt lại → hướng dẫn đặt đơn mới |

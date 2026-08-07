@@ -14,7 +14,7 @@ describe("registry (defs thật)", () => {
   test("buildSkillRegistry nạp mọi skill trong defs/", async () => {
     const registry = await buildSkillRegistry();
     const names = registry.catalog().map((m) => m.name).sort();
-    expect(names).toEqual(["don-hang", "refund"]);
+    expect(names).toEqual(["don-hang", "giuc-don", "refund"]);
   });
 
   test("catalog chỉ trả meta (name/description)", async () => {
