@@ -174,6 +174,122 @@ export interface DealerPort {
   ): Promise<DealerProfile | null>;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sổ ngày của đại lý (`GET /agent/daily/*`) — bốn endpoint cùng một hình dạng envelope.
+//
+// MỐC NGÀY KHÔNG PHẢI NGÀY TẠO ĐƠN: xuất kho tính theo `shipped_out_at`, hoàn tính theo
+// `returned_at`, cắt theo 00:00–24:00 giờ Việt Nam. Đơn tạo hôm qua mà xuất hôm nay thuộc HÔM NAY.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Bốn mục của sổ ngày. Giá trị là khoá nghiệp vụ, KHÔNG phải path (path nằm ở daily-api.ts). */
+export const DailySection = {
+  /** Đơn xuất kho trong ngày. */
+  Shipped: "xuat_kho",
+  /** Đơn hoàn về trong ngày. */
+  Returned: "hoan_ve",
+  /** Tiền đại lý phải chuyển cho công ty. */
+  Charges: "tien_phai_tra",
+  /** Tiền công ty trả lại đại lý. */
+  Refunds: "tien_hoan_lai",
+} as const;
+export type DailySection = (typeof DailySection)[keyof typeof DailySection];
+
+/**
+ * `meta_data` của một mục: TỔNG CẢ NGÀY, không phải tổng của trang đang xem. Tool phải in số từ
+ * đây, KHÔNG cộng các dòng trong `lines`.
+ *
+ * Field thiếu/sai kiểu → undefined (tool nói thiếu mục đó), KHÔNG mặc định 0: "0 đơn" là câu trả
+ * lời khác hẳn "chưa tra được".
+ */
+export interface DailyMeta {
+  /** Ngày backend đã chuẩn hoá về ISO `YYYY-MM-DD`. */
+  readonly date?: string;
+  readonly dealerCode?: string;
+  readonly page?: number;
+  readonly pageSize?: number;
+  /** Số đơn CẢ NGÀY khớp mục này. */
+  readonly totalItems?: number;
+  readonly totalPages?: number;
+  /** Tổng số sản phẩm cả ngày (chỉ mục đơn xuất/hoàn). */
+  readonly totalQuantity?: number;
+  /** Tổng tiền cả ngày, chuỗi VND nguyên. */
+  readonly totalAmount?: string;
+  /** Riêng `charges`: phần tiền hàng và phí thùng carton tách khỏi `totalAmount`. */
+  readonly goodsAmount?: string;
+  readonly cartonFee?: string;
+}
+
+/** Một dòng hàng trong đơn của sổ ngày. `isGift` = hàng tặng, `lineAmount` khi đó là "0". */
+export interface DailyOrderItem {
+  readonly sku?: string;
+  readonly productName?: string;
+  readonly quantity?: number;
+  readonly isGift?: boolean;
+  readonly lineAmount?: string;
+}
+
+/** Một đơn trong mục xuất kho / hoàn về. `at` = mốc xuất kho hoặc mốc hoàn, tuỳ mục. */
+export interface DailyOrderLine {
+  readonly trackingNumber: string;
+  readonly createdAt?: string;
+  readonly at?: string;
+  readonly quantity?: number;
+  readonly goodsAmount?: string;
+  readonly items: readonly DailyOrderItem[];
+}
+
+/** Một đơn trong mục tiền phải trả. `amount` = goodsAmount + cartonFee, do BACKEND cộng. */
+export interface DailyChargeLine {
+  readonly trackingNumber: string;
+  readonly shippedAt?: string;
+  readonly quantity?: number;
+  readonly goodsAmount?: string;
+  readonly cartonFee?: string;
+  readonly amount?: string;
+}
+
+/** Một đơn trong mục tiền hoàn lại. Không có phí thùng ở chiều này. */
+export interface DailyRefundLine {
+  readonly trackingNumber: string;
+  readonly returnedAt?: string;
+  readonly quantity?: number;
+  readonly amount?: string;
+}
+
+export type DailyLine = DailyOrderLine | DailyChargeLine | DailyRefundLine;
+
+/** Một trang của một mục: tổng cả ngày (`meta`) + các dòng của TRANG đang xem (`lines`). */
+export interface DailyPage<Line extends DailyLine> {
+  readonly meta: DailyMeta;
+  readonly lines: readonly Line[];
+}
+
+/** Tham số chung của mọi lời gọi sổ ngày. `date` do tool validate trước, không để LLM tự do. */
+export type DailyQuery = OrderPrincipal & {
+  /** `DD-MM-YYYY` hoặc `YYYY-MM-DD`. Backend nhận cả hai, trả về đã chuẩn hoá ISO. */
+  readonly date: string;
+  readonly page?: number;
+  readonly pageSize?: number;
+  readonly signal?: AbortSignal;
+};
+
+/**
+ * Cổng ĐỌC sổ ngày của đại lý. CHỈ ĐỌC — không có đường xác nhận đã chuyển tiền.
+ *
+ * Số liệu bốn mục này KHỚP với file kỳ đối soát. Đại lý báo lệch → KHÔNG tự tính lại, hỏi mã vận
+ * đơn cụ thể rồi tra qua `OrderPort.detail`.
+ */
+export interface DailyPort {
+  /** Đơn xuất kho trong ngày (mốc `shipped_out_at`). */
+  shippedOrders(q: DailyQuery): Promise<DailyPage<DailyOrderLine>>;
+  /** Đơn hoàn về trong ngày (mốc `returned_at`). */
+  returnedOrders(q: DailyQuery): Promise<DailyPage<DailyOrderLine>>;
+  /** Tiền đại lý phải chuyển cho công ty: tiền hàng + phí thùng. KHÔNG phải COD khách trả. */
+  charges(q: DailyQuery): Promise<DailyPage<DailyChargeLine>>;
+  /** Tiền công ty trả lại đại lý cho hàng hoàn. Không có phí thùng. */
+  refunds(q: DailyQuery): Promise<DailyPage<DailyRefundLine>>;
+}
+
 /**
  * Cổng ĐỌC đơn hàng. CHỈ ĐỌC: huỷ/sửa đơn là WRITE, đi qua nhân viên vận hành cho tới khi có
  * approval gate (§6).

@@ -28,6 +28,13 @@ const timeFormat = new Intl.DateTimeFormat("en-GB", {
   minute: "2-digit",
   hourCycle: "h23",
 });
+// `YYYY-MM-DD` giờ VN cho tham số ngày gửi backend. Locale en-CA cho đúng thứ tự năm-tháng-ngày.
+const isoDateFormat = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 /**
  * Đại lý được phép tra trong lượt này: CHỦ PHÒNG trước (nhân viên gõ trong nhóm đại lý X vẫn tra
@@ -113,6 +120,49 @@ export function formatDate(iso: string | undefined): string | undefined {
 /** ISO 8601 → `HH:mm dd/mm/YYYY` giờ VN. Dùng cho mốc cần giờ: hạn link, lịch sử trạng thái. */
 export function formatDateTime(iso: string | undefined): string | undefined {
   return formatWith((date) => `${timeFormat.format(date)} ${dateFormat.format(date)}`, iso);
+}
+
+/**
+ * Hôm nay theo giờ VN, dạng `YYYY-MM-DD`. Dùng cho tool sổ ngày: giờ máy chủ có thể là UTC, lấy
+ * ngày theo UTC là lệch một ngày trong khoảng 00:00–07:00 sáng VN — đúng lúc đại lý chốt sổ hôm trước.
+ */
+export function todayInVietnam(now: Date = new Date()): string {
+  return isoDateFormat.format(now);
+}
+
+/**
+ * `a - b` trên chuỗi tiền, làm bằng BigInt scale 2 chữ số thập phân — KHÔNG parseFloat: hiệu của hai
+ * số tiền đi qua float 64-bit là số tiền có thể lệch. Một trong hai không parse được → undefined
+ * (nơi gọi bỏ hẳn dòng, không in một con số nửa vời).
+ */
+export function subtractMoney(a: string | undefined, b: string | undefined): string | undefined {
+  const left = toScaled(a);
+  const right = toScaled(b);
+  if (left === undefined || right === undefined) return undefined;
+  return fromScaled(left - right);
+}
+
+const MONEY_SCALE = 2n;
+const MONEY_UNIT = 100n;
+
+function toScaled(raw: string | undefined): bigint | undefined {
+  if (raw === undefined) return undefined;
+  const match = /^(-?)(\d+)(?:[.,](\d+))?$/.exec(raw.trim());
+  if (match === null) return undefined;
+  const whole = match[2] ?? "0";
+  // Cắt/đệm phần thập phân về đúng 2 chữ số: NUMERIC(15,2) không có chữ số thứ ba đáng kể.
+  const fraction = (match[3] ?? "").padEnd(Number(MONEY_SCALE), "0").slice(0, Number(MONEY_SCALE));
+  const magnitude = BigInt(whole) * MONEY_UNIT + BigInt(fraction);
+  return match[1] === "-" ? -magnitude : magnitude;
+}
+
+function fromScaled(value: bigint): string {
+  const negative = value < 0n;
+  const magnitude = negative ? -value : value;
+  const whole = magnitude / MONEY_UNIT;
+  const fraction = magnitude % MONEY_UNIT;
+  const decimals = fraction === 0n ? "" : `.${String(fraction).padStart(Number(MONEY_SCALE), "0")}`;
+  return `${negative ? "-" : ""}${whole}${decimals}`;
 }
 
 function formatWith(render: (date: Date) => string, iso: string | undefined): string | undefined {

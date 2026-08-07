@@ -36,12 +36,13 @@ const MAX_JOBS_PER_GROUP = 10;
 const MAX_TASK_CHARS = 300;
 
 /** Khoá đã bỏ dấu (foldVietnamese) → `xóa`/`xoa`, `tắt`/`tat` đều trúng, không liệt kê hai lần. */
-const SUBCOMMANDS: Readonly<Record<string, "delete" | "off" | "on" | "edit">> = {
-  xoa: "delete",
-  tat: "off",
-  bat: "on",
-  sua: "edit",
-};
+const SUBCOMMANDS: Readonly<Record<string, "delete" | "off" | "on" | "edit">> =
+  {
+    xoa: "delete",
+    tat: "off",
+    bat: "on",
+    sua: "edit",
+  };
 
 const TIME_ZONE = "Asia/Ho_Chi_Minh";
 const runAtFormat = new Intl.DateTimeFormat("en-GB", {
@@ -59,8 +60,9 @@ const USAGE =
 
 const lich: FlashCommand = {
   name: "lich",
-  description: "Quản việc chạy theo giờ của nhóm: /lich · /lich 17:00 <việc> · /lich sua|tat|bat|xoa <mã>",
-  allowedRoles: [ActorRole.NhanVien],
+  description:
+    "Quản việc chạy theo giờ của nhóm: /lich · /lich 17:00 <việc> · /lich sua|tat|bat|xoa <mã>",
+  allowedRoles: [ActorRole.NhanVien, ActorRole.DaiLy],
 
   async handler(ctx) {
     if (ctx.groupId === undefined) return fail("Lệnh này chỉ dùng trong nhóm.");
@@ -72,7 +74,8 @@ const lich: FlashCommand = {
     if (sub === undefined) return createJob(ctx, ctx.groupId, first, rest);
 
     const shortId = rest[0];
-    if (shortId === undefined) return fail(`Thiếu mã việc. Gõ /lich để xem mã.\n${USAGE}`);
+    if (shortId === undefined)
+      return fail(`Thiếu mã việc. Gõ /lich để xem mã.\n${USAGE}`);
 
     switch (sub) {
       case "delete":
@@ -107,9 +110,14 @@ async function createJob(
   const task = readTask(taskWords);
   if (typeof task !== "string") return task;
 
-  const existing = await ctx.jobs.listByTarget({ channel: ctx.channel, target: groupId });
+  const existing = await ctx.jobs.listByTarget({
+    channel: ctx.channel,
+    target: groupId,
+  });
   if (existing.filter((job) => job.enabled).length >= MAX_JOBS_PER_GROUP) {
-    return fail(`Nhóm này đã có ${MAX_JOBS_PER_GROUP} việc đang bật. Tắt bớt (/lich tat <mã>) trước.`);
+    return fail(
+      `Nhóm này đã có ${MAX_JOBS_PER_GROUP} việc đang bật. Tắt bớt (/lich tat <mã>) trước.`,
+    );
   }
 
   const schedule = dailyCron(time);
@@ -134,8 +142,14 @@ async function createJob(
 // Read
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function listJobs(ctx: FlashContext, groupId: string): Promise<FlashResult> {
-  const jobs = await ctx.jobs.listByTarget({ channel: ctx.channel, target: groupId });
+async function listJobs(
+  ctx: FlashContext,
+  groupId: string,
+): Promise<FlashResult> {
+  const jobs = await ctx.jobs.listByTarget({
+    channel: ctx.channel,
+    target: groupId,
+  });
   if (jobs.length === 0) {
     return ok(`Nhóm này chưa có việc theo giờ nào.\n${USAGE}`);
   }
@@ -169,7 +183,9 @@ async function editJob(
 ): Promise<FlashResult> {
   const [head, ...tail] = words;
   if (head === undefined) {
-    return fail(`Thiếu phần cần sửa. Ví dụ: /lich sua ${shortId} 18:00 — hoặc /lich sua ${shortId} <việc mới>.`);
+    return fail(
+      `Thiếu phần cần sửa. Ví dụ: /lich sua ${shortId} 18:00 — hoặc /lich sua ${shortId} <việc mới>.`,
+    );
   }
 
   const time = parseDailyTime(head);
@@ -198,7 +214,11 @@ async function editJob(
     );
   }
   if (task !== undefined) changes.push(`việc: "${task}"`);
-  return ok([`Đã sửa việc [${shortId}]:`, ...changes.map((line) => `• ${line}`)].join("\n"));
+  return ok(
+    [`Đã sửa việc [${shortId}]:`, ...changes.map((line) => `• ${line}`)].join(
+      "\n",
+    ),
+  );
 }
 
 async function toggleJob(
@@ -240,7 +260,9 @@ async function removeJob(
     shortId: shortId.toLowerCase(),
   });
   if (!removed) return notFound(shortId);
-  return ok(`Đã xoá hẳn việc [${shortId}]. Muốn dùng lại phải đặt mới bằng /lich <giờ> <việc>.`);
+  return ok(
+    `Đã xoá hẳn việc [${shortId}]. Muốn dùng lại phải đặt mới bằng /lich <giờ> <việc>.`,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -248,17 +270,23 @@ async function removeJob(
 // ─────────────────────────────────────────────────────────────────────────────
 
 function notFound(shortId: string): FlashResult {
-  return fail(`Không thấy việc nào mã "${shortId}" ở nhóm này. Gõ /lich để xem lại.`);
+  return fail(
+    `Không thấy việc nào mã "${shortId}" ở nhóm này. Gõ /lich để xem lại.`,
+  );
 }
 
 /** Trả string khi hợp lệ, FlashResult lỗi khi không — caller narrow bằng typeof. */
 function readTask(words: readonly string[]): string | FlashResult {
   const task = words.join(" ").trim();
   if (task.length === 0) {
-    return fail("Thiếu mô tả việc. Ví dụ: /lich 17:00 gửi báo cáo cuối ngày cho nhóm.");
+    return fail(
+      "Thiếu mô tả việc. Ví dụ: /lich 17:00 gửi báo cáo cuối ngày cho nhóm.",
+    );
   }
   if (task.length > MAX_TASK_CHARS) {
-    return fail(`Mô tả dài quá ${MAX_TASK_CHARS} ký tự. Viết ngắn lại, phần quy trình để trong skill.`);
+    return fail(
+      `Mô tả dài quá ${MAX_TASK_CHARS} ký tự. Viết ngắn lại, phần quy trình để trong skill.`,
+    );
   }
   return task;
 }
@@ -280,7 +308,9 @@ function clockOf(time: { hour: number; minute: number }): string {
  * Giờ người Việt gõ: `17`, `17h`, `17:00`, `17h30`, `17.30`, `7:05`. Không nhận cron expr —
  * người gõ lệnh là nhân viên, không phải người viết cron; lịch phức tạp đặt thẳng bằng SQL.
  */
-export function parseDailyTime(text: string): { hour: number; minute: number } | undefined {
+export function parseDailyTime(
+  text: string,
+): { hour: number; minute: number } | undefined {
   const match = /^(\d{1,2})(?:[h:.](\d{1,2})?)?$/.exec(text.trim());
   if (match === null) return undefined;
 

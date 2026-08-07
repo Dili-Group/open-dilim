@@ -2,7 +2,7 @@
 // báo; luồng chạy lượt nằm ở agents/runtime/build-agent.ts.
 
 import { customerSupportSpec } from "../../state/specs.ts";
-import { COMMON_TOOLS, DEALER_TOOLS, ORDER_TOOLS } from "../../tools/index.ts";
+import { COMMON_TOOLS, DAILY_TOOLS, DEALER_TOOLS, ORDER_TOOLS } from "../../tools/index.ts";
 import { DEALER_PROMPT } from "../prompts.ts";
 import { AgentType, type RootAgentProfile } from "../types.ts";
 
@@ -12,5 +12,5 @@ export const dealerProfile: RootAgentProfile = {
   directOnly: false,
   prompt: DEALER_PROMPT,
   memorySpec: customerSupportSpec,
-  tools: [...COMMON_TOOLS, ...ORDER_TOOLS, ...DEALER_TOOLS],
+  tools: [...COMMON_TOOLS, ...ORDER_TOOLS, ...DEALER_TOOLS, ...DAILY_TOOLS],
 };

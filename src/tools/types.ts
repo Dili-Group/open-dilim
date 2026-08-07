@@ -5,7 +5,7 @@
 // SERVER-SIDE qua closure lúc dựng tool cho request — xem buildTools(identity) trong index.ts.
 
 import type { Identity } from "../flash-command/types.ts";
-import type { DealerPort, OrderPort } from "../operational/types.ts";
+import type { DailyPort, DealerPort, OrderPort } from "../operational/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 
 export interface ToolResult {
@@ -54,6 +54,8 @@ export interface ToolContext {
   readonly orders?: OrderPort;
   /** Cổng đọc hồ sơ đại lý (bậc chiết khấu). undefined = chưa nối → tool trả lỗi nghiệp vụ. */
   readonly dealer?: DealerPort;
+  /** Cổng đọc sổ ngày (xuất kho/hoàn/tiền phải trả/tiền hoàn). undefined = chưa nối → tool trả lỗi. */
+  readonly daily?: DailyPort;
 }
 
 export type ToolFactory = (ctx: ToolContext) => Tool;

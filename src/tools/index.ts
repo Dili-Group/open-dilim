@@ -11,6 +11,7 @@ import { buildOrderStatusTool } from "./impl/order/status.ts";
 import { buildOrderPaymentTool } from "./impl/order/payment.ts";
 import { buildOrderVideoTool } from "./impl/order/video.ts";
 import { buildDealerProfileTool } from "./impl/dealer/profile.ts";
+import { buildDailyDetailTool, buildDailyReportTool } from "./impl/dealer/daily.ts";
 
 /** Bộ tool ai cũng có: biết mình là ai + đọc skill/reference. Không chạm dữ liệu nghiệp vụ. */
 export const COMMON_TOOLS: readonly ToolFactory[] = [
@@ -44,6 +45,18 @@ export const ORDER_TOOLS: readonly ToolFactory[] = [
  */
 export const DEALER_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildDealerProfileTool(ctx),
+];
+
+/**
+ * Tool SỔ NGÀY: chốt sổ một ngày của đại lý (xuất kho, hoàn về, tiền phải chuyển, tiền được trả
+ * lại) và liệt kê từng đơn của một mục. Cùng phạm vi đại lý như ORDER_TOOLS.
+ *
+ * Số ở đây tính theo NGÀY XUẤT/HOÀN KHO, không phải ngày tạo đơn, và khớp file kỳ đối soát — đây
+ * là nguồn duy nhất cho skill `bao-cao-cuoi-ngay`. CHỈ ĐỌC: không có đường xác nhận đã chuyển tiền.
+ */
+export const DAILY_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildDailyReportTool(ctx),
+  (ctx: ToolContext): Tool => buildDailyDetailTool(ctx),
 ];
 
 /**

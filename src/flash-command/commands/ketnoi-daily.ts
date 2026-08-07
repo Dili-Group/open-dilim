@@ -17,7 +17,10 @@ const ketnoiDaily: FlashCommand = {
     const { actorUserId, groupId, targetUid } = scoped.scope;
 
     // Người được mention đang là nhân viên → không hạ thành đại lý (nhầm vai → lộ/mất quyền).
-    const alreadyStaff = await ctx.repo.isBoundUser({ channel: ctx.channel, senderId: targetUid });
+    const alreadyStaff = await ctx.repo.isBoundUser({
+      channel: ctx.channel,
+      senderId: targetUid,
+    });
     if (alreadyStaff) {
       return fail("Người này là nhân viên, không gán làm đại lý.");
     }
@@ -28,7 +31,9 @@ const ketnoiDaily: FlashCommand = {
       senderId: ctx.identity.senderId,
     });
     if (opToken === null) {
-      return fail("Bạn chưa kết nối tài khoản hệ vận hành. Gõ /ketnoi-hethong <token> trước.");
+      return fail(
+        "Bạn chưa kết nối tài khoản hệ vận hành. Gõ /ketnoi-hethong <token> trước.",
+      );
     }
 
     // customer_id KHÔNG nhập tay → hệ vận hành tra theo NHÓM (dealers.zalo_group_id), act-as bằng

@@ -48,9 +48,7 @@ export interface OpsPort {
    * `roleSlug`/`fullName` = vai + tên nhân viên hệ vận hành trả kèm; undefined nếu response thiếu
    * (không bắt buộc — chỉ `userId` là điều kiện bind).
    */
-  resolveUserByToken(
-    token: string,
-  ): Promise<{
+  resolveUserByToken(token: string): Promise<{
     userId: string;
     roleSlug?: string;
     fullName?: string;
@@ -111,7 +109,11 @@ export interface IdentityRepo {
    * Chặn nhóm: agent ngừng trả lời tin thường ở đây (flash command VẪN chạy để /unlock gỡ được).
    * Idempotent — chặn lại nhóm đang chặn chỉ cập nhật ai chặn. `blockedBy` = user_id nhân viên.
    */
-  blockGroup(p: { channel: string; groupId: string; blockedBy: string }): Promise<void>;
+  blockGroup(p: {
+    channel: string;
+    groupId: string;
+    blockedBy: string;
+  }): Promise<void>;
   /** Gỡ chặn nhóm. No-op nếu nhóm không bị chặn. */
   unblockGroup(p: { channel: string; groupId: string }): Promise<void>;
   /** True = nhóm đang bị chặn. Worker kiểm trước khi chạy agent. */

@@ -33,6 +33,8 @@ export const AgentApiErrorCode = {
   InsufficientPermissions: "AUTH_INSUFFICIENT_PERMISSIONS",
   /** Không có đơn đó THUỘC đại lý này (đơn của đại lý khác cũng ra mã này, không phải 403). */
   OrderNotFound: "ORDER_NOT_FOUND",
+  /** Ngày sai định dạng hoặc không tồn tại (sổ ngày) — input người dùng sai, hỏi lại ngày. */
+  InvalidDate: "AGENT_INVALID_DATE",
   /** Không phải mã của backend: response 2xx nhưng shape sai. */
   InvalidResponse: "AGENT_API_INVALID_RESPONSE",
   /** Không phải mã của backend: mạng hỏng / timeout / abort. */
@@ -208,10 +210,13 @@ export function readEnvelopeData(body: unknown, path: string): unknown {
   return body.data;
 }
 
-/** Đọc `meta` của envelope danh sách. Thiếu/sai kiểu → {} (meta không phải dữ liệu bắt buộc). */
-export function readEnvelopeMeta(body: unknown): Record<string, unknown> {
+/**
+ * Đọc khối meta của envelope danh sách. Thiếu/sai kiểu → {} (meta không phải dữ liệu bắt buộc).
+ * `key` vì backend không thống nhất: `/agent/orders` trả `meta`, `/agent/daily/*` trả `meta_data`.
+ */
+export function readEnvelopeMeta(body: unknown, key = "meta"): Record<string, unknown> {
   if (typeof body !== "object" || body === null) return {};
-  const meta = (body as Record<string, unknown>)["meta"];
+  const meta = (body as Record<string, unknown>)[key];
   return typeof meta === "object" && meta !== null ? (meta as Record<string, unknown>) : {};
 }
 

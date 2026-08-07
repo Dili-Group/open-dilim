@@ -58,6 +58,7 @@ class ProfileRootAgent implements RootAgent {
           roomCustomerId: input.roomCustomerId,
           orders: this.deps.orders,
           dealer: this.deps.dealer,
+          daily: this.deps.daily,
         }),
         maxTokens: this.deps.config.maxTokens,
         effort: this.deps.config.effort,

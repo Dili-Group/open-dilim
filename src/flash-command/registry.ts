@@ -4,7 +4,17 @@
 // tên lạ, thiếu quyền, handler ném) trả về structured, KHÔNG crash caller (cô lập per-message).
 
 import { foldVietnamese } from "./normalize.ts";
-import { fail, type FlashCommand, type FlashContext, type FlashResult, type Identity, type JobAdmin, type Mention, type OpsPort, type IdentityRepo } from "./types.ts";
+import {
+  fail,
+  type FlashCommand,
+  type FlashContext,
+  type FlashResult,
+  type Identity,
+  type JobAdmin,
+  type Mention,
+  type OpsPort,
+  type IdentityRepo,
+} from "./types.ts";
 
 const COMMAND_PREFIX = "/";
 
@@ -19,7 +29,10 @@ export function parseCommand(text: string): ParsedCommand | null {
   const trimmed = text.trimStart();
   if (!trimmed.startsWith(COMMAND_PREFIX)) return null;
 
-  const tokens = trimmed.slice(COMMAND_PREFIX.length).split(/\s+/).filter((t) => t.length > 0);
+  const tokens = trimmed
+    .slice(COMMAND_PREFIX.length)
+    .split(/\s+/)
+    .filter((t) => t.length > 0);
   const name = tokens[0];
   // "/" trơ hoặc "/   " → không có tên → không coi là lệnh.
   if (name === undefined) return null;
@@ -69,7 +82,10 @@ export class FlashRegistry {
    * - null  → text KHÔNG phải lệnh (để agent xử lý).
    * - FlashResult → đã xử lý (kể cả lỗi tên/quyền/handler — luôn có reply).
    */
-  async dispatch(text: string, input: DispatchInput): Promise<FlashResult | null> {
+  async dispatch(
+    text: string,
+    input: DispatchInput,
+  ): Promise<FlashResult | null> {
     const parsed = parseCommand(text);
     if (parsed === null) return null;
 
@@ -78,7 +94,10 @@ export class FlashRegistry {
       return fail(`Lệnh không tồn tại: /${parsed.name}`);
     }
 
-    if (command.allowedRoles && !command.allowedRoles.includes(input.identity.role)) {
+    if (
+      command.allowedRoles &&
+      !command.allowedRoles.includes(input.identity.role)
+    ) {
       return fail(`Không đủ quyền chạy /${parsed.name}`);
     }
 
