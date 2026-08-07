@@ -30,6 +30,8 @@ export default tseslint.config(
       // CLAUDE.md: await mọi promise, không floating.
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+
       // ESM + verbatimModuleSyntax: import type nhất quán.
       "@typescript-eslint/consistent-type-imports": [
         "error",

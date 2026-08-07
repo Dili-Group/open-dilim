@@ -1,6 +1,7 @@
 ---
 name: giuc-don
 description: Đại lý hối đơn đi sớm — "đơn hoả tốc", "Grab gấp", "đi giúp chị", "khách đang đợi", "sao lâu vậy". Tra trạng thái thật rồi trả lời trấn an đúng khâu đơn đang nằm. Load kèm skill don-hang khi tin nhắn có giọng giục, không chỉ hỏi.
+agents: dealer
 ---
 
 # Giục đơn — đại lý hối cho đi sớm

@@ -5,7 +5,7 @@
 // SERVER-SIDE qua closure lúc dựng tool cho request — xem buildTools(identity) trong index.ts.
 
 import type { Identity } from "../flash-command/types.ts";
-import type { OrderPort } from "../operational/types.ts";
+import type { DealerPort, OrderPort } from "../operational/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 
 export interface ToolResult {
@@ -40,6 +40,11 @@ export interface ToolContext {
   readonly skills: SkillRegistry;
   readonly identity: Identity;
   /**
+   * Root agent đang chạy lượt — quyết định skill nào agent này ĐƯỢC nạp (use_skill/use_reference
+   * lọc theo đây). undefined = không lọc (test/dev); wiring thật luôn truyền (build-agent.ts).
+   */
+  readonly agentType?: string;
+  /**
    * Đại lý SỞ HỮU PHÒNG này (worker tra từ group_map), không phải đại lý của người gõ: nhân viên
    * gõ trong nhóm đại lý X thì Identity không mang X nhưng đơn hỏi vẫn là đơn của X.
    * undefined = phòng chưa `/ketnoi-daily`, hoặc chat 1-1.
@@ -47,6 +52,8 @@ export interface ToolContext {
   readonly roomCustomerId?: string;
   /** Cổng đọc đơn hàng. undefined = chưa nối hệ vận hành → tool tra đơn trả lỗi nghiệp vụ, không throw. */
   readonly orders?: OrderPort;
+  /** Cổng đọc hồ sơ đại lý (bậc chiết khấu). undefined = chưa nối → tool trả lỗi nghiệp vụ. */
+  readonly dealer?: DealerPort;
 }
 
 export type ToolFactory = (ctx: ToolContext) => Tool;

@@ -10,12 +10,13 @@ import { buildUseReferenceTool } from "./impl/use-reference.ts";
 import { buildOrderStatusTool } from "./impl/order/status.ts";
 import { buildOrderPaymentTool } from "./impl/order/payment.ts";
 import { buildOrderVideoTool } from "./impl/order/video.ts";
+import { buildDealerProfileTool } from "./impl/dealer/profile.ts";
 
 /** Bộ tool ai cũng có: biết mình là ai + đọc skill/reference. Không chạm dữ liệu nghiệp vụ. */
 export const COMMON_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildWhoamiTool(ctx.identity),
-  (ctx: ToolContext): Tool => buildUseSkillTool(ctx.skills),
-  (ctx: ToolContext): Tool => buildUseReferenceTool(ctx.skills),
+  (ctx: ToolContext): Tool => buildUseSkillTool(ctx.skills, ctx.agentType),
+  (ctx: ToolContext): Tool => buildUseReferenceTool(ctx.skills, ctx.agentType),
 ];
 
 /**
@@ -33,6 +34,16 @@ export const ORDER_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildOrderStatusTool(ctx),
   (ctx: ToolContext): Tool => buildOrderPaymentTool(ctx),
   (ctx: ToolContext): Tool => buildOrderVideoTool(ctx),
+];
+
+/**
+ * Tool đọc HỒ SƠ đại lý (bậc chiết khấu, người giới thiệu, nhân viên phụ trách) — cùng phạm vi
+ * như ORDER_TOOLS: đại lý của phòng, do server ép qua header, không nhận tham số đại lý.
+ *
+ * CHỈ ĐỌC. Nâng bậc chiết khấu là WRITE → chưa có tool, đi qua người duyệt — xem skill `chiet-khau`.
+ */
+export const DEALER_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildDealerProfileTool(ctx),
 ];
 
 /**

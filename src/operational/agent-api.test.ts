@@ -12,6 +12,7 @@ import {
   type FetchLike,
 } from "./agent-api.ts";
 import { AgentApiOrderPort } from "./order-api.ts";
+import { AgentApiDealerPort } from "./profile-api.ts";
 
 const BASE_URL = "https://api.example.test/api";
 const TOKEN = "service-token-test";
@@ -306,5 +307,82 @@ describe("AgentApiOrderPort", () => {
     );
 
     expect(port.payment({ dealerId: "42", trackingNumber: "VTP01" })).rejects.toThrow(AgentApiError);
+  });
+});
+
+describe("AgentApiDealerPort", () => {
+  test("profile: bóc envelope, đại lý đi bằng header (không phải query)", async () => {
+    const { fetchImpl, calls } = stubFetch(200, {
+      success: true,
+      data: {
+        code: "DL0123",
+        name: "Nguyễn Văn A",
+        joined_at: "2025-03-11",
+        referral_level: 2,
+        is_shareholder: false,
+        uses_brand: true,
+        referrer_code: "DL0007",
+        staff_name: "Trần C",
+        discount_tier_id: 12,
+        discount_tier_name: "F2",
+        discount_tier_label: "Đại lý cấp 2",
+        discount_effective_from: "2025-06-01",
+      },
+    });
+    const port = new AgentApiDealerPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    const profile = await port.profile({ dealerId: "42", staffId: "77" });
+    expect(profile?.code).toBe("DL0123");
+    expect(profile?.discountTierName).toBe("F2");
+    expect(profile?.discountTierLabel).toBe("Đại lý cấp 2");
+    // id bigint trả dạng số vẫn về chuỗi, không tính toán gì lên nó.
+    expect(profile?.discountTierId).toBe("12");
+    expect(profile?.referralLevel).toBe(2);
+    expect(profile?.isShareholder).toBe(false);
+    expect(calls[0]?.url).toBe(`${BASE_URL}/agent/profile`);
+    expect(calls[0]?.init.headers["x-dealer-id"]).toBe("42");
+    expect(calls[0]?.init.headers["x-staff-id"]).toBe("77");
+  });
+
+  test("profile: discount_* null → undefined (chưa xếp bậc), KHÔNG bịa bậc mặc định", async () => {
+    const { fetchImpl } = stubFetch(200, {
+      success: true,
+      data: {
+        code: "DL0999",
+        name: "Đại lý mới",
+        discount_tier_id: null,
+        discount_tier_name: null,
+        discount_tier_label: null,
+        discount_effective_from: null,
+      },
+    });
+    const port = new AgentApiDealerPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    const profile = await port.profile({ dealerId: "42" });
+    expect(profile?.code).toBe("DL0999");
+    expect(profile?.discountTierName).toBeUndefined();
+    expect(profile?.discountEffectiveFrom).toBeUndefined();
+  });
+
+  test("profile: 404 → null (không có hồ sơ), không phải sự cố", async () => {
+    const { fetchImpl } = stubFetch(404, { code: "NOT_FOUND", message: "no dealer" });
+    const port = new AgentApiDealerPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    expect(await port.profile({ dealerId: "42" })).toBeNull();
+  });
+
+  test("profile: 500 → throw (tool phải báo trục trặc, không báo 'chưa có bậc')", async () => {
+    const { fetchImpl } = stubFetch(500, { code: "INTERNAL", message: "boom" });
+    const port = new AgentApiDealerPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    expect(port.profile({ dealerId: "42" })).rejects.toThrow(AgentApiError);
   });
 });

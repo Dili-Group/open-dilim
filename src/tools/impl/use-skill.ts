@@ -9,7 +9,7 @@ import { useSkill, type UseSkillResult } from "../../skills/selector.ts";
 import { readStringField } from "../input.ts";
 import type { Tool, ToolResult } from "../types.ts";
 
-export function buildUseSkillTool(skills: SkillRegistry): Tool {
+export function buildUseSkillTool(skills: SkillRegistry, agentType?: string): Tool {
   return {
     name: "use_skill",
     description: "Nạp hướng dẫn đầy đủ của một skill trong danh sách skill có sẵn.",
@@ -23,7 +23,7 @@ export function buildUseSkillTool(skills: SkillRegistry): Tool {
       if (name === undefined) {
         return { content: 'Thiếu tham số "name" (chuỗi tên skill).', isError: true };
       }
-      const result = await useSkill(skills, name);
+      const result = await useSkill(skills, name, agentType);
       if (!result.ok) return { content: result.error, isError: true };
       return { content: render(result) };
     },

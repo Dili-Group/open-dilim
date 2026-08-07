@@ -63,9 +63,29 @@ function parseSkillDoc(raw: string, src: string): SkillDoc {
   }
 
   return {
-    meta: { name, description },
+    meta: { name, description, agents: parseAgents(fields.get("agents"), src) },
     body: lines.slice(closeIdx + 1).join("\n").trim(),
   };
+}
+
+/**
+ * `agents: dealer, operations` → danh sách tên agent. Vắng khoá = undefined = mọi agent thấy.
+ * Nhận cả kiểu YAML `[dealer, operations]` (non-dev hay chép theo mẫu YAML thật).
+ *
+ * Khai khoá mà không có tên nào → THROW: đó là lỗi soạn, và đoán nhầm thành "mọi agent" là mở
+ * skill ra rộng hơn ý người viết.
+ */
+function parseAgents(raw: string | undefined, src: string): readonly string[] | undefined {
+  if (raw === undefined) return undefined;
+  const names = raw
+    .replace(/^\[|\]$/g, "")
+    .split(",")
+    .map((name) => name.trim().toLowerCase())
+    .filter((name) => name.length > 0);
+  if (names.length === 0) {
+    throw new Error(`${src}: khoá "agents" khai rỗng — bỏ hẳn khoá nếu muốn mọi agent thấy.`);
+  }
+  return names;
 }
 
 /** Nạp 1 skill từ folder: đọc SKILL.md, parse frontmatter → meta. Body KHÔNG giữ (đọc lazy). */

@@ -4,7 +4,7 @@
 import type { Effort } from "../config.ts";
 import type { LLMProvider } from "../llm/types.ts";
 import type { Identity } from "../flash-command/types.ts";
-import type { OrderPort } from "../operational/types.ts";
+import type { DealerPort, OrderPort } from "../operational/types.ts";
 import type { AgentResult, HistoryEntry } from "../types/index.ts";
 import type { DistillSpec, MemoryRecall, MemoryScope } from "../state/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
@@ -39,6 +39,8 @@ export interface AgentDeps {
   readonly memory?: MemoryRecall;
   /** Cổng đọc đơn hàng cho tool tra đơn. undefined = chưa nối → tool trả lỗi nghiệp vụ, không chặn boot. */
   readonly orders?: OrderPort;
+  /** Cổng đọc hồ sơ đại lý cho tool tra bậc chiết khấu. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
+  readonly dealer?: DealerPort;
 }
 
 export interface AgentRunInput {

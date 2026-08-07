@@ -14,19 +14,19 @@ import {
 import type { ToolContext, ToolResult } from "../../types.ts";
 
 const TIME_ZONE = "Asia/Ho_Chi_Minh";
-const dateFormat = new Intl.DateTimeFormat("sv-SE", {
+// Định dạng người Việt đọc quen: `dd/mm/YYYY`, có giờ thì `HH:mm dd/mm/YYYY`. Locale en-GB cho
+// đúng thứ tự ngày/tháng/năm; `hourCycle: "h23"` để nửa đêm ra `00:xx`, không phải `24:xx`.
+const dateFormat = new Intl.DateTimeFormat("en-GB", {
   timeZone: TIME_ZONE,
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
 });
-const dateTimeFormat = new Intl.DateTimeFormat("sv-SE", {
+const timeFormat = new Intl.DateTimeFormat("en-GB", {
   timeZone: TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
   hour: "2-digit",
   minute: "2-digit",
+  hourCycle: "h23",
 });
 
 /**
@@ -105,20 +105,20 @@ export function carrierLabel(carrier: number | undefined): string | undefined {
   return CARRIER_LABEL[carrier] ?? `mã ${carrier}`;
 }
 
-/** ISO 8601 → `YYYY-MM-DD` giờ VN. Chuỗi không parse được → in nguyên (đừng nuốt dữ kiện). */
+/** ISO 8601 → `dd/mm/YYYY` giờ VN. Chuỗi không parse được → in nguyên (đừng nuốt dữ kiện). */
 export function formatDate(iso: string | undefined): string | undefined {
-  return formatWith(dateFormat, iso);
+  return formatWith((date) => dateFormat.format(date), iso);
 }
 
-/** ISO 8601 → `YYYY-MM-DD HH:mm` giờ VN. Dùng cho mốc cần giờ: hạn link, lịch sử trạng thái. */
+/** ISO 8601 → `HH:mm dd/mm/YYYY` giờ VN. Dùng cho mốc cần giờ: hạn link, lịch sử trạng thái. */
 export function formatDateTime(iso: string | undefined): string | undefined {
-  return formatWith(dateTimeFormat, iso);
+  return formatWith((date) => `${timeFormat.format(date)} ${dateFormat.format(date)}`, iso);
 }
 
-function formatWith(format: Intl.DateTimeFormat, iso: string | undefined): string | undefined {
+function formatWith(render: (date: Date) => string, iso: string | undefined): string | undefined {
   if (iso === undefined) return undefined;
   const ts = Date.parse(iso);
-  return Number.isNaN(ts) ? iso : format.format(new Date(ts));
+  return Number.isNaN(ts) ? iso : render(new Date(ts));
 }
 
 /**
@@ -153,8 +153,8 @@ export type Row = Readonly<Record<string, string | number>>;
  * In khối lặp dạng bảng TOON — nhãn cột khai MỘT lần ở header, mỗi bản ghi là một hàng:
  *
  *     video[2]{lan_quet,luc_quet,link}:
- *       SS-1,"2026-08-05 10:30",https://...
- *       SS-2,"2026-08-05 10:41",https://...
+ *       SS-1,"10:30 05/08/2026",https://...
+ *       SS-2,"10:41 05/08/2026",https://...
  *
  * CHỈ dùng khi format cũ lặp NHÃN ở mỗi bản ghi (video: 5 nhãn × N lần quét → -27% token đo thật).
  * ĐỪNG áp cho khối đã in giá trị trần kiểu `- a · b · c` (danh sách đơn, hàng trong đơn, lịch sử

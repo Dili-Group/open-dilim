@@ -34,7 +34,12 @@ class ProfileRootAgent implements RootAgent {
       // recall memory (một lần gọi embed) hai lần cho cùng một lượt.
       const handler = await this.pickHandler(input);
       const context = await assembleTurnContext(
-        { basePrompt: handler.prompt, skills: this.deps.skills, memory: this.deps.memory },
+        {
+          basePrompt: handler.prompt,
+          skills: this.deps.skills,
+          memory: this.deps.memory,
+          agentType: this.agentType,
+        },
         {
           history: input.history,
           summary: input.summary,
@@ -48,9 +53,11 @@ class ProfileRootAgent implements RootAgent {
         messages: context.messages,
         registry: buildToolRegistry(handler.tools, {
           skills: this.deps.skills,
+          agentType: this.agentType,
           identity: input.identity,
           roomCustomerId: input.roomCustomerId,
           orders: this.deps.orders,
+          dealer: this.deps.dealer,
         }),
         maxTokens: this.deps.config.maxTokens,
         effort: this.deps.config.effort,

@@ -9,17 +9,30 @@
 
 import { readBody, listReferences, readReference } from "./loader.ts";
 import type { SkillRegistry } from "./registry.ts";
+import type { Skill, SkillMeta } from "./types.ts";
 
 /** Câu dẫn đứng trên catalog trong system prompt — bảo model cách kích hoạt skill. */
 const CATALOG_HEADER =
   "Skill có sẵn (gọi tool use_skill với `name` khi task hợp mô tả để nạp hướng dẫn đầy đủ):";
 
 /**
+ * Skill có hiện với agent này không. `meta.agents` vắng = mọi agent. `agentType` undefined = KHÔNG
+ * lọc — chỉ xảy ra ở test/dev; wiring thật luôn truyền agent đang chạy (build-agent.ts).
+ */
+export function visibleTo(meta: SkillMeta, agentType: string | undefined): boolean {
+  if (meta.agents === undefined || agentType === undefined) return true;
+  return meta.agents.includes(agentType.toLowerCase());
+}
+
+/**
  * Khối markdown liệt kê skill cho system prompt (tầng 1). CHỈ name+description — không body →
  * rẻ token. Rỗng skill → chuỗi rỗng (không nhồi header thừa).
+ *
+ * Lọc theo `agentType`: agent chỉ thấy skill khai cho nó. Cùng luật với useSkill/useReference —
+ * lọc mỗi catalog là hở, vì model đoán tên skill ngoài menu vẫn nạp được.
  */
-export function renderSkillCatalog(registry: SkillRegistry): string {
-  const items = registry.catalog();
+export function renderSkillCatalog(registry: SkillRegistry, agentType?: string): string {
+  const items = registry.catalog().filter((meta) => visibleTo(meta, agentType));
   if (items.length === 0) return "";
   const lines = items.map((m) => `- ${m.name}: ${m.description}`);
   return `${CATALOG_HEADER}\n${lines.join("\n")}`;
@@ -34,8 +47,12 @@ export type UseSkillResult =
  * Model chọn skill theo `name` → nạp body + danh sách reference (tầng 2). Tên không có trong
  * registry → ok:false (không throw). Lỗi đọc file thật → propagate cho tool-runner cô lập.
  */
-export async function useSkill(registry: SkillRegistry, name: string): Promise<UseSkillResult> {
-  const skill = registry.get(name);
+export async function useSkill(
+  registry: SkillRegistry,
+  name: string,
+  agentType?: string,
+): Promise<UseSkillResult> {
+  const skill = resolveVisible(registry, name, agentType);
   if (skill === undefined) {
     return { ok: false, error: `Skill không tồn tại: ${name}` };
   }
@@ -56,8 +73,9 @@ export async function useReference(
   registry: SkillRegistry,
   skillName: string,
   reference: string,
+  agentType?: string,
 ): Promise<UseReferenceResult> {
-  const skill = registry.get(skillName);
+  const skill = resolveVisible(registry, skillName, agentType);
   if (skill === undefined) {
     return { ok: false, error: `Skill không tồn tại: ${skillName}` };
   }
@@ -66,4 +84,18 @@ export async function useReference(
     return { ok: false, error: `Reference không tồn tại trong ${skillName}: ${reference}` };
   }
   return { ok: true, skill: skill.meta.name, reference, content: await readReference(skill, reference) };
+}
+
+/**
+ * Tra skill NHƯNG chỉ trả khi agent này được thấy. Skill bị chặn trả về y như skill không có: model
+ * không cần biết có một skill nó không được dùng, và câu trả lời khác nhau chỉ tổ để nó gạ lại.
+ */
+function resolveVisible(
+  registry: SkillRegistry,
+  name: string,
+  agentType: string | undefined,
+): Skill | undefined {
+  const skill = registry.get(name);
+  if (skill === undefined || !visibleTo(skill.meta, agentType)) return undefined;
+  return skill;
 }

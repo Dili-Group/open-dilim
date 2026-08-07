@@ -1,0 +1,84 @@
+---
+name: chiet-khau
+description: Đại lý hỏi mức chiết khấu của mình hoặc xin nâng mức — "em đang mấy phần trăm", "sao chưa lên 40", "chạy quảng cáo đủ 30 ngày rồi", "học xong Thương Hiệu Cá Nhân", "Vipassana", "doanh thu kỳ này bao nhiêu thì lên bậc". Load khi tin nhắn nhắc chiết khấu / CK / phần trăm / bậc giá / điều kiện nâng mức.
+agents: dealer
+---
+
+# Chiết khấu đại lý — hỏi mức, xin nâng mức
+
+Hai loại câu hỏi, xử lý khác nhau:
+
+| Đại lý muốn | Agent làm được gì | Chi tiết |
+|---|---|---|
+| "Em đang mức mấy %" | `tra_ho_so_dai_ly` → nói TÊN BẬC, không nói % | Luật 1 |
+| "Làm sao lên 40/45/50%" | Nói đủ điều kiện theo quy định | `references/bang-muc.md` |
+| "Anh/em/chị đủ điều kiện rồi, cho em lên" | Thu minh chứng theo đúng nhánh → chuyển duyệt | `references/nang-muc.md` |
+
+## Luật 1 — Đọc bậc bằng tool, nhưng bậc KHÔNG phải phần trăm
+
+`tra_ho_so_dai_ly` trả hồ sơ đại lý của phòng này: **tên bậc** chiết khấu (vd `F2 · Đại lý cấp 2`),
+ngày bậc có hiệu lực, ngày tham gia, người giới thiệu, nhân viên phụ trách. Không tham số, luôn là
+đại lý của phòng — không tra được đại lý khác.
+
+Hồ sơ **không có con số phần trăm**: tỉ lệ thật khác nhau theo từng sản phẩm, nên một bậc không quy
+ra được một mức % duy nhất. Nói tên bậc, đừng dịch tên bậc thành "chị đang 40%". Đại lý hỏi đúng con
+số % → chuyển vận hành/kế toán xác nhận.
+
+**Không suy ngược từ giá.** `tra_tien_can_chuyen` trả *số tiền* đã tính theo bậc; lấy số đó chia giá
+bán để ra phần trăm là bịa: trong tiền còn phí hộp giấy, quà tặng và hàng ngoài danh mục không có
+giá bậc. Sai một bậc là sai tiền hàng của mọi đơn sau đó.
+
+Hồ sơ trả **chưa xếp bậc** → nói đúng là hệ thống chưa gắn bậc nào, chuyển vận hành; đừng mặc định
+30% chỉ vì đó là mức sàn của chính sách.
+
+## Luật 2 — Agent không nâng mức, chỉ chuẩn bị hồ sơ
+
+Nâng chiết khấu là việc GHI, `tra_ho_so_dai_ly` CHỈ ĐỌC — agent không có đường ghi nào. Việc của agent đúng ba phần:
+**nói đúng điều kiện → thu đủ minh chứng → chuyển người có thẩm quyền duyệt**.
+
+Cấm nói: "em nâng cho chị rồi", "em duyệt lên 45% nhé", "từ đơn sau chị được 50%". Câu đúng:
+*em đã ghi nhận và chuyển bộ phận phụ trách xét duyệt*, kèm danh sách minh chứng còn thiếu.
+
+Không hứa mốc thời gian duyệt. Không hứa mức sẽ được duyệt.
+
+## Luật 3 — Hai bảng độc lập, agent không tự chốt mức cuối
+
+Quy định có **hai bảng**: một theo doanh thu kỳ đối soát, một theo đối tượng/điều kiện (khoá học,
+quảng cáo, Vipassana...). Một đại lý có thể chạm cả hai.
+
+Quy định **không nói** khi chạm cả hai thì lấy mức nào. Agent **không tự chọn** và không cộng dồn hai
+bảng. Nêu từng nhánh đại lý đang chạm, rồi để bên duyệt chốt mức cuối.
+
+## Luật 4 — Doanh thu là con số agent không có
+
+Bảng doanh thu tính theo **kỳ đối soát**, agent không tra được doanh thu kỳ. Không cộng tiền các đơn
+trong `tra_don_hang` để ước lượng doanh thu — danh sách đó chỉ có 30 ngày gần nhất, không phải kỳ đối
+soát, và tiền trên đơn không phải doanh thu ghi nhận.
+
+Đại lý hỏi "em đủ 500 triệu chưa" → chuyển kế toán đối soát, kèm ngưỡng của bảng để đại lý tự ước.
+
+## Luật 5 — Ba mục có hạn/có người duyệt riêng, nói đúng
+
+- **Leader Nuskin cũ (50%)** và **học viên khoá chuyên sâu như Thương Hiệu Bạc Tỷ (45%)**: quy định
+  ghi áp dụng **đến hết 30/05/2026 — mốc này đã qua**. Không hứa hai mức này. Nói là diện đó đã hết
+  hạn theo văn bản, trường hợp cá biệt do **Giám đốc Lê Chí Linh** xác nhận, em chuyển lên.
+- **Rich People Business (50%)**: cũng thuộc diện khoá kinh doanh do Giám đốc Lê Chí Linh xác nhận.
+
+Agent không xác nhận thay giám đốc, kể cả khi đại lý khẳng định mình đúng diện đó.
+
+## Luật 6 — Quảng cáo 1 triệu/ngày: 30% trước, bù 20% sau
+
+Nhánh này hay bị hiểu nhầm thành "đăng ký là được 50% ngay". Sự thật phải nói đủ:
+
+Trong 30 ngày cam kết, đại lý **vẫn mua hàng ở mức 30%**. Chạy đủ 30 ngày + nộp đủ minh chứng → công
+ty ghi **bổ sung 20% vào công nợ** để cấn trừ dần vào các đơn sau, tính cho các đơn phát sinh trong
+thời gian cam kết, đưa tổng mức về 50%.
+
+Nói thiếu vế "vẫn 30% trong 30 ngày đầu" là để đại lý đặt hàng với kỳ vọng sai giá.
+
+## Luật 7 — Chỉ nói chuyện chiết khấu của đại lý trong phòng này
+
+Không nêu mức, doanh thu hay hồ sơ của đại lý khác. Đại lý hỏi "đại lý kia mấy %" → không trả lời,
+chuyển sang điều kiện chung của bảng.
+
+Bảng mức đầy đủ: `references/bang-muc.md`. Minh chứng từng nhánh + mẫu câu: `references/nang-muc.md`.

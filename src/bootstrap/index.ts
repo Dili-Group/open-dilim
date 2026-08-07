@@ -5,13 +5,13 @@
 // src/index.ts (entrypoint) chỉ gọi start() rồi wire signal shutdown.
 
 import { startGateway, type IngestDeps } from "../message-ingest/index.ts";
-import { buildSkillRegistry } from "../skills/index.ts";
+import { buildSkillRegistry, type SkillRegistry } from "../skills/index.ts";
 import { flashRegistry } from "../flash-command/index.ts";
 import { closeDb } from "../db/client.ts";
 import { closeRedis, commandOf, redis } from "../redis/client.ts";
 import { buildBroker } from "../broker/index.ts";
 import { buildLlmProvider } from "../llm/index.ts";
-import { buildAgentRegistry } from "../agents/index.ts";
+import { buildAgentRegistry, type AgentRegistry } from "../agents/index.ts";
 import {
   BroadcastRouter,
   ConsoleBroadcaster,
@@ -29,6 +29,7 @@ import {
 import { OperationalOpsPort } from "../operational/ops-port.ts";
 import { AgentApiClient } from "../operational/agent-api.ts";
 import { AgentApiOrderPort } from "../operational/order-api.ts";
+import { AgentApiDealerPort } from "../operational/profile-api.ts";
 import {
   buildDedupe,
   buildHistoryStore,
@@ -71,14 +72,20 @@ export async function bootstrap(): Promise<Services> {
   // skills đi thẳng vào agent: catalog vào system prompt + backing cho tool use_skill.
   // memory = cổng CHỈ-ĐỌC; scope (phòng nào) do worker cấp từng lượt qua groupCustomer.
   // orders = API vận hành `/agent/*`; đại lý của từng lượt đi lên header, client không giữ state.
-  const orders = new AgentApiOrderPort(new AgentApiClient(config.agentApi));
+  // Một client cho mọi endpoint `/agent/*` (orders + profile): cùng base URL, cùng service token,
+  // không giữ state theo đại lý — đại lý của từng lượt đi lên header.
+  const agentApi = new AgentApiClient(config.agentApi);
+  const orders = new AgentApiOrderPort(agentApi);
+  const dealer = new AgentApiDealerPort(agentApi);
   const agents = buildAgentRegistry({
     provider: llm,
     config,
     skills,
     memory,
     orders,
+    dealer,
   });
+  assertSkillAgentScopes(skills, agents);
 
   // Đường GHI dựng SAU agents vì nó theo `memorySpec` của từng agent: agent vận hành nhớ việc,
   // agent đại lý nhớ khách — cùng một writer là chưng cất sai prompt cho một nửa số agent.
@@ -170,3 +177,21 @@ export async function start(): Promise<RunningSystem> {
 
 export { bootstrap as default };
 export type { RunningSystem, Services } from "./container.ts";
+
+/**
+ * Skill khai `agents:` một tên không có root agent nào → skill đó VÔ HÌNH với mọi agent, và không
+ * ai biết cho tới khi khách hỏi trúng nghiệp vụ đó. Gõ sai tên là lỗi soạn skill → chặn ngay ở boot.
+ */
+function assertSkillAgentScopes(skills: SkillRegistry, agents: AgentRegistry): void {
+  const known = new Set(agents.all().map((agent) => agent.agentType));
+  for (const meta of skills.catalog()) {
+    for (const name of meta.agents ?? []) {
+      if (!known.has(name)) {
+        throw new Error(
+          `Skill "${meta.name}" khai agents: "${name}" — không có root agent nào tên vậy ` +
+            `(có: ${[...known].sort().join(", ")}).`,
+        );
+      }
+    }
+  }
+}

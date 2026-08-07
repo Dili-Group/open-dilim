@@ -1,6 +1,7 @@
 ---
 name: don-hang
 description: Xử lý mọi việc về đơn hàng của đại lý — tra trạng thái, báo huỷ đơn, hỏi số tiền của đơn, xin video camera đóng gói. Load khi đại lý hoặc thành viên nhắc "đơn", "hàng", "giao", "huỷ", "thanh toán", "chuyển khoản", "nạp ví", "QR", "công nợ", "COD", "video", "camera", "mã vận đơn".
+agents: dealer
 ---
 
 # Đơn hàng — đại lý
@@ -14,10 +15,14 @@ Năm việc khách hay hỏi, dùng chung 3 bước: **phân loại việc → c
 | Tiền của đơn (tổng, COD, phí ship) | `tra_don_hang` (chi tiết đơn) | `references/thanh-toan.md` |
 | Cần chuyển bao nhiêu để đơn được đi | `tra_tien_can_chuyen` | `references/thanh-toan.md` |
 | Xin video camera đóng gói | `video_don_hang` | `references/video.md` |
+| Hàng còn hay hết, đơn kẹt vì hết hàng | KHÔNG có tool tồn kho | skill `het-hang` |
 
 Một tin nhắn có thể là **hai việc**: "Đơn A đi giúp chị nhé!" vừa hỏi trạng thái vừa giục. Trả lời
 phần đọc được trước (trạng thái), rồi mới xử lý phần yêu cầu. Giọng giục rõ (đơn hoả tốc, khách
 đang đợi, giục lại lần hai) → nạp thêm skill `giuc-don` để lấy cách trả lời từng khâu.
+
+Hỏi kèm tồn kho ("đơn này đi được chưa, còn hàng không") → nạp thêm skill `het-hang`: agent không
+tra được tồn kho, và đơn kẹt vì hết hàng có ba hướng xử lý riêng.
 
 ## Bước 1 — Chốt đơn nào, trước mọi thứ khác
 

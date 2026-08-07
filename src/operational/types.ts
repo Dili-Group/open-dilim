@@ -132,6 +132,49 @@ export interface OrderPayment {
 }
 
 /**
+ * Hồ sơ đại lý đang hỏi (`GET /agent/profile`). Đại lý lấy từ header `x-dealer-id` đã resolve —
+ * endpoint KHÔNG nhận param đại lý, nên agent không dò được hồ sơ đại lý khác.
+ *
+ * CHỈ LẤY TÊN BẬC, KHÔNG LẤY TỈ LỆ: `discount_tiers` là danh mục bậc, tỉ lệ thật nằm ở từng sản
+ * phẩm (`product_price_tiers.actual_discount_rate`) nên không có một con số % cho cả bậc — endpoint
+ * có trả biên min/max nhưng port cố tình bỏ. Bậc chưa xếp → mọi field `discountTier*` = undefined.
+ */
+export interface DealerProfile {
+  readonly code?: string;
+  readonly name?: string;
+  readonly phone?: string;
+  readonly email?: string;
+  readonly address?: string;
+  readonly province?: string;
+  readonly district?: string;
+  readonly ward?: string;
+  /** ISO date. Giữ nguyên chuỗi, format lúc render. */
+  readonly joinedAt?: string;
+  readonly referralLevel?: number;
+  readonly isShareholder?: boolean;
+  readonly usesBrand?: boolean;
+  readonly referrerCode?: string;
+  readonly referrerName?: string;
+  readonly staffName?: string;
+  readonly staffPhone?: string;
+  readonly discountTierId?: string;
+  readonly discountTierName?: string;
+  readonly discountTierLabel?: string;
+  readonly discountEffectiveFrom?: string;
+}
+
+/**
+ * Cổng ĐỌC hồ sơ đại lý. CHỈ ĐỌC: nâng bậc chiết khấu là WRITE, đi qua người duyệt cho tới khi có
+ * approval gate (§6) — xem skill `chiet-khau`.
+ */
+export interface DealerPort {
+  /** null = backend không có hồ sơ cho đại lý này (404). Lỗi khác bubble lên. */
+  profile(
+    p: OrderPrincipal & { readonly signal?: AbortSignal },
+  ): Promise<DealerProfile | null>;
+}
+
+/**
  * Cổng ĐỌC đơn hàng. CHỈ ĐỌC: huỷ/sửa đơn là WRITE, đi qua nhân viên vận hành cho tới khi có
  * approval gate (§6).
  */

@@ -231,9 +231,9 @@ describe("assembleTurnContext — khối memory (§7)", () => {
   });
 });
 
-// Dấu thời gian "[YYYY-MM-DD HH:mm] " đầu mỗi lượt user — regex thay vì so chuỗi cứng để không
+// Dấu thời gian "[HH:mm dd/mm/YYYY] " đầu mỗi lượt user — regex thay vì so chuỗi cứng để không
 // vỡ theo tz-data của máy chạy test.
-const TIME_PREFIX = /^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] /;
+const TIME_PREFIX = /^\[\d{2}:\d{2} \d{2}\/\d{2}\/\d{4}\] /;
 
 describe("assembleTurnContext — messages", () => {
   test("direct: text kèm dấu thời gian, không prefix speaker", async () => {

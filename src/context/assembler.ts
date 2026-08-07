@@ -16,16 +16,20 @@ import type { ContextSources, TurnContext, TurnInput } from "./types.ts";
 const SECTION_SEPARATOR = "\n\n";
 
 // Múi giờ khách (Việt Nam). Dấu thời gian in theo giờ địa phương để model suy luận sáng/chiều
-// đúng, KHÔNG lệch 7 tiếng như UTC. Locale sv-SE cho định dạng ISO-like "2026-08-05 21:47".
+// đúng, KHÔNG lệch 7 tiếng như UTC. Định dạng người Việt đọc quen "21:47 05/08/2026" — giống hệt
+// mốc thời gian tool đơn hàng in ra, để model không phải đối chiếu hai kiểu ngày.
 const TURN_TIME_ZONE = "Asia/Ho_Chi_Minh";
-const turnTimeFormat = new Intl.DateTimeFormat("sv-SE", {
+const turnDateFormat = new Intl.DateTimeFormat("en-GB", {
   timeZone: TURN_TIME_ZONE,
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
+});
+const turnClockFormat = new Intl.DateTimeFormat("en-GB", {
+  timeZone: TURN_TIME_ZONE,
   hour: "2-digit",
   minute: "2-digit",
-  hour12: false,
+  hourCycle: "h23",
 });
 
 /**
@@ -41,7 +45,7 @@ export async function assembleTurnContext(
   input: TurnInput,
 ): Promise<TurnContext> {
   // Khối ỔN ĐỊNH: giống hệt nhau ở MỌI lượt của agent này, mọi phòng → phần đem cache.
-  const stable = [sources.basePrompt, renderSkillCatalog(sources.skills)];
+  const stable = [sources.basePrompt, renderSkillCatalog(sources.skills, sources.agentType)];
 
   // Khối BIẾN ĐỘNG: đổi theo lượt/phòng → phải nằm SAU breakpoint cache, nếu không mỗi lượt là
   // một prefix mới và cache không bao giờ trúng. Bản tóm đổi hiếm nhưng theo PHÒNG, nên vẫn ở đây.
@@ -107,9 +111,10 @@ function toMessages(history: readonly HistoryEntry[]): LlmMessage[] {
   });
 }
 
-/** Epoch ms → "YYYY-MM-DD HH:mm" giờ Việt Nam, làm dấu thứ tự cho lượt người dùng. */
+/** Epoch ms → "HH:mm dd/mm/YYYY" giờ Việt Nam, làm dấu thứ tự cho lượt người dùng. */
 function formatTurnTime(ts: number): string {
-  return turnTimeFormat.format(new Date(ts));
+  const date = new Date(ts);
+  return `${turnClockFormat.format(date)} ${turnDateFormat.format(date)}`;
 }
 
 /**

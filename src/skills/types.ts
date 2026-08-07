@@ -12,6 +12,17 @@ export interface SkillMeta {
   readonly name: string;
   /** 1 dòng — dữ liệu DUY NHẤT đưa vào context mặc định để LLM/selector quyết có load không. */
   readonly description: string;
+  /**
+   * Root agent được thấy skill này (`agents: dealer, operations` trong frontmatter).
+   * undefined = MỌI agent — mặc định mở, vì phần lớn skill là quy trình dùng chung.
+   *
+   * Khai khi skill nhắc tới tool mà chỉ một agent cầm: agent không có tool đó mà đọc được hướng
+   * dẫn dùng nó thì hoặc bịa kết quả, hoặc kẹt giữa chừng.
+   *
+   * Tên agent là CHUỖI, không phải enum của tầng agents: skills/ là tầng lá, import AgentType từ
+   * agents/ sẽ tạo cycle (agents → tools → skills). Sai tên bắt ở bootstrap (fail-fast).
+   */
+  readonly agents?: readonly string[];
 }
 
 /**

@@ -11,6 +11,8 @@ import { buildSkillRegistry } from "../skills/index.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 import { AgentApiError, AgentApiErrorCode } from "../operational/agent-api.ts";
 import type {
+  DealerPort,
+  DealerProfile,
   OrderCameraLink,
   OrderDetail,
   OrderPayment,
@@ -18,19 +20,20 @@ import type {
   OrderPrincipal,
   OrderSearchPage,
 } from "../operational/types.ts";
-import { COMMON_TOOLS, ORDER_TOOLS, buildToolRegistry, readStringField } from "./index.ts";
+import { COMMON_TOOLS, DEALER_TOOLS, ORDER_TOOLS, buildToolRegistry, readStringField } from "./index.ts";
 import { readIntegerField } from "./input.ts";
 import { buildUseSkillTool } from "./impl/use-skill.ts";
 import { buildUseReferenceTool } from "./impl/use-reference.ts";
 import { buildOrderStatusTool } from "./impl/order/status.ts";
 import { buildOrderPaymentTool } from "./impl/order/payment.ts";
 import { buildOrderVideoTool } from "./impl/order/video.ts";
+import { buildDealerProfileTool } from "./impl/dealer/profile.ts";
 
 const GUEST: Identity = { role: "guest", senderId: "u1" };
 const DEALER: Identity = { role: "dai_ly", senderId: "u2", customerId: "dealer-9" };
 const STAFF: Identity = { role: "nhan_vien", senderId: "u3", userId: "77" };
 
-// Registry thật từ src/skills/defs (có "refund" kèm references/policy.md).
+// Registry thật từ src/skills/defs (có "chiet-khau" kèm references/bang-muc.md).
 const skills: SkillRegistry = await buildSkillRegistry();
 
 describe("readStringField", () => {
@@ -64,10 +67,19 @@ describe("use_skill", () => {
   const tool = buildUseSkillTool(skills);
 
   test("skill có thật → trả body + liệt kê reference", async () => {
-    const result = await tool.run({ name: "refund" });
+    const result = await tool.run({ name: "chiet-khau" });
     expect(result.isError).toBeFalsy();
-    expect(result.content).toContain("# Skill: refund");
+    expect(result.content).toContain("# Skill: chiet-khau");
     expect(result.content).toContain("use_reference");
+  });
+
+  test("agent ngoài scope skill → isError y như tên lạ", async () => {
+    // chiet-khau khai `agents: dealer` → agent trợ lý riêng không nạp được.
+    const scoped = buildUseSkillTool(skills, "personal");
+    const result = await scoped.run({ name: "chiet-khau" });
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("không tồn tại");
+    expect((await buildUseSkillTool(skills, "dealer").run({ name: "chiet-khau" })).isError).toBeFalsy();
   });
 
   test("tên lạ → isError structured, KHÔNG throw", async () => {
@@ -87,13 +99,13 @@ describe("use_reference", () => {
   const tool = buildUseReferenceTool(skills);
 
   test("reference có thật → trả nội dung", async () => {
-    const result = await tool.run({ skill: "refund", reference: "policy.md" });
+    const result = await tool.run({ skill: "chiet-khau", reference: "bang-muc.md" });
     expect(result.isError).toBeFalsy();
-    expect(result.content).toContain("refund / policy.md");
+    expect(result.content).toContain("chiet-khau / bang-muc.md");
   });
 
   test("path traversal → isError, KHÔNG throw ra loop", async () => {
-    const result = await tool.run({ skill: "refund", reference: "../SKILL.md" });
+    const result = await tool.run({ skill: "chiet-khau", reference: "../SKILL.md" });
     expect(result.isError).toBe(true);
   });
 
@@ -431,12 +443,107 @@ describe("buildToolRegistry", () => {
 
   test("KHÔNG schema nào chứa trường danh tính (chống confused-deputy)", () => {
     const forbidden = ["identity", "role", "user_id", "userId", "customer_id", "customerId", "sender_id", "senderId", "dealer_id", "dealerId"];
-    const all = [...COMMON_TOOLS, ...ORDER_TOOLS];
+    const all = [...COMMON_TOOLS, ...ORDER_TOOLS, ...DEALER_TOOLS];
     for (const schema of buildToolRegistry(all, { skills, identity: GUEST }).schemas()) {
       const serialized = JSON.stringify(schema.inputSchema);
       for (const field of forbidden) {
         expect(serialized).not.toContain(field);
       }
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// tra_ho_so_dai_ly — hồ sơ đại lý. Chốt: đại lý đi vào port là đại lý của PHÒNG, và bậc chưa xếp
+// KHÔNG được kể lại thành một mức % nào.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class FakeDealer implements DealerPort {
+  readonly seen: OrderPrincipal[] = [];
+  constructor(private readonly byDealer: Readonly<Record<string, DealerProfile>>) {}
+
+  profile(p: OrderPrincipal): Promise<DealerProfile | null> {
+    this.seen.push({ dealerId: p.dealerId, staffId: p.staffId });
+    return Promise.resolve(this.byDealer[p.dealerId] ?? null);
+  }
+}
+
+class BrokenDealer implements DealerPort {
+  profile(): Promise<DealerProfile | null> {
+    throw new AgentApiError(
+      "GET /agent/profile trả 500",
+      500,
+      AgentApiErrorCode.Transport,
+      "/agent/profile",
+    );
+  }
+}
+
+describe("tra_ho_so_dai_ly", () => {
+  const dealer = new FakeDealer({
+    "dealer-1": {
+      code: "DL0123",
+      name: "Nguyễn Văn A",
+      discountTierName: "F2",
+      discountTierLabel: "Đại lý cấp 2",
+      discountEffectiveFrom: "2025-06-01",
+      joinedAt: "2025-03-11",
+      referralLevel: 2,
+      isShareholder: false,
+      staffName: "Trần C",
+      staffPhone: "0900000009",
+    },
+    "dealer-2": { code: "DL0999", name: "Đại lý mới" },
+  });
+
+  test("in tên bậc + ngày hiệu lực, KHÔNG in phần trăm nào", async () => {
+    const ctx = { skills, identity: STAFF, roomCustomerId: "dealer-1", dealer };
+    const result = await buildDealerProfileTool(ctx).run({});
+
+    expect(result.isError).toBeFalsy();
+    expect(result.content).toContain("DL0123");
+    expect(result.content).toContain("F2 · Đại lý cấp 2");
+    expect(result.content).toContain("01/06/2025");
+    expect(result.content).toContain("Trần C · 0900000009");
+    expect(result.content).not.toMatch(/\d+\s*%/);
+    // Nhân viên gõ trong nhóm đại lý X → hồ sơ của X, staffId chỉ để audit.
+    expect(dealer.seen.at(-1)).toEqual({ dealerId: "dealer-1", staffId: "77" });
+  });
+
+  test("đại lý tự hỏi → lấy customerId của chính họ", async () => {
+    const empty = new FakeDealer({});
+    const result = await buildDealerProfileTool({ skills, identity: DEALER, dealer: empty }).run({});
+
+    // dealer-9 (identity) không có hồ sơ trong fake → nhánh NO_PROFILE; phạm vi vẫn phải đúng.
+    expect(empty.seen).toEqual([{ dealerId: "dealer-9", staffId: undefined }]);
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("KHÔNG kết luận gì về mức chiết khấu");
+  });
+
+  test("chưa xếp bậc → nói rõ chưa có bậc, cấm suy % từ giá", async () => {
+    const ctx = { skills, identity: STAFF, roomCustomerId: "dealer-2", dealer };
+    const result = await buildDealerProfileTool(ctx).run({});
+
+    expect(result.content).toContain("CHƯA được xếp bậc");
+    expect(result.content).toContain("Không suy ra mức % từ giá đơn hàng");
+  });
+
+  test("chưa /ketnoi-daily → isError, không tra bừa", async () => {
+    const result = await buildDealerProfileTool({ skills, identity: GUEST, dealer }).run({});
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("ketnoi-daily");
+  });
+
+  test("chưa nối cổng → isError riêng, không nhầm với 'chưa có bậc'", async () => {
+    const result = await buildDealerProfileTool({ skills, identity: DEALER }).run({});
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("chưa sẵn sàng");
+  });
+
+  test("API hỏng → báo trục trặc, KHÔNG kể thành 'chưa có bậc chiết khấu'", async () => {
+    const ctx = { skills, identity: DEALER, dealer: new BrokenDealer() };
+    const result = await buildDealerProfileTool(ctx).run({});
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("KHÔNG nói là đại lý chưa có bậc");
   });
 });

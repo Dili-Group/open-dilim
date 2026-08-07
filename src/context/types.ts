@@ -18,6 +18,8 @@ export interface ContextSources {
   readonly basePrompt: string;
   /** Catalog skill = tầng 1 progressive disclosure (chỉ name + description). */
   readonly skills: SkillRegistry;
+  /** Root agent đang chạy — catalog CHỈ liệt kê skill khai cho agent này. undefined = không lọc. */
+  readonly agentType?: string;
   /** Cổng CHỈ-ĐỌC: lắp ngữ cảnh không bao giờ ghi memory. undefined = chưa nối (chờ chốt scope). */
   readonly memory?: MemoryRecall;
 }

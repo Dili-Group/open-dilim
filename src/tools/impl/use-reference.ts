@@ -7,7 +7,7 @@ import { useReference } from "../../skills/selector.ts";
 import { readStringField } from "../input.ts";
 import type { Tool, ToolResult } from "../types.ts";
 
-export function buildUseReferenceTool(skills: SkillRegistry): Tool {
+export function buildUseReferenceTool(skills: SkillRegistry, agentType?: string): Tool {
   return {
     name: "use_reference",
     description: "Đọc một tài liệu reference của skill đã nạp (chi tiết sâu hơn body skill).",
@@ -25,7 +25,7 @@ export function buildUseReferenceTool(skills: SkillRegistry): Tool {
       if (skill === undefined || reference === undefined) {
         return { content: 'Cần cả "skill" và "reference" (chuỗi).', isError: true };
       }
-      const result = await useReference(skills, skill, reference);
+      const result = await useReference(skills, skill, reference, agentType);
       if (!result.ok) return { content: result.error, isError: true };
       return { content: `# ${result.skill} / ${result.reference}\n\n${result.content}` };
     },

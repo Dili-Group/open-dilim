@@ -15,6 +15,16 @@ import {
   type AgentApiClient,
   type AgentApiPrincipal,
 } from "./agent-api.ts";
+import {
+  asRecord,
+  isPresent,
+  numberAsString,
+  readBoolean,
+  readList,
+  readMoney,
+  readNumber,
+  readString,
+} from "./read.ts";
 import type {
   OrderCameraLink,
   OrderDetail,
@@ -164,51 +174,8 @@ function toPrincipal(p: OrderPrincipal): AgentApiPrincipal {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Reader — mọi field đi qua đây. Không `as` ép kiểu để làm im lỗi.
+// Reader domain đơn hàng. Reader chung (asRecord, readString...) nằm ở read.ts.
 // ─────────────────────────────────────────────────────────────────────────────
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-}
-
-function readString(record: Record<string, unknown>, key: string): string | undefined {
-  const value = record[key];
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed === "" ? undefined : trimmed;
-}
-
-function readNumber(record: Record<string, unknown>, key: string): number | undefined {
-  const value = record[key];
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  // Backend có thể trả bigint/enum dạng chuỗi số — nhận, nhưng chỉ khi là số nguyên thuần.
-  if (typeof value === "string" && /^-?\d+$/.test(value.trim())) return Number(value.trim());
-  return undefined;
-}
-
-function readBoolean(record: Record<string, unknown>, key: string): boolean | undefined {
-  const value = record[key];
-  return typeof value === "boolean" ? value : undefined;
-}
-
-/** Tiền: NUMERIC(15,2) → chuỗi. Nhận cả number (giữ nguyên chữ số, KHÔNG tính toán gì lên nó). */
-function readMoney(record: Record<string, unknown>, key: string): string | undefined {
-  const value = record[key];
-  if (typeof value === "string" && value.trim() !== "") return value.trim();
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  return undefined;
-}
-
-function readList(record: Record<string, unknown>, key: string): readonly unknown[] {
-  const value = record[key];
-  return Array.isArray(value) ? value : [];
-}
-
-function isPresent<T>(value: T | undefined): value is T {
-  return value !== undefined;
-}
 
 /** Đơn KHÔNG có tracking_number là đơn không tra lại được → bỏ, đừng đưa cho model một mã rỗng. */
 function readSummary(value: unknown): OrderSummary | undefined {
@@ -259,12 +226,6 @@ function readPaymentItem(value: unknown): OrderPaymentItem | undefined {
     unitPrice: readMoney(record, "dealer_unit_price"),
     lineTotal: readMoney(record, "dealer_line_total"),
   };
-}
-
-/** Backend có thể trả id bigint dạng số. Giữ nguyên chữ số, không tính toán gì lên nó. */
-function numberAsString(record: Record<string, unknown>, key: string): string | undefined {
-  const value = readNumber(record, key);
-  return value === undefined ? undefined : String(value);
 }
 
 /** Không field nào đọc được → undefined để tool bỏ hẳn khối chuyển khoản, không in nửa vời. */
