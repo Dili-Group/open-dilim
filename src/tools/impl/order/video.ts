@@ -15,9 +15,11 @@ import {
   NEED_TRACKING_NUMBER,
   NO_CUSTOMER,
   NO_PORT,
+  type Row,
+  cell,
   formatDateTime,
-  line,
   resolvePrincipal,
+  table,
 } from "./scope.ts";
 
 /** Câu bắt buộc kèm mọi link — khách phải biết nó sống được bao lâu. */
@@ -70,7 +72,11 @@ async function runLookup(
 
   if (links.length === 0) return { content: renderEmpty(trackingNumber) };
   return {
-    content: [`Video đơn ${trackingNumber}:`, ...links.map(renderLink), TTL_NOTE].join("\n"),
+    content: [
+      `Video đơn ${trackingNumber}:`,
+      table("video", links.map(linkRow)),
+      TTL_NOTE,
+    ].join("\n"),
   };
 }
 
@@ -85,14 +91,12 @@ function renderEmpty(trackingNumber: string): string {
   );
 }
 
-function renderLink(link: OrderCameraLink): string {
-  return [
-    `- Lần quét ${link.sessionCode ?? "(không rõ mã)"}`,
-    line("  Thời điểm quét", formatDateTime(link.scannedAt)),
-    line("  Số camera", link.cameraCount === undefined ? undefined : String(link.cameraCount)),
-    `  Link: ${link.url}`,
-    line("  Hết hạn lúc", formatDateTime(link.expiresAt)),
-  ]
-    .filter((value): value is string => value !== undefined)
-    .join("\n");
+function linkRow(link: OrderCameraLink): Row {
+  return {
+    lan_quet: cell(link.sessionCode),
+    luc_quet: cell(formatDateTime(link.scannedAt)),
+    so_camera: link.cameraCount ?? "",
+    link: link.url,
+    het_han_luc: cell(formatDateTime(link.expiresAt)),
+  };
 }

@@ -3,6 +3,8 @@
 // Đặt riêng vì phần "ai được tra" là hàng rào bảo mật: sửa một chỗ, các tool cùng theo. Tool đơn
 // hàng không được tự nghĩ ra cách resolve đại lý của riêng mình.
 
+import { encode } from "@toon-format/toon";
+
 import { ActorRole } from "../../../flash-command/types.ts";
 import {
   CARRIER_LABEL,
@@ -139,4 +141,34 @@ export function formatMoney(raw: string | undefined): string | undefined {
 /** `- Nhãn: giá trị`, giá trị trống → undefined để nơi gọi BỎ HẲN dòng: model thấy "chưa có" sẽ bịa thành "đang cập nhật". */
 export function line(label: string, value: string | undefined): string | undefined {
   return value === undefined ? undefined : `- ${label}: ${value}`;
+}
+
+/**
+ * Một hàng bảng. Ô chữ phải format sẵn (tiền/ngày format trước khi vào đây); ô số giữ nguyên
+ * `number` để TOON in trần `2` thay vì `"2"` — chuỗi trông giống số bị bọc nháy để giữ kiểu.
+ */
+export type Row = Readonly<Record<string, string | number>>;
+
+/**
+ * In khối lặp dạng bảng TOON — nhãn cột khai MỘT lần ở header, mỗi bản ghi là một hàng:
+ *
+ *     video[2]{lan_quet,luc_quet,link}:
+ *       SS-1,"2026-08-05 10:30",https://...
+ *       SS-2,"2026-08-05 10:41",https://...
+ *
+ * CHỈ dùng khi format cũ lặp NHÃN ở mỗi bản ghi (video: 5 nhãn × N lần quét → -27% token đo thật).
+ * ĐỪNG áp cho khối đã in giá trị trần kiểu `- a · b · c` (danh sách đơn, hàng trong đơn, lịch sử
+ * trạng thái): ở đó không có nhãn nào để gom, mà header + nháy quanh chuỗi có dấu cách + ô `""`
+ * lại ĐẮT HƠN format cũ 6–12% — đã đo, đừng đổi lại.
+ *
+ * KHÁC `line()`: ô trống in `""` chứ KHÔNG bỏ cột — bảng phải đều cột thì model mới đọc đúng ô nào
+ * thuộc cột nào.
+ */
+export function table(name: string, rows: readonly Row[]): string {
+  return encode({ [name]: rows });
+}
+
+/** Ô bảng: thiếu dữ kiện → chuỗi rỗng (TOON in `""`), không để `undefined` lọt vào bảng. */
+export function cell(value: string | undefined): string {
+  return value ?? "";
 }

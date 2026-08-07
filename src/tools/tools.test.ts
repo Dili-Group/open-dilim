@@ -387,7 +387,16 @@ describe("video_don_hang", () => {
     expect(result.isError).toBeFalsy();
     expect(result.content).toContain("https://media.example/v/VTP01?token=abc");
     expect(result.content).toContain("15 phút");
-    expect(result.content).toContain("Hết hạn lúc");
+    // Khối lặp → bảng TOON: nhãn cột khai một lần ở header, mỗi lần quét là một hàng.
+    expect(result.content).toContain("video[1]{lan_quet,luc_quet,so_camera,link,het_han_luc}:");
+  });
+
+  test("lần quét thiếu dữ kiện → ô rỗng `\"\"`, KHÔNG bỏ cột (bảng phải đều cột)", async () => {
+    const sparse = new FakeOrders([{ dealerId: "dealer-1", order: makeOrder() }], {
+      VTP01: [{ url: "https://media.example/v/x" }],
+    });
+    const result = await buildOrderVideoTool({ ...ctx, orders: sparse }).run({ ma_van_don: "VTP01" });
+    expect(result.content).toContain('"","","","https://media.example/v/x",""');
   });
 
   test("đơn không thuộc đại lý / chưa quay → nói chưa có, không hứa gửi sau", async () => {
