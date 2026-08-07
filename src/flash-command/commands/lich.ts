@@ -116,7 +116,7 @@ async function createJob(
   });
   if (existing.filter((job) => job.enabled).length >= MAX_JOBS_PER_GROUP) {
     return fail(
-      `Nhóm này đã có ${MAX_JOBS_PER_GROUP} việc đang bật. Tắt bớt (/lich tat <mã>) trước.`,
+      `Chỉ có thể lập lịch tối đa cho ${MAX_JOBS_PER_GROUP} nhiệm vụ. Vui lòng tắt bớt (/lich tat <mã>) để sử dụng nhiệm vụ khác hoặc liên hệ quản trị viên.`,
     );
   }
 
