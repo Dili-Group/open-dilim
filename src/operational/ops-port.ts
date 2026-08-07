@@ -1,8 +1,9 @@
 // ops-port.ts — impl OpsPort (port ở flash-command/types.ts) gọi hệ vận hành qua HTTP.
 // 2 endpoint agent-session (service-to-service):
-//   POST /api/agent-session/verify         — đổi token nhân viên gõ tay → user_id (anti-replay).
-//   POST /api/agent-session/dealer-binding — tra đại lý gắn với zalo_group_id → dealer_id.
-// Auth = header x-service-token do client.ts tự gắn cho MỌI request (OPERATIONAL_SERVICE_TOKEN) —
+//   POST /agent-session/verify         — đổi token nhân viên gõ tay → user_id (anti-replay).
+//   POST /agent-session/dealer-binding — tra đại lý gắn với zalo_group_id → dealer_id.
+// Path KHÔNG có tiền tố `/api`: base URL (DILIM_API_URL) đã kèm sẵn.
+// Auth = header x-service-token do client.ts tự gắn cho MỌI request (SERVICE_TOKEN_AGENT_API) —
 // nơi này KHÔNG set lại. Response = unknown → validate shape ở boundary (không tin blind). Status
 // "input sai" (token lạ/hết hạn, nhóm chưa gắn) → null, KHÔNG throw: đó là kết quả hợp lệ để
 // command trả reply cho người dùng.
@@ -10,8 +11,8 @@
 import type { OpsPort } from "../flash-command/types.ts";
 import { OperationalError, opPost } from "./client.ts";
 
-const VERIFY_PATH = "/api/agent-session/verify";
-const DEALER_BINDING_PATH = "/api/agent-session/dealer-binding";
+const VERIFY_PATH = "/agent-session/verify";
+const DEALER_BINDING_PATH = "/agent-session/dealer-binding";
 
 export class OperationalOpsPort implements OpsPort {
   /**

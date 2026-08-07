@@ -157,14 +157,8 @@ export const CONFIG = {
   // (bridge) và root agent phục vụ kênh đều tra theo cùng tên kênh này.
   channels,
 
-  // Hệ thống vận hành — mọi request kèm header service-token (xem operational/client.ts).
-  operational: {
-    baseUrl: required("OPERATIONAL_BASE_URL"),
-    serviceToken: required("OPERATIONAL_SERVICE_TOKEN"),
-  },
-
-  // API nghiệp vụ `/agent/*` (tra đơn, camera). Base URL + token RIÊNG với agent-session ở trên:
-  // hai bề mặt khác nhau, scope token khác nhau — dùng chung một biến là cấp thừa quyền.
+  // API hệ vận hành — CHUNG cho cả agent-session (verify token, tra đại lý) lẫn nghiệp vụ
+  // `/agent/*` (tra đơn, camera): cùng một backend, cùng một service token.
   // Vd DILIM_API_URL=https://api.dilisupplement.com/api (kèm cả tiền tố /api).
   agentApi: {
     baseUrl: required("DILIM_API_URL"),

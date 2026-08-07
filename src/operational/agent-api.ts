@@ -1,7 +1,7 @@
 // agent-api.ts — client DUY NHẤT cho API vận hành `/agent/*` (tra đơn, camera).
 //
-// Khác client.ts (agent-session: verify token, tra đại lý theo nhóm): base URL riêng, service
-// token riêng, và MỌI request phải mang thêm định danh đại lý ở header. Một hàm dựng header
+// Cùng backend + service token với client.ts (agent-session: verify token, tra đại lý theo nhóm),
+// khác ở chỗ MỌI request phải mang thêm định danh đại lý ở header. Một hàm dựng header
 // (buildAgentHeaders) cho toàn bộ endpoint — không nơi gọi nào tự ghép header.
 //
 // KHÔNG import config.ts (fail-fast env): base URL + token nhận qua constructor, bootstrap cấp.

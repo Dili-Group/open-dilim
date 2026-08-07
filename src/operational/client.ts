@@ -1,5 +1,6 @@
 // client.ts — kết nối hệ thống vận hành qua HTTP.
-// MỌI request tự kèm header `service-token` (không nơi gọi nào phải nhớ set).
+// Base URL + token = CONFIG.agentApi (DILIM_API_URL đã kèm tiền tố `/api`) → path truyền vào
+// KHÔNG lặp lại `/api`. MỌI request tự kèm header `service-token` (không nơi gọi nào phải nhớ set).
 // Response trả `unknown` — nơi gọi validate shape theo endpoint (đừng tin blind).
 
 import { CONFIG } from "../config.ts";
@@ -48,7 +49,7 @@ const MAX_ERROR_BODY = 2_000;
 
 function buildUrl(path: string, query: RequestOptions["query"]): string {
   // baseUrl kết thúc `/` hay không đều ghép đúng nhờ URL().
-  const url = new URL(path.replace(/^\//, ""), ensureTrailingSlash(CONFIG.operational.baseUrl));
+  const url = new URL(path.replace(/^\//, ""), ensureTrailingSlash(CONFIG.agentApi.baseUrl));
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined) url.searchParams.set(key, String(value));
@@ -80,7 +81,7 @@ export async function opRequest(
 
   const requestHeaders: Record<string, string> = {
     ...headers,
-    [SERVICE_TOKEN_HEADER]: CONFIG.operational.serviceToken,
+    [SERVICE_TOKEN_HEADER]: CONFIG.agentApi.serviceToken,
   };
 
   const hasBody = body !== undefined;
