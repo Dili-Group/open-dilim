@@ -79,4 +79,6 @@ export interface WorkerContext {
 export interface WorkerPoolDeps extends WorkerContext {
   readonly broker: BrokerConsumer;
   readonly workerCount: number;
+  /** Deadline một lượt (ms). Quá hạn → abort signal của lượt → handleEnvelope trả `failed`. */
+  readonly turnTimeoutMs: number;
 }

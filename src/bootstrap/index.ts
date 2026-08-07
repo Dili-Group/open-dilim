@@ -155,6 +155,7 @@ export async function start(): Promise<RunningSystem> {
     broadcaster: services.broadcaster,
     typing: services.typing,
     workerCount: services.config.workerCount,
+    turnTimeoutMs: services.config.turnTimeoutMs,
   });
 
   async function stop(): Promise<void> {

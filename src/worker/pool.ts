@@ -37,8 +37,17 @@ async function workerLoop(
     const envelope = delivery.envelope;
     // Serialize theo phòng. handleEnvelope trả AgentResult — lỗi là GIÁ TRỊ (status="failed"),
     // không phải exception → lock không có gì để reject. Hợp đồng nằm ở KIỂU, không ở comment.
+    //
+    // Deadline RIÊNG từng lượt, gộp với signal shutdown: bên nào abort trước thắng. Không dùng
+    // thẳng `signal` (chỉ tắt khi shutdown) vì một lượt treo giữ luôn lock phòng — cả phòng đứng.
+    // Đặt TRONG lock: đồng hồ chỉ tính lúc thật sự xử lý, không tính lúc xếp hàng sau lượt trước —
+    // nếu không, một phòng dồn tin là cả hàng chờ hết hạn oan rồi đi DLQ.
     const result = await lock.run(envelope.conversationId, () =>
-      handleEnvelope(deps, envelope, signal),
+      handleEnvelope(
+        deps,
+        envelope,
+        AbortSignal.any([signal, AbortSignal.timeout(deps.turnTimeoutMs)]),
+      ),
     );
     // failed = hỏng hạ tầng/LLM (DB chết, kênh chết) → KHÔNG ack, để broker giao lại; lặp hoài
     // thì broker tự đẩy DLQ. reply/suspended = lượt đã xong đúng nghĩa vụ → ack.

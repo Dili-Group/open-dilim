@@ -24,6 +24,7 @@ import { buildAgentRegistry } from "../agents/registry.ts";
 import type { AgentConfig } from "../agents/types.ts";
 import { ConversationLock } from "./lock.ts";
 import { handleEnvelope } from "./handler.ts";
+import { startWorkers } from "./pool.ts";
 import type { WorkerContext } from "./types.ts";
 
 const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -77,6 +78,47 @@ class ScriptedProvider implements LLMProvider {
     this.index += 1;
     if (result === undefined) throw new Error("hết kịch bản");
     return Promise.resolve(result);
+  }
+}
+
+/** Lượt đầu treo tới khi bị abort (LLM/mạng lặng), lượt sau trả lời — kiểm deadline mỗi lượt. */
+class HangsOnceProvider implements LLMProvider {
+  readonly name = "hangs-once";
+  private calls = 0;
+  private markAborted: () => void = () => {};
+  /** Resolve khi lượt treo thấy signal abort — test chờ mốc này thay vì đoán theo đồng hồ. */
+  readonly aborted: Promise<void> = new Promise((resolve) => {
+    this.markAborted = resolve;
+  });
+  chat(_req: ChatRequest, signal?: AbortSignal): Promise<ChatResult> {
+    this.calls += 1;
+    if (this.calls > 1) {
+      return Promise.resolve({
+        stopReason: "end_turn",
+        content: [{ type: "text", text: LATE_REPLY }],
+      });
+    }
+    return new Promise((_resolve, reject) => {
+      signal?.addEventListener(
+        "abort",
+        () => {
+          this.markAborted();
+          reject(new Error("lượt bị abort"));
+        },
+        { once: true },
+      );
+    });
+  }
+}
+
+const LATE_REPLY = "tin sau vẫn chạy";
+
+/** Chờ điều kiện thay vì ngủ một khoảng cố định — test không phụ thuộc tốc độ máy. */
+async function waitFor(cond: () => boolean, timeoutMs = 1000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!cond()) {
+    if (Date.now() > deadline) throw new Error("chờ điều kiện quá hạn");
+    await delay(5);
   }
 }
 
@@ -180,6 +222,49 @@ describe("ConversationLock", () => {
     });
     await Promise.all([p1, p2]);
     expect(order).toEqual(["b", "a"]);
+  });
+});
+
+describe("startWorkers — deadline mỗi lượt", () => {
+  test("lượt treo quá turnTimeoutMs → abort, phòng vẫn phục vụ tin kế", async () => {
+    const history = new MemoryHistoryStore();
+    for (const msgId of ["m1", "m2"]) {
+      await history.append({
+        conversationId: "c1",
+        msgId,
+        senderId: "u1",
+        text: "hi",
+        isGroup: false,
+        role: "user",
+        ts: 1,
+      });
+    }
+    const provider = new HangsOnceProvider();
+    const broadcaster = new CapturingBroadcaster();
+    const broker = new MemoryBroker();
+    const workers = startWorkers({
+      history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
+      identity: new FakeResolver({ role: "guest", senderId: "u1" }),
+      agents: buildAgentRegistry({ provider, config: CFG, skills: SKILLS }),
+      broadcaster,
+      typing: TYPING,
+      broker,
+      workerCount: 1,
+      turnTimeoutMs: 20,
+    });
+
+    await broker.publish(makeEnvelope({ msgId: "m1" }));
+    await broker.publish(makeEnvelope({ msgId: "m2" }));
+    await provider.aborted;
+    // Cùng conversationId: tin thứ hai chỉ chạy được nếu lượt treo đã nhả lock.
+    await waitFor(() => broadcaster.sent.length === 1);
+    await workers.stop();
+
+    expect(broadcaster.sent[0]?.text).toBe(LATE_REPLY);
   });
 });
 

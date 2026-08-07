@@ -126,6 +126,9 @@ const DEFAULT_MAX_TOKENS = 16000;
 const DEFAULT_WORKER_COUNT = 4;
 // Trần vòng lặp agent (LLM⇄tools) — chặn loop vô hạn nếu model cứ gọi tool.
 const DEFAULT_AGENT_MAX_ITERATIONS = 8;
+// Trần thời gian MỘT lượt (auth → agent → broadcast). Số vòng lặp có trần rồi, nhưng mỗi vòng
+// vẫn treo được (SDK LLM tự retry, mạng lặng) mà lock phòng thì đang giữ → phải có deadline.
+const DEFAULT_TURN_TIMEOUT_MS = 20_000;
 
 const provider = oneOf("PROVIDER", PROVIDERS, "anthropic");
 
@@ -183,6 +186,7 @@ export const CONFIG = {
   // Worker pool + agent loop
   workerCount: positiveIntEnv("WORKER_COUNT", DEFAULT_WORKER_COUNT),
   agentMaxIterations: DEFAULT_AGENT_MAX_ITERATIONS,
+  turnTimeoutMs: positiveIntEnv("TURN_TIMEOUT_MS", DEFAULT_TURN_TIMEOUT_MS),
 } as const;
 
 export type Config = typeof CONFIG;
