@@ -8,8 +8,15 @@
 // Thứ tự giống gateway "ingest dày": dedupe → history → publish. Hỏng giữa chừng thì KHÔNG gỡ
 // mark dedupe — mốc cron đã trôi qua, bắn bù lượt đó chỉ tạo báo cáo trùng cho phòng.
 
+import type { Broadcaster } from "../broadcast/index.ts";
 import type { Envelope, HistoryEntry } from "../types/index.ts";
-import type { DedupeGate, EnvelopePublisher, HistoryAppender, SchedulerJob } from "./types.ts";
+import type {
+  DedupeGate,
+  EnvelopePublisher,
+  HistoryAppender,
+  SchedulerJob,
+  TypingLookup,
+} from "./types.ts";
 
 /**
  * Đích cron là PHÒNG (nhóm đại lý đã /ketnoi-daily) — đó là toàn bộ job đang có. Cờ này đổi hành
@@ -45,9 +52,18 @@ export function buildCronEnvelope(job: SchedulerJob, scheduledMs: number): Envel
   };
 }
 
+/** Mở đầu tin báo trước; phần sau là mô tả việc của job. */
+const ANNOUNCE_PREFIX = "⏰ Chuẩn bị chạy job: ";
+
 /** false = bỏ bắn (đã bắn rồi ở tick/instance khác). Lỗi I/O ném ra cho caller log theo job. */
 export async function fireJob(
-  deps: { readonly broker: EnvelopePublisher; readonly history: HistoryAppender; readonly dedupe: DedupeGate },
+  deps: {
+    readonly broker: EnvelopePublisher;
+    readonly history: HistoryAppender;
+    readonly dedupe: DedupeGate;
+    readonly typing?: TypingLookup;
+    readonly broadcaster?: Broadcaster;
+  },
   job: SchedulerJob,
   scheduledMs: number,
 ): Promise<boolean> {
@@ -56,9 +72,40 @@ export async function fireJob(
   const first = await deps.dedupe.firstSee(envelope.channel, envelope.msgId);
   if (!first) return false;
 
+  // Báo TRƯỚC khi publish: người trong phòng thấy nhịp gõ rồi tin báo, sau đó mới tới kết quả
+  // agent. Sau dedupe → mỗi mốc chạy chỉ báo một lần.
+  await announceFiring(deps, job, envelope);
+
   await deps.history.append(toHistoryEntry(envelope));
   await deps.broker.publish(envelope);
   return true;
+}
+
+/**
+ * Gửi nhịp typing + tin "sắp chạy job" tới phòng đích. Cosmetic: hỏng thì log rồi đi tiếp, KHÔNG
+ * để mất lượt cron chỉ vì bridge chớp.
+ */
+async function announceFiring(
+  deps: { readonly typing?: TypingLookup; readonly broadcaster?: Broadcaster },
+  job: SchedulerJob,
+  envelope: Envelope,
+): Promise<void> {
+  if (deps.broadcaster === undefined && deps.typing === undefined) return;
+
+  const target = {
+    channel: envelope.channel,
+    conversationId: envelope.conversationId,
+    isGroup: envelope.isGroup,
+  };
+  try {
+    await deps.typing?.for(envelope.channel).typing(target);
+    await deps.broadcaster?.send(
+      { ...target, replyToSenderId: envelope.senderId },
+      `${ANNOUNCE_PREFIX}${job.task}`,
+    );
+  } catch (err) {
+    console.error(`[scheduler] báo trước job ${job.id} lỗi:`, err);
+  }
 }
 
 /**

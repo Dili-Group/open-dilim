@@ -182,6 +182,9 @@ export async function start(): Promise<RunningSystem> {
       broker: services.ingestDeps.broker,
       history: services.historyWriter,
       dedupe: services.ingestDeps.dedupe,
+      // Báo trước "sắp chạy job" cho phòng — dùng chung egress với worker.
+      typing: services.typing,
+      broadcaster: services.broadcaster,
     },
     services.config.schedulerTickMs,
   );

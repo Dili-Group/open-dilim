@@ -3,6 +3,7 @@
 // Job def sống ở Postgres (durable). `nextRunAt` vừa là due-index vừa là ô CAS: poller giành job
 // bằng UPDATE ... WHERE next_run_at = <giá trị vừa đọc> → hai process cùng tick chỉ 1 cái thắng.
 
+import type { Broadcaster, TypingSender } from "../broadcast/index.ts";
 import type { Envelope, HistoryEntry } from "../types/index.ts";
 
 /** 1 job đã lên lịch. Đây là phần poller cần — cột audit (created_at/updated_at) không đọc. */
@@ -117,10 +118,22 @@ export interface DedupeGate {
   firstSee(channel: string, msgId: string): Promise<boolean>;
 }
 
-/** Bó port scheduler cần. Bootstrap cấp implementation thật. */
+/** Chọn TypingSender theo kênh (TypingFactory lúc chạy thật). */
+export interface TypingLookup {
+  for(channel: string): TypingSender;
+}
+
+/**
+ * Bó port scheduler cần. Bootstrap cấp implementation thật.
+ *
+ * `typing`/`broadcaster` là báo trước "sắp chạy job" cho phòng — cosmetic, best-effort: thiếu
+ * hoặc hỏng thì job VẪN bắn (xem announceFiring trong fire.ts).
+ */
 export interface SchedulerDeps {
   readonly repo: JobRepo;
   readonly broker: EnvelopePublisher;
   readonly history: HistoryAppender;
   readonly dedupe: DedupeGate;
+  readonly typing?: TypingLookup;
+  readonly broadcaster?: Broadcaster;
 }

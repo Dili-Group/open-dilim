@@ -2,6 +2,7 @@
 // miss-fire bắn bù một lần. Repo/broker/history/dedupe đều giả — không DB, không Redis.
 
 import { describe, expect, test } from "bun:test";
+import type { BroadcastTarget, TypingTarget } from "../broadcast/index.ts";
 import type { Envelope, HistoryEntry } from "../types/index.ts";
 import { nextRunAfter, parseCron, VN_UTC_OFFSET_MINUTES } from "./schedule.ts";
 import { buildCronEnvelope, cronMsgId, fireJob } from "./fire.ts";
@@ -193,6 +194,47 @@ describe("envelope cron", () => {
     expect(await fireJob(deps, JOB, scheduled)).toBe(false);
     expect(deps.published).toHaveLength(1);
     expect(deps.appended).toHaveLength(1);
+  });
+
+  test("báo trước: typing rồi text 'Chuẩn bị chạy job' tới đúng phòng", async () => {
+    const typed: TypingTarget[] = [];
+    const sent: { target: BroadcastTarget; text: string }[] = [];
+    const deps = {
+      ...fakeDeps(new FakeRepo([])),
+      typing: {
+        for: () => ({
+          typing: (target: TypingTarget) => {
+            typed.push(target);
+            return Promise.resolve();
+          },
+        }),
+      },
+      broadcaster: {
+        send: (target: BroadcastTarget, text: string) => {
+          sent.push({ target, text });
+          return Promise.resolve();
+        },
+      },
+    };
+
+    expect(await fireJob(deps, JOB, scheduled)).toBe(true);
+    expect(typed).toEqual([{ channel: "zalo", conversationId: "group-42", isGroup: true }]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.text).toBe(`⏰ Chuẩn bị chạy job: ${JOB.task}`);
+    expect(sent[0]?.target.conversationId).toBe("group-42");
+    // Báo trước hỏng cũng không được mất lượt → text đi TRƯỚC khi publish.
+    expect(deps.published).toHaveLength(1);
+  });
+
+  test("báo trước hỏng vẫn bắn job", async () => {
+    const deps = {
+      ...fakeDeps(new FakeRepo([])),
+      broadcaster: {
+        send: () => Promise.reject(new Error("bridge chết")),
+      },
+    };
+    expect(await fireJob(deps, JOB, scheduled)).toBe(true);
+    expect(deps.published).toHaveLength(1);
   });
 });
 
