@@ -8,7 +8,7 @@ import { singleSystem, type LLMProvider, type LlmContentBlock } from "../llm/typ
 import type { DistilledFact, DistillSpec, DistillTurn, Distiller } from "./types.ts";
 
 // Distill là việc nhẹ → effort thấp, output ngắn (fact vài câu, không văn xuôi).
-const DISTILL_EFFORT: Effort = "low";
+const DISTILL_EFFORT: Effort = "medium";
 const DISTILL_MAX_TOKENS = 1024;
 const DEFAULT_CONFIDENCE = 0.5;
 
