@@ -9,6 +9,7 @@
 
 import { nextRunAfter } from "./schedule.ts";
 import { fireJob } from "./fire.ts";
+import { captureError } from "../observability/sentry.ts";
 import type { SchedulerDeps, SchedulerJob } from "./types.ts";
 
 /** Nhịp quét. Lịch nhỏ nhất của cron là phút → 30s là đủ dày để không trễ quá 1 phút. */
@@ -27,6 +28,7 @@ export async function tick(deps: SchedulerDeps, nowMs: number): Promise<void> {
       await runJob(deps, job, nowMs);
     } catch (err) {
       console.error(`[scheduler] job ${job.id} lỗi:`, err);
+      captureError(err, "scheduler.job", { jobId: job.id });
     }
   }
 }
@@ -69,6 +71,7 @@ export function startScheduler(deps: SchedulerDeps, tickMs: number = DEFAULT_TIC
       } catch (err) {
         // Postgres chết → tick sau thử lại. Không để một tick hỏng giết cả process.
         console.error("[scheduler] tick lỗi:", err);
+        captureError(err, "scheduler.tick");
       }
     });
   }, tickMs);

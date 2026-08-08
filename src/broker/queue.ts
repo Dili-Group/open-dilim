@@ -13,6 +13,7 @@ import type { Envelope } from "../types/index.ts";
 import type { RedisCommand } from "../redis/types.ts";
 import type { Broker } from "../message-ingest/index.ts";
 import type { BrokerConsumer, Delivery } from "../worker/index.ts";
+import { captureError } from "../observability/sentry.ts";
 import { parseEntries, parseEnvelope, parsePending, parseReadReply, type StreamEntry } from "./resp.ts";
 
 /** Stream ingress + DLQ + tên consumer group. Đổi = mất PEL đang chờ → coi như hằng hệ thống. */
@@ -148,6 +149,10 @@ export class RedisStreamBroker implements Broker, BrokerConsumer {
     const envelope = parseEnvelope(entry.data);
     if (envelope === null) {
       console.error(`[broker] entry ${entry.id} payload không hợp lệ → DLQ`);
+      captureError(new Error("payload ingress không hợp lệ → DLQ"), "broker.dlq", {
+        entryId: entry.id,
+        reason: "unparseable",
+      });
       await this.deadLetter(entry.id, entry.data);
       return;
     }
@@ -195,6 +200,11 @@ export class RedisStreamBroker implements Broker, BrokerConsumer {
     for (const entry of pending) {
       if (entry.deliveries >= MAX_DELIVERIES) {
         console.error(`[broker] entry ${entry.id} giao ${entry.deliveries} lần vẫn hỏng → DLQ`);
+        captureError(
+          new Error(`entry giao ${entry.deliveries} lần vẫn hỏng → DLQ`),
+          "broker.dlq",
+          { entryId: entry.id, reason: "max_deliveries" },
+        );
         await this.deadLetterById(entry.id);
       } else {
         retryIds.push(entry.id);

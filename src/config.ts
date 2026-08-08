@@ -120,6 +120,17 @@ function positiveIntEnv(name: string, fallback: number): number {
   return parsed;
 }
 
+/** Env tỉ lệ 0..1 optional với fallback. Sai kiểu/ngoài khoảng → throw (fail fast). */
+function rateEnv(name: string, fallback: number): number {
+  const raw = optional(name);
+  if (raw === undefined) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+    throw new Error(`Invalid env ${name}=${raw}. Expected number 0..1.`);
+  }
+  return parsed;
+}
+
 // Trần output token/lần gọi LLM. Non-streaming → giữ ~16k tránh timeout HTTP (xem claude-api).
 const DEFAULT_MAX_TOKENS = 16000;
 // Số worker chạy song song trong pool.
@@ -186,6 +197,15 @@ export const CONFIG = {
 
   // Scheduler (§8) — job def nằm ở bảng scheduler_jobs, đây chỉ là nhịp quét.
   schedulerTickMs: positiveIntEnv("SCHEDULER_TICK_MS", DEFAULT_SCHEDULER_TICK_MS),
+
+  // Sentry (báo lỗi từ xa). Optional: thiếu SENTRY_DSN → tắt hẳn, app chạy như cũ.
+  // tracesSampleRate mặc định 0 = chỉ gửi lỗi, không gửi trace (trace tốn quota, chưa cần).
+  sentry: {
+    dsn: optional("SENTRY_DSN"),
+    environment: optional("SENTRY_ENVIRONMENT") ?? optional("NODE_ENV") ?? "development",
+    release: optional("SENTRY_RELEASE"),
+    tracesSampleRate: rateEnv("SENTRY_TRACES_SAMPLE_RATE", 0),
+  },
 } as const;
 
 export type Config = typeof CONFIG;

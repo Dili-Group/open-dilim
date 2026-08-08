@@ -5,6 +5,7 @@
 //   dedupe.firstSee → (trùng: bỏ) → history.append (MỌI tin) → addressed? broker.publish
 //   fail giữa chừng → dedupe.release (retry reprocess) → 5xx cho channel retry.
 
+import { captureError } from "../observability/sentry.ts";
 import type { Envelope, HistoryEntry } from "../types/index.ts";
 import type { IngestDeps } from "./deps.ts";
 import type { ChannelFactory } from "./factory.ts";
@@ -41,6 +42,7 @@ export function createGateway(factory: ChannelFactory, deps: IngestDeps) {
       messages = ingestor.parse(payload);
     } catch (err) {
       console.error(`[ingest:${channel}] parse lỗi:`, err);
+      captureError(err, "ingest.parse", { channel });
       return json(400, { error: "unparseable_payload" });
     }
 
@@ -80,6 +82,7 @@ async function processMessage(deps: IngestDeps, msg: ParsedMessage): Promise<boo
     return true;
   } catch (err) {
     console.error(`[ingest:${msg.channel}] xử lý msg ${msg.msgId} lỗi:`, err);
+    captureError(err, "ingest.process", { channel: msg.channel, msgId: msg.msgId });
     return false;
   }
 }

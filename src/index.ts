@@ -2,6 +2,13 @@
 // shutdown để đóng server + pool DB sạch. Không chứa logic wiring (đó là việc của bootstrap/).
 
 import { start } from "./bootstrap/index.ts";
+import { CONFIG } from "./config.ts";
+import { flushSentry, initSentry } from "./observability/sentry.ts";
+
+
+// Bật TRƯỚC start(): lỗi lúc bootstrap (DB chưa lên, env sai) cũng phải báo được.
+initSentry(CONFIG.sentry);
+
 
 const system = await start();
 console.log(`[dilim-agent] gateway nghe cổng :${system.services.config.port}`);
@@ -12,6 +19,7 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   shuttingDown = true;
   console.log(`[dilim-agent] nhận ${signal} → shutdown`);
   await system.stop();
+  await flushSentry();
   process.exit(0);
 }
 

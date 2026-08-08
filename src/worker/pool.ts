@@ -3,6 +3,7 @@
 
 import { ConversationLock } from "./lock.ts";
 import { handleEnvelope } from "./handler.ts";
+import { captureError } from "../observability/sentry.ts";
 import type { WorkerPoolDeps } from "./types.ts";
 
 export interface RunningWorkers {
@@ -53,6 +54,12 @@ async function workerLoop(
     // thì broker tự đẩy DLQ. reply/suspended = lượt đã xong đúng nghĩa vụ → ack.
     if (result.status === "failed") {
       console.error(`[worker] msg ${envelope.msgId} hỏng ở bước ${result.step}:`, result.error);
+      captureError(result.error, "worker.turn", {
+        step: result.step,
+        channel: envelope.channel,
+        msgId: envelope.msgId,
+        conversationId: envelope.conversationId,
+      });
     }
     try {
       if (result.status === "failed") await delivery.retryLater();
@@ -60,6 +67,7 @@ async function workerLoop(
     } catch (err) {
       // Ack hỏng (Redis chớp tắt) không được giết worker: message ở lại PEL, lượt sau reclaim.
       console.error(`[worker] chốt trạng thái msg ${envelope.msgId} hỏng:`, err);
+      captureError(err, "worker.ack", { channel: envelope.channel, msgId: envelope.msgId });
     }
   }
 }
