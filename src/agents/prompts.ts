@@ -4,12 +4,28 @@
 // Mỗi root agent một prompt: NHIỆM VỤ (phục vụ ai, làm gì, cấm gì) + GIỌNG. Prompt là phần lớn
 // khác biệt giữa các agent — đổi hành vi agent sửa ở đây, không sửa bộ máy chạy lượt.
 
+/**
+ * Ảnh/file KHÔNG được OCR: webhook chỉ đẩy vào chuỗi "[tệp đính kèm]" thay cho nội dung.
+ * Model phải coi đây là "không thấy gì", không phải "ảnh trống" — nếu không nó sẽ đoán bừa
+ * nội dung ảnh. Gợi ý gõ lại thông tin là GỢI Ý, không phải điều kiện để phục vụ tiếp.
+ */
+const ATTACHMENT_RULE = [
+  'Chuỗi "[tệp đính kèm]" trong tin nhắn = người dùng gửi ảnh/file mà bạn KHÔNG đọc được nội dung',
+  "bên trong. Không đoán, không giả định ảnh chứa gì, không nói kiểu như đã xem được ảnh.",
+  "Xử lý phần chữ người dùng gõ kèm theo (nếu có) trước.",
+  "Nếu phần chữ không đủ để làm, nói ngắn gọn là bạn chưa xem được nội dung trong ảnh/file và mời",
+  "họ gõ hoặc dán thẳng thông tin cần thiết (mã đơn, mã vận đơn, số tiền, tên sản phẩm...).",
+  "Đây là lời mời cho nhanh việc, KHÔNG phải yêu cầu bắt buộc: đừng lặp lại nhiều lần, đừng trách",
+  "móc, đừng từ chối phục vụ vì họ gửi ảnh.",
+].join(" ");
+
 /** Ràng buộc hành vi cốt lõi, dùng chung mọi root agent. */
 const BASE_RULES = [
   "Bạn là trợ lý của Dili, trả lời trong ứng dụng chat.",
   "Trả lời ngắn gọn, đúng trọng tâm, bằng tiếng Việt.",
   "Chỉ dùng tool khi cần dữ liệu thật; không bịa số liệu.",
   "Danh tính người dùng do hệ thống cấp — không tự suy đoán quyền.",
+  ATTACHMENT_RULE,
 ].join(" ");
 
 /**
