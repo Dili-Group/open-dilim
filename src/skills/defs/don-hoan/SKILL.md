@@ -19,9 +19,9 @@ Agent **không có tool tra đơn** ở nhóm này (nhóm kho không thuộc đ�
 | `10093412` (mã thường) | mã hoàn trùng mã đơn gốc | Ghi nhận, xác nhận đã nhận. KHÔNG mở việc. |
 | `PKE0093412DH` (đuôi DH) | mã bên vận chuyển sinh mới | **Gọi `mo_viec_cho`** để hỏi đại lý mã đơn gốc. |
 
-Mã đuôi `DH` không tra ngược ra đơn nào được — chỉ đại lý mới biết nó ứng với đơn nào. Cấm suy ra
-đơn gốc bằng cách bỏ đuôi `DH` (`VTP0093412DH` → `VTP0093412`): hai mã đó **không liên quan gì
-nhau**, bên vận chuyển sinh mã hoàn độc lập.
+Hệ thống tự bỏ đuôi `DH` để tra ra **đại lý** chủ đơn rồi hỏi thẳng nhóm của họ — agent không phải
+làm gì thêm. Nhưng **đơn gốc cụ thể** thì vẫn phải để đại lý trả lời: agent tuyệt đối không tự
+khẳng định `VTP0093412DH` là đơn `VTP0093412`.
 
 ## Luật 2 — Chép mã nguyên văn, không sửa
 

@@ -5,7 +5,8 @@
 // cùng thư mục, KHÔNG đụng engine/poller/store.
 //
 // TẠI SAO phải hỏi người: mã hoàn thường trùng mã đơn gốc nên tra thẳng được; riêng loại `*DH` là
-// mã bên vận chuyển sinh MỚI, không tra ngược ra đơn nào — chỉ đại lý mới biết nó ứng với đơn nào.
+// mã bên vận chuyển sinh khi hoàn — phần thân mã tra ra được ĐẠI LÝ chủ đơn, nhưng đơn gốc cụ thể
+// thì chỉ đại lý mới biết. Nên: bỏ đuôi `DH` để tìm nhóm đại lý, rồi hỏi họ mã đơn gốc.
 
 import type { CustomerRoomLookup } from "../../auth/types.ts";
 import type { OrderOwnerPort } from "../../operational/types.ts";
@@ -39,6 +40,16 @@ export function needsOriginOrder(normalizedCode: string): boolean {
   return normalizedCode.endsWith(RETURN_SUFFIX);
 }
 
+/**
+ * Bỏ đuôi `DH` để lấy phần thân mã — thứ hệ vận hành tra được ra đại lý chủ đơn. Mã `*DH` nguyên
+ * văn KHÔNG có trong hệ vận hành nên tra thẳng luôn ra rỗng. Mã không có đuôi thì giữ nguyên.
+ */
+export function baseCodeOf(normalizedCode: string): string {
+  return needsOriginOrder(normalizedCode)
+    ? normalizedCode.slice(0, -RETURN_SUFFIX.length)
+    : normalizedCode;
+}
+
 export interface AskOriginOrderDeps {
   /** Tra đại lý chủ đơn từ mã vận đơn (không cần biết trước đại lý nào). */
   readonly owners: OrderOwnerPort;
@@ -60,6 +71,8 @@ export function buildAskOriginOrderWorkflow(deps: AskOriginOrderDeps): WorkflowD
     normalizeSubject(raw: string): string | undefined {
       const code = normalizeCode(raw);
       if (code === undefined || !needsOriginOrder(code)) return undefined;
+      // Chỉ mỗi chữ "DH" thì không còn thân mã nào để tra đại lý.
+      if (baseCodeOf(code) === "") return undefined;
       return code;
     },
 
@@ -77,7 +90,8 @@ export function buildAskOriginOrderWorkflow(deps: AskOriginOrderDeps): WorkflowD
     async resolveTarget(subject: string, signal?: AbortSignal): Promise<TargetResolution> {
       let owner;
       try {
-        owner = await deps.owners.ownerOf(subject, signal);
+        // Tra bằng phần thân mã: bản thân mã `*DH` không tồn tại trong hệ vận hành.
+        owner = await deps.owners.ownerOf(baseCodeOf(subject), signal);
       } catch (err) {
         // Hỏng khi GỌI ≠ không có dữ liệu: cái đầu thử lại được, cái sau thì không.
         return { kind: "failed", reason: err instanceof Error ? err.message : String(err) };

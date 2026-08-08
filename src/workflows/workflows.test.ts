@@ -295,6 +295,26 @@ describe("chuẩn hoá mã của def hoi-don-goc", () => {
   test("đáp án hợp lệ được chuẩn hoá", () => {
     expect(def.normalizeAnswer("vtp0093412")).toBe(ORIGIN_CODE);
   });
+
+  test("chỉ mỗi chữ DH → không còn thân mã, không phải khoá hợp lệ", () => {
+    expect(def.normalizeSubject("dh")).toBeUndefined();
+  });
+
+  test("tra chủ đơn bằng thân mã, không kèm đuôi DH", async () => {
+    const asked: string[] = [];
+    const withProbe = buildAskOriginOrderWorkflow({
+      owners: {
+        ownerOf: (code: string) => {
+          asked.push(code);
+          return Promise.resolve({ dealerId: "42" });
+        },
+      },
+      rooms: { roomOf: () => Promise.resolve(DEALER_ROOM) },
+    });
+
+    await withProbe.resolveTarget(RETURN_CODE);
+    expect(asked).toEqual([ORIGIN_CODE]);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
