@@ -57,9 +57,9 @@ describe("registry (defs thật)", () => {
     const registry = await buildSkillRegistry();
     const skill = registry.get("CHIET-KHAU"); // case-insensitive
     expect(skill).toBeDefined();
-    expect(await readBody(skill!)).toContain("chuyển người có thẩm quyền duyệt");
+    expect(await readBody(skill!)).toContain("NHÂN VIÊN gõ xác nhận");
     // Thứ tự do readdir quyết (khác nhau giữa máy) → so sánh sau khi sort.
-    expect([...(await listReferences(skill!))].sort()).toEqual(["bang-muc.md", "nang-muc.md"]);
+    expect([...(await listReferences(skill!))].sort()).toEqual(["bang-muc.md", "nang-muc.md", "xac-nhan-nang.md"]);
     expect(await readReference(skill!, "bang-muc.md")).toContain("500 triệu");
   });
 
@@ -78,7 +78,7 @@ describe("selector — model tự chọn skill", () => {
     expect(catalog).toContain("use_skill");
     expect(catalog).toContain("- chiet-khau:");
     // Tầng 1 KHÔNG rò body ra prompt.
-    expect(catalog).not.toContain("chuyển người có thẩm quyền duyệt");
+    expect(catalog).not.toContain("NHÂN VIÊN gõ xác nhận");
   });
 
   test("renderSkillCatalog registry rỗng → chuỗi rỗng", () => {
@@ -90,8 +90,8 @@ describe("selector — model tự chọn skill", () => {
     const result = await useSkill(registry, "chiet-khau");
     expect(result).toMatchObject({ ok: true, name: "chiet-khau" });
     if (result.ok) {
-      expect(result.body).toContain("chuyển người có thẩm quyền duyệt");
-      expect([...result.references].sort()).toEqual(["bang-muc.md", "nang-muc.md"]);
+      expect(result.body).toContain("NHÂN VIÊN gõ xác nhận");
+      expect([...result.references].sort()).toEqual(["bang-muc.md", "nang-muc.md", "xac-nhan-nang.md"]);
     }
   });
 

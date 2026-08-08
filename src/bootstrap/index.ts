@@ -31,6 +31,7 @@ import { OperationalOpsPort } from "../operational/ops-port.ts";
 import { AgentApiClient } from "../operational/agent-api.ts";
 import { AgentApiOrderPort } from "../operational/order-api.ts";
 import { AgentApiDealerPort } from "../operational/profile-api.ts";
+import { AgentApiDiscountPort } from "../operational/discount-api.ts";
 import { AgentApiDailyPort } from "../operational/daily-api.ts";
 import { AgentApiOrderOwnerPort } from "../operational/owner-api.ts";
 import {
@@ -87,6 +88,9 @@ export async function bootstrap(): Promise<Services> {
   const agentApi = new AgentApiClient(config.agentApi);
   const orders = new AgentApiOrderPort(agentApi);
   const dealer = new AgentApiDealerPort(agentApi);
+  // Cổng DUY NHẤT có đường ghi nghiệp vụ (nâng bậc chiết khấu) — cùng client, khác port để tool
+  // đọc hồ sơ không cầm được đường ghi.
+  const discount = new AgentApiDiscountPort(agentApi);
   const daily = new AgentApiDailyPort(agentApi);
 
   // Egress dựng TRƯỚC agent vì tầng workflows cần broadcaster (báo kết quả về phòng đã hỏi, có
@@ -129,6 +133,7 @@ export async function bootstrap(): Promise<Services> {
     memory,
     orders,
     dealer,
+    discount,
     daily,
     workflow,
   });

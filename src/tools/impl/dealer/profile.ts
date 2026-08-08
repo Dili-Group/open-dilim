@@ -4,7 +4,8 @@
 // KHÔNG có tham số: đại lý đến từ closure/ctx (resolvePrincipal), không phải từ input LLM sinh —
 // model không được quyền hỏi hồ sơ đại lý khác.
 //
-// CHỈ ĐỌC. Nâng bậc chiết khấu là WRITE → chưa có tool nào, đi qua người duyệt (skill `chiet-khau`).
+// CHỈ ĐỌC. Đường GHI bậc chiết khấu nằm ở discount.ts (`nang_bac_chiet_khau`), tool khác — port
+// khác — và chỉ mở cho nhân viên.
 
 import { AgentApiError } from "../../../operational/agent-api.ts";
 import type { DealerProfile } from "../../../operational/types.ts";
@@ -39,8 +40,8 @@ const RATE_NOTE =
   "Hồ sơ chỉ có TÊN BẬC, không có con số phần trăm — tỉ lệ thật khác nhau theo từng sản phẩm. " +
   "Không dịch tên bậc ra %, không suy % từ giá đơn hàng. Khách hỏi mức % cụ thể → chuyển vận hành/kế toán.";
 const WRITE_NOTE =
-  "Tool CHỈ ĐỌC: agent không nâng, không đổi bậc chiết khấu. Muốn nâng → thu minh chứng rồi chuyển " +
-  "người duyệt (skill chiet-khau).";
+  "Tool CHỈ ĐỌC: không nâng, không đổi bậc ở đây. Nâng bậc đi qua nang_bac_chiet_khau và CHỈ khi " +
+  "nhân viên gõ xác nhận (skill chiet-khau).";
 /** Bậc null là trạng thái thật, không phải lỗi — nói đúng để model không đoán một bậc. */
 const NO_TIER_NOTE =
   "Đại lý CHƯA được xếp bậc chiết khấu nào trong hệ thống. Không suy ra mức % từ giá đơn hàng — " +

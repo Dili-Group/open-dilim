@@ -13,8 +13,10 @@
 const SERVICE_TOKEN_HEADER = "x-service-token";
 /** `dealers.id` (bigint dạng chuỗi). Backend ép mọi truy vấn theo đại lý này. */
 const DEALER_HEADER = "x-dealer-id";
-/** `accounts.id` (bigint dạng chuỗi) — chỉ để backend audit ai tra. */
+/** `accounts.id` (bigint dạng chuỗi) — audit ai tra, và là NGƯỜI GHI ở endpoint POST. */
 const STAFF_HEADER = "x-staff-id";
+const CONTENT_TYPE_HEADER = "content-type";
+const JSON_CONTENT_TYPE = "application/json";
 
 /** Trần thời gian 1 call. Backend chậm bất thường → abort, không treo agent loop. */
 const TIMEOUT_MS = 10_000;
@@ -80,6 +82,12 @@ export function buildAgentHeaders(
   return headers;
 }
 
+/** Một lời gọi HTTP: động từ + thân (POST mới có thân). Nội bộ client, không lộ ra ngoài. */
+interface SendCall {
+  readonly method: "GET" | "POST";
+  readonly body?: unknown;
+}
+
 type QueryValue = string | number | undefined;
 
 export interface AgentApiRequest {
@@ -103,6 +111,8 @@ export interface FetchInit {
   readonly method: string;
   readonly headers: Record<string, string>;
   readonly signal: AbortSignal;
+  /** JSON đã stringify. Chỉ có ở POST — GET không mang body. */
+  readonly body?: string;
 }
 export type FetchLike = (url: string, init: FetchInit) => Promise<FetchResponse>;
 
@@ -126,7 +136,22 @@ export class AgentApiClient {
 
   /** GET một endpoint `/agent/*`. Trả body JSON đã parse (`unknown`) — nơi gọi validate shape. */
   async get(path: string, request: AgentApiRequest): Promise<unknown> {
-    return this.send(path, buildAgentHeaders(this.serviceToken, request.principal), request);
+    return this.send(path, buildAgentHeaders(this.serviceToken, request.principal), request, {
+      method: "GET",
+    });
+  }
+
+  /**
+   * POST một endpoint `/agent/*` — endpoint GHI (nâng bậc chiết khấu...).
+   *
+   * KHÔNG RETRY, kể cả 5xx/timeout: request đã tới backend hay chưa thì phía này không phân biệt
+   * được, mà bắn lại một lệnh ghi là ghi hai lần. Nơi gọi báo lỗi cho người, người quyết thử lại.
+   */
+  async post(path: string, request: AgentApiRequest & { readonly body: unknown }): Promise<unknown> {
+    return this.send(path, buildAgentHeaders(this.serviceToken, request.principal), request, {
+      method: "POST",
+      body: request.body,
+    });
   }
 
   /**
@@ -140,21 +165,26 @@ export class AgentApiClient {
     path: string,
     request: Omit<AgentApiRequest, "principal"> = {},
   ): Promise<unknown> {
-    return this.send(path, { [SERVICE_TOKEN_HEADER]: this.serviceToken }, request);
+    return this.send(path, { [SERVICE_TOKEN_HEADER]: this.serviceToken }, request, {
+      method: "GET",
+    });
   }
 
   private async send(
     path: string,
     headers: Record<string, string>,
     request: Omit<AgentApiRequest, "principal">,
+    call: SendCall,
   ): Promise<unknown> {
     const url = this.buildUrl(path, request.query);
+    // Chỉ GET mới lặp: GET idempotent, POST thì bắn lại là ghi lại (xem `post`).
+    const maxAttempts = call.method === "GET" ? RETRY_BACKOFF_MS.length : 0;
 
     let lastError: AgentApiError | undefined;
-    for (let attempt = 0; attempt <= RETRY_BACKOFF_MS.length; attempt++) {
+    for (let attempt = 0; attempt <= maxAttempts; attempt++) {
       if (attempt > 0) await sleep(RETRY_BACKOFF_MS[attempt - 1] ?? 0);
       try {
-        return await this.attempt(url, path, headers, request.signal);
+        return await this.attempt(url, path, headers, request.signal, call);
       } catch (err) {
         if (!(err instanceof AgentApiError)) throw err;
         // 4xx = input/cấu hình sai, retry cũng ra y hệt. Chỉ 5xx và lỗi transport mới đáng thử lại.
@@ -182,17 +212,27 @@ export class AgentApiClient {
     path: string,
     headers: Record<string, string>,
     signal: AbortSignal | undefined,
+    call: SendCall,
   ): Promise<unknown> {
     const timeoutSignal = AbortSignal.timeout(TIMEOUT_MS);
     const combined = signal === undefined ? timeoutSignal : AbortSignal.any([signal, timeoutSignal]);
+    const init: FetchInit =
+      call.method === "POST"
+        ? {
+            method: "POST",
+            headers: { ...headers, [CONTENT_TYPE_HEADER]: JSON_CONTENT_TYPE },
+            signal: combined,
+            body: JSON.stringify(call.body ?? {}),
+          }
+        : { method: "GET", headers, signal: combined };
 
     let response: FetchResponse;
     try {
-      response = await this.fetchImpl(url, { method: "GET", headers, signal: combined });
+      response = await this.fetchImpl(url, init);
     } catch (err) {
       const reason = timeoutSignal.aborted ? `timeout sau ${TIMEOUT_MS}ms` : describeError(err);
       throw new AgentApiError(
-        `GET ${path} thất bại (${reason})`,
+        `${call.method} ${path} thất bại (${reason})`,
         0,
         AgentApiErrorCode.Transport,
         path,
@@ -200,13 +240,13 @@ export class AgentApiClient {
     }
 
     const text = await response.text();
-    if (!response.ok) throw toApiError(response.status, text, path);
+    if (!response.ok) throw toApiError(response.status, text, path, call.method);
 
     try {
       return JSON.parse(text) as unknown;
     } catch {
       throw new AgentApiError(
-        `GET ${path} trả response không phải JSON`,
+        `${call.method} ${path} trả response không phải JSON`,
         response.status,
         AgentApiErrorCode.InvalidResponse,
         path,
@@ -242,7 +282,7 @@ export function readEnvelopeMeta(body: unknown, key = "meta"): Record<string, un
 }
 
 /** Body lỗi backend: `{ code, message }`. Thiếu → dùng status làm mã (vẫn phân loại được). */
-function toApiError(status: number, text: string, path: string): AgentApiError {
+function toApiError(status: number, text: string, path: string, method = "GET"): AgentApiError {
   let code = `HTTP_${status}`;
   let message = text.slice(0, MAX_ERROR_BODY);
   try {
@@ -255,7 +295,7 @@ function toApiError(status: number, text: string, path: string): AgentApiError {
   } catch {
     // Body lỗi không phải JSON (gateway/proxy chen vào) — giữ text đã cắt làm message.
   }
-  return new AgentApiError(`GET ${path} trả ${status} (${code}): ${message}`, status, code, path);
+  return new AgentApiError(`${method} ${path} trả ${status} (${code}): ${message}`, status, code, path);
 }
 
 function describeError(err: unknown): string {

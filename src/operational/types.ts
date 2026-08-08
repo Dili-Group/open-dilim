@@ -164,14 +164,77 @@ export interface DealerProfile {
 }
 
 /**
- * Cổng ĐỌC hồ sơ đại lý. CHỈ ĐỌC: nâng bậc chiết khấu là WRITE, đi qua người duyệt cho tới khi có
- * approval gate (§6) — xem skill `chiet-khau`.
+ * Cổng ĐỌC hồ sơ đại lý. CHỈ ĐỌC: đường GHI bậc chiết khấu nằm ở `DiscountPort` (tách hẳn), để
+ * tool đọc hồ sơ không bao giờ cầm được đường ghi.
  */
 export interface DealerPort {
   /** null = backend không có hồ sơ cho đại lý này (404). Lỗi khác bubble lên. */
   profile(
     p: OrderPrincipal & { readonly signal?: AbortSignal },
   ): Promise<DealerProfile | null>;
+}
+
+/**
+ * Một bậc chiết khấu trong hệ thống. `sortOrder` là THỨ TỰ BẬC — bậc cao hơn = số lớn hơn; đây là
+ * dữ kiện DUY NHẤT để phân biệt nâng với hạ. KHÔNG có phần trăm ở đây (tỉ lệ khác nhau theo sản
+ * phẩm — xem skill `chiet-khau`), đừng dịch tên bậc thành một con số %.
+ *
+ * `isShareholder` = bậc này thuộc thang dành cho cổ đông. Hai thang song song, không so trực tiếp
+ * `sortOrder` giữa hai thang được.
+ */
+export interface DiscountTier {
+  /** `discount_tiers.id` (bigint dạng chuỗi) — cũng là `tier_id` gửi lên khi nâng. */
+  readonly id: string;
+  readonly tierName: string;
+  /** Nhãn hiển thị. Backend trả `null` khi chưa đặt → undefined. */
+  readonly displayLabel?: string;
+  readonly isShareholder: boolean;
+  readonly sortOrder: number;
+}
+
+/** Bậc cũ trong kết quả nâng. null ở backend (đại lý chưa từng xếp bậc) → undefined. */
+export interface DiscountTierRef {
+  readonly id: string;
+  readonly tierName: string;
+  readonly sortOrder: number;
+}
+
+/**
+ * Kết quả một lần nâng bậc. `scheduleId` = bản ghi lịch áp dụng backend vừa tạo — bằng chứng lệnh
+ * đã ghi, in ra cho người đối chiếu. `changedBy` = nhân viên backend ghi nhận (từ `x-staff-id`).
+ */
+export interface TierUpgradeResult {
+  readonly scheduleId: string;
+  readonly dealerCode?: string;
+  readonly fromTier?: DiscountTierRef;
+  readonly toTier: DiscountTier;
+  readonly effectiveFrom?: string;
+  readonly reason?: string;
+  readonly changedBy?: string;
+}
+
+/**
+ * Cổng BẬC CHIẾT KHẤU: đọc danh mục bậc + GHI lệnh nâng bậc cho đại lý của phòng.
+ *
+ * TÁCH khỏi DealerPort vì đây là port DUY NHẤT có đường ghi. Tool nào cầm nó là tool đổi được giá
+ * hàng của đại lý — chỉ `nang_bac_chiet_khau` được khai, và chỉ khi người gõ là nhân viên.
+ */
+export interface DiscountPort {
+  /** Danh mục bậc đang có. Mảng rỗng = backend không trả bậc nào (KHÔNG bịa bậc mặc định). */
+  tiers(
+    p: OrderPrincipal & { readonly signal?: AbortSignal },
+  ): Promise<readonly DiscountTier[]>;
+  /**
+   * Nâng đại lý (theo `dealerId` ở header) lên `tierId`. KHÔNG retry ở tầng HTTP — lỗi bubble lên
+   * để người quyết bắn lại, tránh ghi hai lần.
+   */
+  upgrade(
+    p: OrderPrincipal & {
+      readonly tierId: string;
+      readonly reason: string;
+      readonly signal?: AbortSignal;
+    },
+  ): Promise<TierUpgradeResult>;
 }
 
 /**

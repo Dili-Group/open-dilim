@@ -5,7 +5,7 @@
 // SERVER-SIDE qua closure lúc dựng tool cho request — xem buildTools(identity) trong index.ts.
 
 import type { Identity } from "../flash-command/types.ts";
-import type { DailyPort, DealerPort, OrderPort } from "../operational/types.ts";
+import type { DailyPort, DealerPort, DiscountPort, OrderPort } from "../operational/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
 import type { RoomRef } from "../workflows/types.ts";
@@ -56,6 +56,11 @@ export interface ToolContext {
   readonly orders?: OrderPort;
   /** Cổng đọc hồ sơ đại lý (bậc chiết khấu). undefined = chưa nối → tool trả lỗi nghiệp vụ. */
   readonly dealer?: DealerPort;
+  /**
+   * Cổng bậc chiết khấu: đọc danh mục bậc + GHI lệnh nâng bậc. Cổng DUY NHẤT có đường ghi —
+   * chỉ agent nào thật sự cần mới được khai (xem DEALER_TIER_TOOLS ở tools/index.ts).
+   */
+  readonly discount?: DiscountPort;
   /** Cổng đọc sổ ngày (xuất kho/hoàn/tiền phải trả/tiền hoàn). undefined = chưa nối → tool trả lỗi. */
   readonly daily?: DailyPort;
   /**

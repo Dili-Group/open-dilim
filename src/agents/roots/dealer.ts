@@ -5,6 +5,7 @@ import { customerSupportSpec } from "../../state/specs.ts";
 import {
   COMMON_TOOLS,
   DAILY_TOOLS,
+  DEALER_TIER_TOOLS,
   DEALER_TOOLS,
   ORDER_TOOLS,
   WORKFLOW_LIST_TOOLS,
@@ -21,10 +22,15 @@ export const dealerProfile: RootAgentProfile = {
   memorySpec: customerSupportSpec,
   // Bên ĐƯỢC HỎI của việc treo (§6): nhóm khác nhờ hỏi đại lý một dữ kiện (vd mã đơn gốc của
   // đơn hoàn) → agent hỏi trong nhóm, đại lý trả lời lúc nào thì ghi lúc đó, kể cả 2 ngày sau.
+  //
+  // DEALER_TIER_TOOLS mang đường GHI duy nhất của agent này (nâng bậc chiết khấu). Nó ở đây vì
+  // cuộc trao đổi nâng mức diễn ra ngay trong nhóm đại lý: đại lý xin, nhân viên phụ trách gõ xác
+  // nhận. Tool tự chặn theo vai người gõ, không dựa vào prompt.
   tools: [
     ...COMMON_TOOLS,
     ...ORDER_TOOLS,
     ...DEALER_TOOLS,
+    ...DEALER_TIER_TOOLS,
     ...DAILY_TOOLS,
     ...WORKFLOW_REPLY_TOOLS,
     ...WORKFLOW_LIST_TOOLS,

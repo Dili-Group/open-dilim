@@ -63,6 +63,7 @@ class ProfileRootAgent implements RootAgent {
           room: input.room,
           orders: this.deps.orders,
           dealer: this.deps.dealer,
+          discount: this.deps.discount,
           daily: this.deps.daily,
           workflow: this.deps.workflow,
         }),

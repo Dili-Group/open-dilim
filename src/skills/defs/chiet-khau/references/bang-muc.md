@@ -13,7 +13,7 @@ Trích đúng văn bản. Mức nào không có trong đây thì **không tồn 
 | Từ 50 triệu – dưới 100 triệu | 35% |
 | Dưới 50 triệu **hoặc chưa đặt cọc** | 30% |
 
-Doanh thu kỳ do kế toán đối soát chốt. Agent không tra được, không ước lượng (skill, Luật 4).
+Doanh thu kỳ do kế toán đối soát chốt. Agent không tra được, không ước lượng (skill, Luật 5).
 
 ## Bảng B — theo đối tượng / điều kiện
 
@@ -28,7 +28,7 @@ Doanh thu kỳ do kế toán đối soát chốt. Agent không tra được, kh�
 | Hoàn tất khoá Thiền Vipassana 10 ngày | 50% | |
 
 Hai dòng ghi "hết hạn 30/05/2026": mốc đã qua so với hôm nay. Agent nêu đúng như vậy, không hứa mức,
-chuyển Giám đốc Lê Chí Linh (skill, Luật 5).
+chuyển Giám đốc Lê Chí Linh (skill, Luật 6).
 
 ## Nhánh quảng cáo 1 triệu/ngày — cơ chế bù, không phải nâng ngay
 

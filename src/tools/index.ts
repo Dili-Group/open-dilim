@@ -11,6 +11,10 @@ import { buildOrderStatusTool } from "./impl/order/status.ts";
 import { buildOrderPaymentTool } from "./impl/order/payment.ts";
 import { buildOrderVideoTool } from "./impl/order/video.ts";
 import { buildDealerProfileTool } from "./impl/dealer/profile.ts";
+import {
+  buildDiscountTierListTool,
+  buildDiscountTierUpgradeTool,
+} from "./impl/dealer/discount.ts";
 import { buildDailyDetailTool, buildDailyReportTool } from "./impl/dealer/daily.ts";
 import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
 import { buildWorkflowAnswerTool } from "./impl/workflow/answer.ts";
@@ -44,10 +48,23 @@ export const ORDER_TOOLS: readonly ToolFactory[] = [
  * Tool đọc HỒ SƠ đại lý (bậc chiết khấu, người giới thiệu, nhân viên phụ trách) — cùng phạm vi
  * như ORDER_TOOLS: đại lý của phòng, do server ép qua header, không nhận tham số đại lý.
  *
- * CHỈ ĐỌC. Nâng bậc chiết khấu là WRITE → chưa có tool, đi qua người duyệt — xem skill `chiet-khau`.
+ * CHỈ ĐỌC. Đường GHI bậc chiết khấu tách hẳn sang DEALER_TIER_TOOLS.
  */
 export const DEALER_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildDealerProfileTool(ctx),
+];
+
+/**
+ * Tool BẬC CHIẾT KHẤU: đọc danh mục bậc, và GHI lệnh nâng bậc cho đại lý của phòng.
+ *
+ * Bộ DUY NHẤT có đường ghi dữ liệu nghiệp vụ. Hàng rào không nằm ở chỗ khai bộ tool này cho agent
+ * nào, mà nằm trong chính tool: `nang_bac_chiet_khau` từ chối nếu người gõ không phải NHÂN VIÊN,
+ * và từ chối mọi bậc không cao hơn bậc đang áp. Khai cho agent đại lý là cố ý — đại lý xin ở lượt
+ * trước, nhân viên gõ xác nhận ở lượt sau, cả hai diễn ra trong CÙNG nhóm chat đó (skill `chiet-khau`).
+ */
+export const DEALER_TIER_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildDiscountTierListTool(ctx),
+  (ctx: ToolContext): Tool => buildDiscountTierUpgradeTool(ctx),
 ];
 
 /**

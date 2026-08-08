@@ -4,7 +4,7 @@
 import type { Effort } from "../config.ts";
 import type { LLMProvider } from "../llm/types.ts";
 import type { Identity } from "../flash-command/types.ts";
-import type { DailyPort, DealerPort, OrderPort } from "../operational/types.ts";
+import type { DailyPort, DealerPort, DiscountPort, OrderPort } from "../operational/types.ts";
 import type { PendingNotice } from "../context/pending-block.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
 import type { RoomRef } from "../workflows/types.ts";
@@ -45,6 +45,8 @@ export interface AgentDeps {
   readonly orders?: OrderPort;
   /** Cổng đọc hồ sơ đại lý cho tool tra bậc chiết khấu. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
   readonly dealer?: DealerPort;
+  /** Cổng bậc chiết khấu (đọc danh mục + GHI lệnh nâng bậc). undefined = chưa nối → tool trả lỗi. */
+  readonly discount?: DiscountPort;
   /** Cổng đọc sổ ngày cho tool báo cáo cuối ngày. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
   readonly daily?: DailyPort;
   /** Cổng việc-chờ-trả-lời (§6) cho tool mở/đóng việc treo. undefined = chưa nối → tool trả lỗi. */

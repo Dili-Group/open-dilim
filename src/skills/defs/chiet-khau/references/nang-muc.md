@@ -6,6 +6,9 @@
 Không tự kết luận đủ hay chưa đủ. Agent chỉ liệt kê thứ bên duyệt cần thấy. Mức đầy đủ:
 `bang-muc.md`.
 
+File này là nhịp CHUẨN BỊ. Bậc chỉ đổi thật khi nhân viên gõ xác nhận ở nhịp sau —
+xem `xac-nhan-nang.md`.
+
 ## Xác định nhánh trước khi hỏi giấy tờ
 
 Hỏi đúng một câu để chốt nhánh, đừng hỏi dồn 5 câu:
@@ -70,7 +73,8 @@ còn Rich People Business / Thương Hiệu Bạc Tỷ là diện giám đốc x
 
 ## Câu KHÔNG được dùng
 
-- "Em nâng lên 45% cho chị rồi ạ" — agent không có quyền ghi.
+- "Em nâng lên 45% cho chị rồi ạ" — chưa có nhân viên xác nhận thì chưa có gì đổi; và kể cả nâng
+  xong cũng báo bằng TÊN BẬC, không bằng phần trăm.
 - "Từ đơn sau chị được 50% nhé" — hứa mức chưa ai duyệt.
 - "Bậc F2 tức là 40% đó ạ" — hồ sơ chỉ có tên bậc, tỉ lệ tuỳ sản phẩm.
 - "Tính theo đơn tháng này chị được 200 triệu rồi đó" — doanh thu kỳ không phải tổng đơn 30 ngày.
