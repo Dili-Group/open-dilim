@@ -74,6 +74,17 @@ async function runOpen(
 
   switch (outcome.kind) {
     case "asked":
+      // Nhóm cần hỏi chính là nhóm này → không có ai để chuyển tiếp: hỏi thẳng ngay trong câu trả
+      // lời của lượt này, đừng hứa "sẽ báo lại".
+      if (outcome.selfRoom) {
+        return {
+          content:
+            `${def.targetLabel} cần hỏi CHÍNH LÀ nhóm này. Đã ghi nhận việc chờ cho ` +
+            `${def.subjectLabel} ${outcome.request.subject} — giờ hỏi thẳng người trong nhóm này ` +
+            `${def.answerLabel}, nhắc lại ${def.subjectLabel} NGUYÊN VĂN. Khi họ trả lời, gọi ` +
+            `tra_loi_viec để đóng việc.`,
+        };
+      }
       return {
         content:
           `Đã hỏi ${def.targetLabel} về ${def.subjectLabel} ${outcome.request.subject}. ` +
@@ -116,7 +127,10 @@ async function runOpen(
       };
     case "failed":
       return {
-        content: `Tra cứu thất bại (${outcome.reason}). Báo người dùng là em thử lại sau ít phút.`,
+        content:
+          `Chưa mở được việc cho ${def.subjectLabel} ${subject} (${outcome.reason}). ` +
+          `KHÔNG có việc nào được ghi nhận — hệ thống sẽ KHÔNG tự hỏi lại. Gọi lại tool này một ` +
+          `lần nữa ngay trong lượt này; vẫn hỏng thì báo người dùng là em chưa hỏi được và sẽ thử lại.`,
         isError: true,
       };
   }

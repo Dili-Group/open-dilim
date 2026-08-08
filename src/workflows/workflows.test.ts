@@ -340,6 +340,19 @@ describe("mở việc", () => {
     expect(deps.appended[0]?.role).toBe("user");
   });
 
+  test("nhóm đích TRÙNG nhóm hỏi → ghi việc nhưng KHÔNG đẩy lượt (không tự hỏi chính mình)", async () => {
+    const store = new FakeStore();
+    const deps = fakeDeps(store);
+    const outcome = await openRequest(deps, buildDef(), { ...openInput(), origin: DEALER_ROOM });
+
+    expect(outcome.kind).toBe("asked");
+    if (outcome.kind === "asked") expect(outcome.selfRoom).toBe(true);
+    expect(store.rows).toHaveLength(1);
+    // Đẩy lượt ở đây = phòng nhận thêm một lượt agent nữa cho cùng một tin.
+    expect(deps.published).toHaveLength(0);
+    expect(deps.appended).toHaveLength(0);
+  });
+
   test("gõ lại mã đang chờ → KHÔNG hỏi đại lý lần hai", async () => {
     const store = new FakeStore();
     const deps = fakeDeps(store);

@@ -41,7 +41,8 @@ export interface OpenInput {
 
 /**
  * Kết cục một lần mở việc:
- *  - asked          : đã ghi pending + đã đẩy lượt hỏi sang nhóm đích.
+ *  - asked          : đã ghi pending + đã đẩy lượt hỏi sang nhóm đích. `selfRoom` = nhóm đích CHÍNH
+ *                     LÀ nhóm đang hỏi → không đẩy lượt nào (agent đã ở đó, tự hỏi luôn).
  *  - already_open   : khoá này đang chờ trả lời (không hỏi lại, không nhân đôi).
  *  - already_answered: khoá này đã có đáp án từ trước → trả luôn, không phiền nhóm kia.
  *  - invalid_subject: khoá không hợp lệ theo def (gõ sai/rỗng).
@@ -50,7 +51,7 @@ export interface OpenInput {
  *  - failed         : gọi hệ ngoài hỏng — THỬ LẠI ĐƯỢC, khác hẳn `unknown_subject`.
  */
 export type OpenOutcome =
-  | { readonly kind: "asked"; readonly request: PendingRequest }
+  | { readonly kind: "asked"; readonly request: PendingRequest; readonly selfRoom: boolean }
   | { readonly kind: "already_open"; readonly request: PendingRequest }
   | { readonly kind: "already_answered"; readonly request: PendingRequest }
   | { readonly kind: "invalid_subject" }
@@ -76,7 +77,12 @@ export async function openRequest(
   const target = await def.resolveTarget(subject, input.signal);
   if (target.kind === "unknown_subject") return { kind: "unknown_subject" };
   if (target.kind === "no_room") return { kind: "no_room", detail: target.detail };
-  if (target.kind === "failed") return { kind: "failed", reason: target.reason };
+  // Lý do hỏng chỉ đi vào ToolResult cho model đọc — model diễn đạt lại thành "lỗi tra cứu" rồi
+  // lý do biến mất. Log ra để còn truy được vì sao việc này KHÔNG BAO GIỜ được mở.
+  if (target.kind === "failed") {
+    console.error(`[workflows] ${def.name}: tra đích cho "${subject}" hỏng — ${target.reason}`);
+    return { kind: "failed", reason: target.reason };
+  }
 
   const request = await deps.store.open({
     workflow: def.name,
@@ -92,13 +98,22 @@ export async function openRequest(
   // bắt được). Đọc lại row của họ và coi như "đang chờ rồi" — không hỏi bên kia lần thứ hai.
   if (request === null) {
     const raced = await deps.store.findOpen(def.name, subject);
-    return raced === undefined
-      ? { kind: "failed", reason: `không mở được việc cho ${subject}` }
-      : { kind: "already_open", request: raced };
+    if (raced === undefined) {
+      // INSERT bị chặn nhưng đọc lại không thấy row nào: index chặn vì lý do KHÁC (vd đụng
+      // idempotency_key), không phải vì đang có việc treo. Không log thì ca này vô hình.
+      console.error(`[workflows] ${def.name}: INSERT cho "${subject}" bị chặn mà không có việc treo nào.`);
+      return { kind: "failed", reason: `không mở được việc cho ${subject}` };
+    }
+    return { kind: "already_open", request: raced };
   }
 
-  await dispatchAsk(deps, def, request, input.nowMs);
-  return { kind: "asked", request };
+  // Nhóm đích TRÙNG nhóm đang hỏi (nhóm này vừa là kho vừa là nhóm đại lý chủ đơn): đẩy lượt hỏi
+  // = tự bắn cho chính mình một lượt agent nữa trong cùng phòng → người dùng thấy hai lần "để em
+  // kiểm tra" và hai câu trả lời cho một tin. Việc vẫn ghi pending (để nhận đáp án + nhắc lại),
+  // chỉ bỏ cú đẩy: agent đang đứng sẵn trong phòng, hỏi thẳng ở lượt này.
+  const selfRoom = sameRoom(request.target, request.origin);
+  if (!selfRoom) await dispatchAsk(deps, def, request, input.nowMs);
+  return { kind: "asked", request, selfRoom };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
