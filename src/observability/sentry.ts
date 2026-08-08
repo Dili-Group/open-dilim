@@ -22,6 +22,12 @@ export type ErrorTags = Readonly<Record<string, string>>;
 /** Trần thời gian đẩy nốt event lúc shutdown. Quá hạn → bỏ, không giữ process. */
 const FLUSH_TIMEOUT_MS = 2000;
 
+/**
+ * Mức console được bốc lên Sentry Logs. Bỏ "debug"/"trace"/"assert": ồn, và debug là nơi
+ * dễ lỡ in nội dung tin nhắn nhất (CLAUDE.md §Secrets & I/O).
+ */
+const CAPTURED_CONSOLE_LEVELS = ["log", "info", "warn", "error"] as const;
+
 let enabled = false;
 
 /** Bật báo lỗi từ xa. Gọi một lần, sớm nhất có thể trong entrypoint. */
@@ -37,6 +43,9 @@ export function initSentry(config: SentryConfig): void {
     tracesSampleRate: config.tracesSampleRate,
     // IP/cookie/header người dùng là dữ liệu khách hàng → không đính kèm.
     sendDefaultPii: false,
+    // Logs: mọi console.* của app chảy sang Sentry Logs, không phải sửa 50+ call site.
+    enableLogs: true,
+    integrations: [Sentry.consoleLoggingIntegration({ levels: [...CAPTURED_CONSOLE_LEVELS] })],
   });
   enabled = true;
 }
