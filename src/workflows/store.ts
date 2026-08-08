@@ -28,6 +28,16 @@ import type {
 const MAX_REMIND_PER_TICK = 100;
 
 /**
+ * jsonb LUÔN bind qua `::text::jsonb`, KHÔNG phải `::jsonb` trần.
+ *
+ * `${chuỗi}::jsonb` để Postgres suy ra kiểu tham số là jsonb → Bun tự JSON-encode chuỗi ĐÃ là
+ * JSON thêm một lần nữa: cột nhận về một jsonb *string scalar* `"{\"origin\":...}"`, không phải
+ * object. Hậu quả im lặng: `state_snapshot -> 'origin'` ra NULL (openForOrigin không thấy gì) và
+ * `state_snapshot || patch` nối hai scalar thành MẢNG hai chuỗi → row không parse được nữa.
+ * Ép qua `text` trước buộc tham số đi dạng text, `::jsonb` mới thực sự PARSE nó thành object.
+ */
+
+/**
  * `approver` cho việc hỏi-cả-nhóm: ai ở trong nhóm đích cũng trả lời được, nên lưu chính nhóm
  * đó thay vì một senderId. Có tiền tố `room:` để không lẫn với approver là MỘT NGƯỜI (§6 tầng B).
  */
@@ -49,7 +59,7 @@ export class SqlPendingStore implements PendingStore {
                                    state_snapshot, idempotency_key, status, approver, requester_id,
                                    ask_count, next_remind_at, expires_at)
       VALUES (${id}, ${input.target.groupId}, ${input.target.channel}, ${input.workflow},
-              ${input.subject ?? null}, ${snapshot}::jsonb, ${`${input.workflow}:${id}`},
+              ${input.subject ?? null}, ${snapshot}::text::jsonb, ${`${input.workflow}:${input.subject}`},
               ${PendingStatus.Pending}, ${roomApprover(input.target)}, ${input.requesterId},
               1, ${input.nextRemindAt ?? null}, ${input.expiresAt})
       ON CONFLICT (workflow, subject)
@@ -140,14 +150,21 @@ export class SqlPendingStore implements PendingStore {
     // xong thì UPDATE này không khớp row nào, caller thấy undefined và không broadcast lại.
     const rows: unknown = await sql`UPDATE pending_actions
                                     SET status         = ${PendingStatus.Approved},
-                                        state_snapshot = state_snapshot || ${patch}::jsonb,
+                                        state_snapshot = state_snapshot || ${patch}::text::jsonb,
                                         resolved_at    = now(),
                                         next_remind_at = NULL
                                     WHERE approval_id = ${id} AND status = ${PendingStatus.Pending}
                                     RETURNING approval_id, conversation_id, channel, workflow, subject,
                                               state_snapshot, status, requester_id, ask_count,
                                               next_remind_at, expires_at`;
-    return first(rows);
+    if (!Array.isArray(rows) || rows.length === 0) return undefined;
+    const resolved = first(rows);
+    // Đã UPDATE được row mà parse hỏng: việc ĐÃ đóng trong DB nhưng caller lại đọc ra "closed" và
+    // im lặng không báo kết quả về nhóm đã hỏi — đáp án mất hẳn. Ném lỗi để thấy, đừng nuốt.
+    if (resolved === undefined) {
+      throw new Error(`[workflows] đóng được việc ${id} nhưng row trả về không parse được`);
+    }
+    return resolved;
   }
 
   async expireDue(now: Date): Promise<number> {
