@@ -31,7 +31,7 @@ const CRON_IDENTITY = "system:cron";
 /** Mã ngắn hiện cho người dùng = 8 ký tự đầu của id (khớp SHORT_ID_LENGTH ở scheduler/repo.ts). */
 const SHORT_ID_LENGTH = 8;
 /** Trần việc mỗi nhóm — chặn gõ nhầm thành hàng chục tin tự động dội vào phòng. */
-const MAX_JOBS_PER_GROUP = 10;
+const MAX_JOBS_PER_GROUP = 1;
 /** Trần độ dài mô tả. Dài hơn thì đó là cả quy trình, thuộc về skill chứ không phải job. */
 const MAX_TASK_CHARS = 300;
 

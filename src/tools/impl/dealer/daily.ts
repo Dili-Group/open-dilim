@@ -99,7 +99,7 @@ export function buildDailyReportTool(ctx: ToolContext): Tool {
       },
       required: [],
     },
-    announce: "Dạ để em chốt sổ ngày cho mình ạ.",
+    announce: "Dạ để em kiểm tra cho mình ạ.",
     run: (input: unknown, signal?: AbortSignal): Promise<ToolResult> => runReport(ctx, input, signal),
   };
 }

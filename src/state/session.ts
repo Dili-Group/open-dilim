@@ -19,10 +19,10 @@ const KEY_PREFIX = "dilim:hist:";
 export const HISTORY_WINDOW_TURNS = 20;
 
 /**
- * Trần turn giữ mỗi phòng. Rộng hơn cửa sổ đọc nhiều lần: phần dư là kho cho compactor gom lô
+ * Trần turn giữ mỗi phòng. Rộng gấp đôi cửa sổ đọc: 20 entry dư là kho cho compactor gom lô
  * (nén sau mỗi ~10 tin trôi ra), không phải biên an toàn suông.
  */
-export const HISTORY_BUFFER_TURNS = 200;
+export const HISTORY_BUFFER_TURNS = 40;
 /** Phòng im lặng quá hạn này thì buffer tự hết — hội thoại cũ không còn là ngữ cảnh đúng nữa. */
 const TTL_SEC = 7 * 24 * 60 * 60;
 
