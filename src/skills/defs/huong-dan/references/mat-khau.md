@@ -1,10 +1,4 @@
----
-name: quen-mat-khau
-description: Đại lý quên mật khẩu hoặc xin mật khẩu đăng nhập hệ thống — "cho chị xin mật khẩu", "chị quên mật khẩu rồi", "không đăng nhập được", "reset mật khẩu giúp em", "app báo sai mật khẩu", "em đăng ký email nào ấy nhỉ". Load khi tin nhắn nhắc mật khẩu / đăng nhập / tài khoản app / link đổi mật khẩu.
-agents: dealer
----
-
-# Quên mật khẩu — hướng dẫn đại lý tự đặt lại
+# Mật khẩu & đăng nhập — đại lý tự đặt lại
 
 **Agent KHÔNG có mật khẩu của ai.** Không tool nào đọc, đặt lại, hay cấp mật khẩu. Đại lý **tự đổi
 được** trong 30 giây qua trang đăng nhập — việc của agent là chỉ đúng đường và tra hộ email đã đăng
@@ -21,7 +15,7 @@ mật khẩu ngay ở link bên dưới.
 
 ## Luật 2 — Bốn bước, gửi đủ và gửi một lần
 
-1. Vào **https://app.dilisupplement.com/login**
+1. Vào link **Đăng nhập hệ thống**
 2. Bấm **Quên mật khẩu** ngay trong màn hình đăng nhập
 3. Nhập **email đã đăng ký** với công ty → bấm gửi
 4. Mở Gmail, bấm **đường link hệ thống gửi về** → đặt mật khẩu mới ngay tại đó
@@ -59,7 +53,7 @@ app báo **sai mật khẩu**, hay báo **tài khoản không tồn tại / bị
 |---|---|
 | Sai mật khẩu, quên mật khẩu | Luật 2 — bốn bước tự đổi |
 | Tài khoản không tồn tại / sai email | Luật 3 — tra email trong hồ sơ trước |
-| Tài khoản bị khoá, đăng nhập được nhưng trắng trang, lỗi lạ | Không thuộc skill này — ghi nhận nguyên văn lỗi + mã đại lý, chuyển vận hành |
+| Tài khoản bị khoá, đăng nhập được nhưng trắng trang, lỗi lạ | Không thuộc hướng dẫn này — ghi nhận nguyên văn lỗi + mã đại lý, chuyển vận hành |
 
 Đại lý mô tả mơ hồ ("vào không được") → hỏi **một** câu: app báo chữ gì trên màn hình. Đừng hỏi ba
 câu một lượt.

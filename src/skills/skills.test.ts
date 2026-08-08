@@ -21,21 +21,53 @@ describe("registry (defs thật)", () => {
       "don-hoan",
       "giuc-don",
       "het-hang",
+      "huong-dan",
       "lap-lich",
-      "quen-mat-khau",
     ]);
   });
 
-  test("quen-mat-khau: chỉ hướng dẫn tự đặt lại, không đưa mật khẩu qua chat", async () => {
+  test("huong-dan: hub định tuyến, mọi link chuẩn nằm trong body", async () => {
     const registry = await buildSkillRegistry();
-    const skill = registry.get("quen-mat-khau");
+    const skill = registry.get("huong-dan");
     expect(skill).toBeDefined();
     expect(skill?.meta.agents).toEqual(["dealer"]);
     const body = await readBody(skill!);
+    // Reference chỉ gọi link theo TÊN → link thật phải có đủ trong body hub.
     expect(body).toContain("https://app.dilisupplement.com/login");
-    expect(body).toContain("KHÔNG có mật khẩu của ai");
+    expect(body).toContain("https://dangky.dilisupplement.com");
+    expect(body).toContain("https://sale.dilisupplement.com/register");
+    expect([...(await listReferences(skill!))].sort()).toEqual([
+      "gia-nhap.md",
+      "kho-lay-hang.md",
+      "mat-khau.md",
+      "rules-he-thong.md",
+      "tai-lieu-group.md",
+      "tao-don.md",
+      "thanh-toan-cod.md",
+      "tich-hop-van-chuyen.md",
+    ]);
+  });
+
+  test("huong-dan/mat-khau: chỉ hướng dẫn tự đặt lại, không đưa mật khẩu qua chat", async () => {
+    const registry = await buildSkillRegistry();
+    const skill = registry.get("huong-dan");
+    const ref = await readReference(skill!, "mat-khau.md");
+    expect(ref).toContain("KHÔNG có mật khẩu của ai");
     // Không nhớ email → tra hồ sơ, không đoán.
-    expect(body).toContain("tra_ho_so_dai_ly");
+    expect(ref).toContain("tra_ho_so_dai_ly");
+  });
+
+  test("huong-dan: mốc vận hành chép nguyên từ tài liệu đại lý", async () => {
+    const registry = await buildSkillRegistry();
+    const skill = registry.get("huong-dan");
+    const kho = await readReference(skill!, "kho-lay-hang.md");
+    expect(kho).toContain("10:30");
+    expect(kho).toContain("16:00");
+    expect(kho).toContain("The Manhattan Glory");
+    // COD về T2-T4-T6, và agent không tự tính giá nhập.
+    const tien = await readReference(skill!, "thanh-toan-cod.md");
+    expect(tien).toContain("T2 – T4 – T6");
+    expect(tien).toContain("không tự nhân chia");
   });
 
   test("het-hang nêu đủ ba hướng và không hứa tồn kho", async () => {
