@@ -3,10 +3,12 @@
 export { SqlIdentityResolver } from "./resolver.ts";
 export { CachedIdentityResolver, authCacheKey } from "./cached-resolver.ts";
 export { SqlIdentityRepo } from "./identity-repo.ts";
-export { SqlGroupCustomerLookup } from "./group-customer.ts";
+export { SqlGroupCustomerLookup, SqlCustomerRoomLookup } from "./group-customer.ts";
 export type {
   IdentityResolver,
   ResolveInput,
   GroupCustomerLookup,
   GroupLookupInput,
+  CustomerRoom,
+  CustomerRoomLookup,
 } from "./types.ts";

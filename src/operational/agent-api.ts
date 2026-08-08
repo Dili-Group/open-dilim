@@ -126,8 +126,29 @@ export class AgentApiClient {
 
   /** GET một endpoint `/agent/*`. Trả body JSON đã parse (`unknown`) — nơi gọi validate shape. */
   async get(path: string, request: AgentApiRequest): Promise<unknown> {
+    return this.send(path, buildAgentHeaders(this.serviceToken, request.principal), request);
+  }
+
+  /**
+   * GET một endpoint KHÔNG gắn phạm vi đại lý (không có `x-dealer-id`).
+   *
+   * CHỈ dùng cho endpoint mà việc của nó chính là TRA RA đại lý từ một mã (vd chủ sở hữu đơn
+   * hoàn) — ở đó chưa biết đại lý nào để mà gắn header. Endpoint đọc dữ liệu đơn/công nợ PHẢI đi
+   * qua `get`: bỏ header đại lý ở đó là mở toang dữ liệu của mọi đại lý cho một lượt chat.
+   */
+  async getUnscoped(
+    path: string,
+    request: Omit<AgentApiRequest, "principal"> = {},
+  ): Promise<unknown> {
+    return this.send(path, { [SERVICE_TOKEN_HEADER]: this.serviceToken }, request);
+  }
+
+  private async send(
+    path: string,
+    headers: Record<string, string>,
+    request: Omit<AgentApiRequest, "principal">,
+  ): Promise<unknown> {
     const url = this.buildUrl(path, request.query);
-    const headers = buildAgentHeaders(this.serviceToken, request.principal);
 
     let lastError: AgentApiError | undefined;
     for (let attempt = 0; attempt <= RETRY_BACKOFF_MS.length; attempt++) {

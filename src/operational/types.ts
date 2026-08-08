@@ -174,6 +174,30 @@ export interface DealerPort {
   ): Promise<DealerProfile | null>;
 }
 
+/**
+ * Chủ sở hữu một đơn (tra NGƯỢC từ mã vận đơn). Dùng cho đơn hoàn `*DH` ở nhóm kho: lúc đó chưa
+ * biết đại lý nào để mà ép phạm vi, chính việc cần làm là tra ra đại lý.
+ */
+export interface OrderOwner {
+  /** `dealers.id` dạng chuỗi — khớp với `OrderPrincipal.dealerId` và `group_map.customer_id`. */
+  readonly dealerId: string;
+  readonly dealerCode?: string;
+  readonly dealerName?: string;
+}
+
+/**
+ * Cổng tra chủ sở hữu đơn theo mã vận đơn. TÁCH khỏi OrderPort vì đây là endpoint DUY NHẤT không
+ * gắn `x-dealer-id` (xem AgentApiClient.getUnscoped) — để chung interface là mở đường cho tool
+ * khác lỡ tay gọi nó rồi đọc dữ liệu đơn ngoài phạm vi phòng.
+ *
+ * CHỈ trả định danh đại lý, KHÔNG trả nội dung đơn. Muốn biết đơn có gì thì gọi OrderPort với
+ * đúng đại lý đó.
+ */
+export interface OrderOwnerPort {
+  /** null = hệ vận hành không có đơn nào mang mã này. Lỗi khác bubble lên. */
+  ownerOf(trackingNumber: string, signal?: AbortSignal): Promise<OrderOwner | null>;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Sổ ngày của đại lý (`GET /agent/daily/*`) — bốn endpoint cùng một hình dạng envelope.
 //

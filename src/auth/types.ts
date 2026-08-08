@@ -29,3 +29,21 @@ export interface GroupCustomerLookup {
   /** undefined = nhóm chưa bind / đã tắt → KHÔNG có memory scope (không đoán, không dùng rổ chung). */
   customerIdOf(input: GroupLookupInput): Promise<string | undefined>;
 }
+
+/** Nhóm chat của một khách: cặp (kênh, id nhóm). */
+export interface CustomerRoom {
+  readonly channel: string;
+  readonly groupId: string;
+}
+
+/**
+ * Chiều NGƯỢC của GroupCustomerLookup: khách hàng X → nhóm chat của họ. Dùng khi hệ thống chủ
+ * động NHẮN cho khách (vd hỏi đại lý mã đơn gốc — workflows/), chứ không phải khi khách nhắn tới.
+ *
+ * Tách interface thay vì thêm method: hai chiều có hai nhóm người gọi khác hẳn nhau (mọi lượt
+ * chat vs vài việc treo), và chiều này KHÔNG được nằm trên đường nóng của worker.
+ */
+export interface CustomerRoomLookup {
+  /** undefined = khách chưa có nhóm nào đang bật → không có chỗ để nhắn. */
+  roomOf(customerId: string): Promise<CustomerRoom | undefined>;
+}
