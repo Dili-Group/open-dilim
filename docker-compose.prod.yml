@@ -80,7 +80,11 @@ services:
       - shared_buffers=${PG_SHARED_BUFFERS:-256MB}
     networks:
       - dilim-net-prod
-    # KHÔNG publish port: chỉ agent trong mạng compose truy cập.
+    # Chỉ loopback host — để `ssh -L 15432:127.0.0.1:5432` từ máy dev vào bằng tool DB.
+    # TIỀN TỐ 127.0.0.1: LÀ BẮT BUỘC. Bỏ đi (chỉ "5432:5432") = bind 0.0.0.0 = Postgres phơi
+    # thẳng ra Internet; Docker ghi iptables trước ufw nên firewall KHÔNG chặn được.
+    ports:
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       # Chạy migration 1 lần khi volume rỗng (thứ tự alphabet). Volume đã có data → bỏ qua.
@@ -120,6 +124,10 @@ services:
       - noeviction
     networks:
       - dilim-net-prod
+    # Chỉ loopback host — xem ghi chú ports của postgres. Redis KHÔNG có requirepass: bind
+    # 0.0.0.0 = ai cũng FLUSHALL được, mất sạch broker/lock/short-term memory.
+    ports:
+      - "127.0.0.1:6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
