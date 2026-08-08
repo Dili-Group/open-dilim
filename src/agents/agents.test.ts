@@ -48,6 +48,7 @@ const MESSAGES: LlmMessage[] = [{ role: "user", content: [{ type: "text", text: 
 function loop(provider: LLMProvider) {
   return runAgentLoop({
     provider,
+    agentType: "test_agent",
     system: singleSystem("s"),
     messages: MESSAGES,
     registry: buildToolRegistry(COMMON_TOOLS, { skills: SKILLS, identity: GUEST }),
@@ -136,6 +137,7 @@ describe("announce giữa lượt", () => {
   ): Promise<string> {
     return runAgentLoop({
       provider: new ScriptedProvider(script),
+      agentType: "test_agent",
       system: singleSystem("s"),
       messages: MESSAGES,
       registry: buildToolRegistry(factories, { skills: SKILLS, identity: GUEST }),

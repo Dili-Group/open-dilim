@@ -14,6 +14,8 @@ import { runToolCall, type ToolRegistry } from "../../tools/index.ts";
 
 export interface AgentLoopInput {
   readonly provider: LLMProvider;
+  /** Root agent đang cầm lượt — vào prefix log để lọc trace/Sentry Logs theo agent. */
+  readonly agentType: string;
   readonly system: readonly LlmSystemBlock[];
   readonly messages: readonly LlmMessage[];
   readonly registry: ToolRegistry;
@@ -40,7 +42,8 @@ const EXHAUSTED_REPLY = "Xử lý vượt số bước cho phép, bạn thử l�
  * bắt ở biên `RootAgent.run` (agents/registry.ts) để thành `AgentResult.failed`.
  */
 export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
-  const { provider, system, registry, maxTokens, effort, maxIterations, onStep, signal } = input;
+  const { provider, agentType, system, registry, maxTokens, effort, maxIterations, onStep, signal } =
+    input;
   let messages: LlmMessage[] = [...input.messages];
   let announced = false;
   const startedAt = Date.now();
@@ -58,7 +61,7 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
 
     if (result.stopReason === "tool_use") {
       const toolUses = result.content.filter(isToolUse);
-      trace(i, maxIterations, `llm=${llmMs}ms → tool: ${toolUses.map((c) => c.name).join(", ")}`);
+      trace(agentType, i, maxIterations, `llm=${llmMs}ms → tool: ${toolUses.map((c) => c.name).join(", ")}`);
       // Báo TRƯỚC khi chạy tool: giá trị của câu "dạ để em kiểm tra" nằm ở chỗ nó tới sớm.
       if (!announced) {
         announced = await announce(registry, toolUses, input.onAnnounce, signal);
@@ -67,7 +70,7 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
       const toolResults = await Promise.all(
         toolUses.map((call) => runToolCall(registry, call, signal)),
       );
-      trace(i, maxIterations, `tool xong=${Date.now() - toolsAt}ms`);
+      trace(agentType, i, maxIterations, `tool xong=${Date.now() - toolsAt}ms`);
       messages = [
         ...messages,
         { role: "assistant", content: result.content },
@@ -76,14 +79,19 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
       continue;
     }
 
-    trace(i, maxIterations, `llm=${llmMs}ms → ${result.stopReason}, tổng=${Date.now() - startedAt}ms`);
+    trace(
+      agentType,
+      i,
+      maxIterations,
+      `llm=${llmMs}ms → ${result.stopReason}, tổng=${Date.now() - startedAt}ms`,
+    );
     if (result.stopReason === "refusal") return REFUSAL_REPLY;
     const text = extractText(result.content);
     if (result.stopReason === "max_tokens" && text === "") return TRUNCATED_REPLY;
     return text;
   }
 
-  trace(maxIterations - 1, maxIterations, `hết vòng, tổng=${Date.now() - startedAt}ms`);
+  trace(agentType, maxIterations - 1, maxIterations, `hết vòng, tổng=${Date.now() - startedAt}ms`);
   return EXHAUSTED_REPLY;
 }
 
@@ -92,9 +100,14 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
  * (TURN_TIMEOUT_MS) cắt ngang thành AbortError trần trụi; không có dòng này thì không biết nó
  * chết ở LLM call hay ở tool nào.
  */
-function trace(iteration: number, maxIterations: number, detail: string): void {
+function trace(
+  agentType: string,
+  iteration: number,
+  maxIterations: number,
+  detail: string,
+): void {
   // eslint-disable-next-line no-console
-  console.log(`[agent] vòng ${iteration + 1}/${maxIterations} ${detail}`);
+  console.log(`[agent:${agentType}] vòng ${iteration + 1}/${maxIterations} ${detail}`);
 }
 
 /**

@@ -53,6 +53,7 @@ class ProfileRootAgent implements RootAgent {
       );
       const text = await runAgentLoop({
         provider: this.deps.provider,
+        agentType: this.agentType,
         system: context.system,
         messages: context.messages,
         registry: buildToolRegistry(handler.tools, {
