@@ -91,10 +91,16 @@ export class OperationalOpsPort implements OpsPort {
   }
 }
 
-/** verify OK: `{ user_id, role, full_name, role_slug }`. user_id bắt buộc; còn lại optional. */
+/**
+ * verify OK: `{ user_id, role, full_name, role_slug }`. user_id bắt buộc; còn lại optional.
+ * user_id là id tự tăng (`accounts.id` bigint), KHÔNG phải uuid → JSON có thể trả dạng số;
+ * chuẩn hoá về string vì cột user_binding.user_id là text.
+ */
 function readUserId(body: unknown): string | null {
   if (typeof body !== "object" || body === null) return null;
   const userId = (body as Record<string, unknown>)["user_id"];
+  if (typeof userId === "number" && Number.isFinite(userId))
+    return String(userId);
   return typeof userId === "string" && userId !== "" ? userId : null;
 }
 
