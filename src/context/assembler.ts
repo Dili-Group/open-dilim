@@ -11,6 +11,7 @@ import type { LlmMessage, LlmSystemBlock } from "../llm/types.ts";
 import { renderSkillCatalog } from "../skills/selector.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import { renderMemoryBlock } from "./memory-block.ts";
+import { renderPendingBlock } from "./pending-block.ts";
 import type { ContextSources, TurnContext, TurnInput } from "./types.ts";
 
 const SECTION_SEPARATOR = "\n\n";
@@ -53,6 +54,10 @@ export async function assembleTurnContext(
   if (input.summary !== undefined && input.summary !== "") {
     volatile.push(renderSummaryBlock(input.summary));
   }
+
+  // Việc đang treo đứng TRƯỚC khối memory: đây là việc phải làm NGAY trong lượt này, còn memory
+  // là nền. Rỗng thì renderPendingBlock trả "" và joinSections tự bỏ.
+  volatile.push(renderPendingBlock(input.pending ?? []));
 
   // Recall chỉ chạy khi CÓ CẢ store lẫn scope. Thiếu scope = chưa biết memory thuộc về khách nào
   // → không được đoán (đoán sai = rò sang khách khác).

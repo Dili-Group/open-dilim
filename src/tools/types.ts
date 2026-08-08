@@ -7,6 +7,8 @@
 import type { Identity } from "../flash-command/types.ts";
 import type { DailyPort, DealerPort, OrderPort } from "../operational/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
+import type { WorkflowPort } from "../workflows/service.ts";
+import type { RoomRef } from "../workflows/types.ts";
 
 export interface ToolResult {
   /** Nội dung trả về LLM (đã stringify). */
@@ -56,6 +58,15 @@ export interface ToolContext {
   readonly dealer?: DealerPort;
   /** Cổng đọc sổ ngày (xuất kho/hoàn/tiền phải trả/tiền hoàn). undefined = chưa nối → tool trả lỗi. */
   readonly daily?: DailyPort;
+  /**
+   * NHÓM của lượt này (kênh + id nhóm). Việc treo liên nhóm neo vào đây: nhóm hỏi là nhóm
+   * này, và nhóm được hỏi cũng phải khớp nhóm này thì mới cho trả lời.
+   * undefined = chat 1-1 → không mở/không trả lời được việc treo (việc thuộc về NHÓM, không
+   * thuộc về một người).
+   */
+  readonly room?: RoomRef;
+  /** Cổng nghiệp vụ chờ-trả-lời (§6). undefined = chưa nối → tool trả lỗi nghiệp vụ, không throw. */
+  readonly workflow?: WorkflowPort;
 }
 
 export type ToolFactory = (ctx: ToolContext) => Tool;

@@ -12,6 +12,9 @@ import { buildOrderPaymentTool } from "./impl/order/payment.ts";
 import { buildOrderVideoTool } from "./impl/order/video.ts";
 import { buildDealerProfileTool } from "./impl/dealer/profile.ts";
 import { buildDailyDetailTool, buildDailyReportTool } from "./impl/dealer/daily.ts";
+import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
+import { buildWorkflowAnswerTool } from "./impl/workflow/answer.ts";
+import { buildWorkflowListTool } from "./impl/workflow/list.ts";
 
 /** Bộ tool ai cũng có: biết mình là ai + đọc skill/reference. Không chạm dữ liệu nghiệp vụ. */
 export const COMMON_TOOLS: readonly ToolFactory[] = [
@@ -57,6 +60,30 @@ export const DEALER_TOOLS: readonly ToolFactory[] = [
 export const DAILY_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildDailyReportTool(ctx),
   (ctx: ToolContext): Tool => buildDailyDetailTool(ctx),
+];
+
+/**
+ * Tool VIỆC TREO (§6) — hỏi bên liên quan rồi chờ họ trả lời (giây → giờ → NGÀY).
+ *
+ * Chia làm hai đầu, agent nào khai đầu nào là tuỳ vai của nó:
+ *   - `mo_viec_cho`  : bên ĐI HỎI (vd agent kho nhận mã đơn hoàn `*DH`).
+ *   - `tra_loi_viec` : bên ĐƯỢC HỎI (vd agent đại lý, khi đại lý đọc mã đơn gốc).
+ *   - `viec_dang_cho`: soát việc còn treo — CẢ HAI đầu đều dùng được, nên tách bộ riêng
+ *                      (ToolRegistry throw nếu một agent khai trùng tên tool hai lần).
+ *
+ * Nghiệp vụ cụ thể KHÔNG nằm ở tool: `ma_viec` chọn WorkflowDef (workflows/defs/). Thêm nghiệp vụ
+ * là thêm một def, ba tool này tự phục vụ được ngay.
+ */
+export const WORKFLOW_ASK_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildWorkflowOpenTool(ctx),
+];
+
+export const WORKFLOW_REPLY_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildWorkflowAnswerTool(ctx),
+];
+
+export const WORKFLOW_LIST_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildWorkflowListTool(ctx),
 ];
 
 /**

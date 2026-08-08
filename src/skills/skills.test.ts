@@ -18,6 +18,7 @@ describe("registry (defs thật)", () => {
       "bao-cao-cuoi-ngay",
       "chiet-khau",
       "don-hang",
+      "don-hoan",
       "giuc-don",
       "het-hang",
       "lap-lich",

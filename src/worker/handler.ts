@@ -9,6 +9,7 @@ import { MemoryOwnerKind, type MemoryScope } from "../state/types.ts";
 import { toDistillTurns } from "../state/memory-writer.ts";
 import { HISTORY_BUFFER_TURNS, HISTORY_WINDOW_TURNS } from "../state/session.ts";
 import { capForChannel, type TypingTarget } from "../broadcast/index.ts";
+import type { PendingNotice } from "../context/pending-block.ts";
 import {
   AGENT_SENDER_ID,
   type AgentResult,
@@ -99,6 +100,7 @@ export async function handleEnvelope(
     const memoryScope = resolveMemoryScope(envelope, agent, roomCustomerId);
     // Bản tóm phần đã trôi khỏi cửa sổ 20 tin. Đọc hỏng → chạy không có nó, không giết lượt.
     const summary = await readSummary(ctx, envelope.conversationId);
+    const pending = await readPendingNotices(ctx, envelope);
     const onStep = buildTypingPulse(ctx, envelope);
     const onAnnounce = buildAnnouncer(ctx, envelope);
     const result = await agent.run({
@@ -107,6 +109,11 @@ export async function handleEnvelope(
       summary,
       memoryScope,
       roomCustomerId,
+      // Việc treo liên nhóm (§6) thuộc về NHÓM → chỉ cấp khi lượt này thật sự ở trong nhóm.
+      room: envelope.isGroup
+        ? { channel: envelope.channel, groupId: envelope.conversationId }
+        : undefined,
+      pending,
       onStep,
       onAnnounce,
       signal,
@@ -206,6 +213,43 @@ async function readSummary(ctx: WorkerContext, conversationId: string): Promise<
     return await ctx.summaries.get(conversationId);
   } catch (err) {
     console.error("[worker] đọc bản tóm hội thoại lỗi:", err);
+    return undefined;
+  }
+}
+
+/**
+ * Việc nhóm này đang được hỏi mà chưa trả lời (§6), rút gọn cho khối ngữ cảnh.
+ *
+ * Best-effort: chưa nối tầng workflows, hoặc Postgres chớp → lượt chạy không có khối đó. Thà
+ * thiếu khối còn hơn chết cả lượt vì một truy vấn phụ.
+ *
+ * Việc KHÔNG có khoá (`subject`) bị bỏ: model trả lời bằng cách truyền khoá lại, không có khoá
+ * thì không có gì cho nó chép. Slug lạ (def đã gỡ) cũng bỏ — không biết in nhãn gì.
+ */
+async function readPendingNotices(
+  ctx: WorkerContext,
+  envelope: Envelope,
+): Promise<readonly PendingNotice[] | undefined> {
+  if (ctx.workflow === undefined || !envelope.isGroup) return undefined;
+  try {
+    const room = { channel: envelope.channel, groupId: envelope.conversationId };
+    const requests = await ctx.workflow.openForTarget(room);
+    if (requests.length === 0) return undefined;
+    const defs = new Map(ctx.workflow.catalog().map((def) => [def.name, def]));
+    return requests.flatMap((request) => {
+      const def = defs.get(request.workflow);
+      if (def === undefined || request.subject === undefined) return [];
+      return [
+        {
+          workflow: def.name,
+          subject: request.subject,
+          subjectLabel: def.subjectLabel,
+          answerLabel: def.answerLabel,
+        },
+      ];
+    });
+  } catch (err) {
+    console.error("[worker] đọc việc đang chờ lỗi:", err);
     return undefined;
   }
 }

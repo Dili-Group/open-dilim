@@ -11,6 +11,7 @@ import type { TypingFactory } from "../broadcast/typing-factory.ts";
 import type { FlashRegistry } from "../flash-command/registry.ts";
 import type { IdentityRepo, OpsPort } from "../flash-command/types.ts";
 import type { JobAdmin } from "../scheduler/types.ts";
+import type { WorkflowPort } from "../workflows/service.ts";
 
 /**
  * 1 message đã giao cho worker, kèm quyền định đoạt: `ack` = xong, gỡ khỏi queue; `retryLater` =
@@ -76,6 +77,12 @@ export interface WorkerContext {
   readonly broadcaster: Broadcaster;
   /** Chọn TypingSender theo channel để phát nhịp "đang xử lý" mỗi bước agent. */
   readonly typing: TypingFactory;
+  /**
+   * Việc treo chờ nhóm này trả lời (§6) — worker nạp vào ngữ cảnh MỖI lượt của nhóm, để câu trả
+   * lời đến sau 1-2 ngày vẫn khớp được việc (cửa sổ history đã trôi mất câu hỏi từ lâu).
+   * undefined = chưa nối tầng workflows → lượt chạy không có khối đó, không phải lỗi.
+   */
+  readonly workflow?: WorkflowPort;
 }
 
 /** Bó đầy đủ để start pool: context + nguồn queue + số worker. */

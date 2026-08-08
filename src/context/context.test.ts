@@ -270,3 +270,35 @@ describe("assembleTurnContext — messages", () => {
     expect(texts[1]).toMatch(new RegExp(`${TIME_PREFIX.source}b$`));
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Khối việc đang treo (§6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("khối VIỆC PHÒNG NÀY ĐANG ĐƯỢC HỎI", () => {
+  const NOTICE = {
+    workflow: "hoi-don-goc",
+    subject: "VTP0093412DH",
+    subjectLabel: "mã đơn hoàn",
+    answerLabel: "mã đơn gốc",
+  };
+
+  test("không có việc treo → KHÔNG in khối nào (đừng tốn context)", async () => {
+    const ctx = await assembleTurnContext(sources(), { history: [entry()], pending: [] });
+    expect(sys(ctx)).not.toContain("ĐANG ĐƯỢC HỎI");
+  });
+
+  test("có việc treo → in khoá NGUYÊN VĂN + đúng cú pháp gọi tool", async () => {
+    const ctx = await assembleTurnContext(sources(), { history: [entry()], pending: [NOTICE] });
+    const text = sys(ctx);
+    expect(text).toContain("VTP0093412DH");
+    expect(text).toContain('tra_loi_viec(ma_viec="hoi-don-goc", khoa="VTP0093412DH"');
+  });
+
+  test("khối việc treo nằm ở phần BIẾN ĐỘNG (sau breakpoint cache)", async () => {
+    const ctx = await assembleTurnContext(sources(), { history: [entry()], pending: [NOTICE] });
+    const stable = ctx.system.find((block) => block.cache === true);
+    expect(stable?.text).not.toContain("ĐANG ĐƯỢC HỎI");
+    expect(ctx.system.at(-1)?.text).toContain("ĐANG ĐƯỢC HỎI");
+  });
+});

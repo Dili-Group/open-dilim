@@ -80,6 +80,7 @@ const channels = {
   "zalo-vanhanh": zaloChannel("ZALO_VANHANH"), // nhân viên vận hành
   "zalo-sep": zaloChannel("ZALO_SEP"), // ban lãnh đạo
   "zalo-canhan": zaloChannel("ZALO_CANHAN"), // trợ lý riêng 1-1
+  "zalo-kho": zaloChannel("ZALO_KHO"), // kho — nhóm nhận mã vận đơn hoàn
 } as const;
 
 // Egress Zalo qua bridge HTTP nội bộ (send text + typing). Ingest = verify webhook đến; bridge =

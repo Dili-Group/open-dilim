@@ -5,6 +5,9 @@ import type { Effort } from "../config.ts";
 import type { LLMProvider } from "../llm/types.ts";
 import type { Identity } from "../flash-command/types.ts";
 import type { DailyPort, DealerPort, OrderPort } from "../operational/types.ts";
+import type { PendingNotice } from "../context/pending-block.ts";
+import type { WorkflowPort } from "../workflows/service.ts";
+import type { RoomRef } from "../workflows/types.ts";
 import type { AgentResult, HistoryEntry } from "../types/index.ts";
 import type { DistillSpec, MemoryRecall, MemoryScope } from "../state/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
@@ -19,6 +22,7 @@ export const AgentType = {
   Dealer: "dealer",
   Personal: "personal",
   Boss: "boss",
+  Warehouse: "warehouse",
 } as const;
 export type AgentType = (typeof AgentType)[keyof typeof AgentType];
 
@@ -43,6 +47,8 @@ export interface AgentDeps {
   readonly dealer?: DealerPort;
   /** Cổng đọc sổ ngày cho tool báo cáo cuối ngày. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
   readonly daily?: DailyPort;
+  /** Cổng việc-chờ-trả-lời (§6) cho tool mở/đóng việc treo. undefined = chưa nối → tool trả lỗi. */
+  readonly workflow?: WorkflowPort;
 }
 
 export interface AgentRunInput {
@@ -57,6 +63,18 @@ export interface AgentRunInput {
    * theo identity người gõ. undefined = chat 1-1 hoặc phòng chưa `/ketnoi-daily`.
    */
   readonly roomCustomerId?: string;
+  /**
+   * NHÓM của lượt này (kênh + id nhóm) — do worker cấp, agent KHÔNG tự derive. Việc treo liên
+   * nhóm (§6) neo vào đây: nhóm hỏi là nhóm này, và chỉ nhóm ĐƯỢC hỏi mới đóng được việc.
+   * undefined = chat 1-1 (không có nhóm để neo việc).
+   */
+  readonly room?: RoomRef;
+  /**
+   * Việc nhóm này đang được hỏi mà chưa trả lời (§6) — worker tra, agent chỉ chuyển tiếp vào
+   * ngữ cảnh. Nhờ khối này mà câu trả lời đến sau 2 ngày vẫn khớp được việc (xem
+   * context/pending-block.ts).
+   */
+  readonly pending?: readonly PendingNotice[];
   /** Nhịp báo "đang xử lý" về kênh mỗi bước loop. Worker bind sẵn target; agent chỉ gọi. */
   readonly onStep?: () => Promise<void>;
   /**

@@ -16,6 +16,9 @@ import type { Broadcaster, TypingFactory } from "../broadcast/index.ts";
 import type { GroupCustomerLookup, IdentityResolver } from "../auth/index.ts";
 import type { BrokerConsumer, HistoryReader, HistoryWriter } from "../worker/index.ts";
 import type { ConversationCompactor, MemoryWriterLookup, SummaryReader } from "../state/index.ts";
+import type { WorkflowDeps } from "../workflows/types.ts";
+import type { WorkflowPort } from "../workflows/service.ts";
+import type { WorkflowRegistry } from "../workflows/registry.ts";
 
 /** Mọi service dựng lúc boot, share cho các tầng downstream (worker/gateway). */
 export interface Services {
@@ -49,6 +52,14 @@ export interface Services {
   readonly groupCustomer: GroupCustomerLookup;
   /** Đầu consume của broker — CÙNG instance với ingestDeps.broker. */
   readonly broker: BrokerConsumer;
+  /**
+   * Việc treo chờ phòng khác trả lời (§6). Hai mảnh vì hai người dùng khác nhau: tool của agent
+   * đi qua `WorkflowService` (đã gói sẵn, nằm trong AgentDeps), còn poller cần cả `deps` lẫn
+   * `registry` để tra def của từng việc đang treo.
+   */
+  readonly workflow: WorkflowPort;
+  readonly workflowDeps: WorkflowDeps;
+  readonly workflowRegistry: WorkflowRegistry;
   /** Đọc history — CÙNG instance với ingestDeps.history. */
   readonly historyReader: HistoryReader;
   /** Ghi history (flash reply) — CÙNG instance với historyReader/ingestDeps.history. */

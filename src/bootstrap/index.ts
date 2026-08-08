@@ -22,6 +22,7 @@ import {
 } from "../broadcast/index.ts";
 import {
   CachedIdentityResolver,
+  SqlCustomerRoomLookup,
   SqlGroupCustomerLookup,
   SqlIdentityRepo,
   SqlIdentityResolver,
@@ -31,6 +32,13 @@ import { AgentApiClient } from "../operational/agent-api.ts";
 import { AgentApiOrderPort } from "../operational/order-api.ts";
 import { AgentApiDealerPort } from "../operational/profile-api.ts";
 import { AgentApiDailyPort } from "../operational/daily-api.ts";
+import { AgentApiOrderOwnerPort } from "../operational/owner-api.ts";
+import {
+  SqlPendingStore,
+  WorkflowService,
+  buildWorkflowRegistry,
+  startWorkflowPoller,
+} from "../workflows/index.ts";
 import {
   buildDedupe,
   buildHistoryStore,
@@ -80,25 +88,11 @@ export async function bootstrap(): Promise<Services> {
   const orders = new AgentApiOrderPort(agentApi);
   const dealer = new AgentApiDealerPort(agentApi);
   const daily = new AgentApiDailyPort(agentApi);
-  const agents = buildAgentRegistry({
-    provider: llm,
-    config,
-    skills,
-    memory,
-    orders,
-    dealer,
-    daily,
-  });
-  assertSkillAgentScopes(skills, agents);
 
-  // Đường GHI dựng SAU agents vì nó theo `memorySpec` của từng agent: agent vận hành nhớ việc,
-  // agent đại lý nhớ khách — cùng một writer là chưng cất sai prompt cho một nửa số agent.
-  const memoryWriters =
-    memory === undefined
-      ? undefined
-      : buildMemoryWriters(memory, new Map(agents.all().map((a) => [a.agentType, a.memorySpec])));
-  // Egress: fallback console cho channel chưa có adapter. Zalo có bridge config → gửi thật (cả
-  // reply lẫn typing), thiếu config → console cho cả hai (dev thấy được luồng, không chặn boot).
+  // Egress dựng TRƯỚC agent vì tầng workflows cần broadcaster (báo kết quả về phòng đã hỏi, có
+  // khi 2 ngày sau — lúc đó không còn lượt agent nào đang chạy để nhờ gửi hộ).
+  // Fallback console cho channel chưa có adapter. Zalo có bridge config → gửi thật (cả reply lẫn
+  // typing), thiếu config → console cho cả hai (dev thấy được luồng, không chặn boot).
   const broadcaster = new BroadcastRouter(new ConsoleBroadcaster());
   const typing = new TypingFactory(new ConsoleTypingSender());
   for (const [channel, channelConfig] of Object.entries(config.channels)) {
@@ -111,6 +105,41 @@ export async function bootstrap(): Promise<Services> {
     broadcaster.register(channel, new ZaloBroadcaster(channelConfig.bridge));
     typing.register(channel, new ZaloTypingSender(channelConfig.bridge));
   }
+
+  // Việc treo chờ phòng khác trả lời (§6). Dùng LẠI đúng broker/history/dedupe của ingest → lượt
+  // hỏi đi chung queue, chung history phòng, chung cửa sổ dedupe với tin người dùng.
+  // Registry của def nhận cổng riêng của nó (tra chủ đơn + tra nhóm đại lý) — bộ máy không biết.
+  const workflowRegistry = buildWorkflowRegistry({
+    owners: new AgentApiOrderOwnerPort(agentApi),
+    rooms: new SqlCustomerRoomLookup(),
+  });
+  const workflowDeps = {
+    store: new SqlPendingStore(),
+    broker,
+    history,
+    dedupe,
+    broadcaster,
+  };
+  const workflow = new WorkflowService(workflowDeps, workflowRegistry);
+
+  const agents = buildAgentRegistry({
+    provider: llm,
+    config,
+    skills,
+    memory,
+    orders,
+    dealer,
+    daily,
+    workflow,
+  });
+  assertSkillAgentScopes(skills, agents);
+
+  // Đường GHI dựng SAU agents vì nó theo `memorySpec` của từng agent: agent vận hành nhớ việc,
+  // agent đại lý nhớ khách — cùng một writer là chưng cất sai prompt cho một nửa số agent.
+  const memoryWriters =
+    memory === undefined
+      ? undefined
+      : buildMemoryWriters(memory, new Map(agents.all().map((a) => [a.agentType, a.memorySpec])));
   // Nén hội thoại ngắn hạn: theo phòng (conversationId), KHÔNG theo MemoryScope → chạy cho cả
   // phòng chưa `/ketnoi-daily`. Không cần embedder nên bật kể cả khi tắt trí nhớ dài hạn.
   const { compactor, summaries } = buildCompactor();
@@ -139,6 +168,9 @@ export async function bootstrap(): Promise<Services> {
     identity,
     groupCustomer,
     broker,
+    workflow,
+    workflowDeps,
+    workflowRegistry,
     historyReader: history,
     historyWriter: history,
     memoryWriters,
@@ -170,6 +202,7 @@ export async function start(): Promise<RunningSystem> {
     agents: services.agents,
     broadcaster: services.broadcaster,
     typing: services.typing,
+    workflow: services.workflow,
     workerCount: services.config.workerCount,
     turnTimeoutMs: services.config.turnTimeoutMs,
   });
@@ -189,7 +222,16 @@ export async function start(): Promise<RunningSystem> {
     services.config.schedulerTickMs,
   );
 
+  // Nguồn trigger thứ hai theo THỜI GIAN: nhắc lại việc treo chưa được trả lời, đóng việc quá hạn.
+  // Dùng chung nhịp quét với scheduler — mốc nhắc tính theo giờ nên không cần dày hơn.
+  const workflowPoller = startWorkflowPoller(
+    services.workflowDeps,
+    services.workflowRegistry,
+    services.config.schedulerTickMs,
+  );
+
   async function stop(): Promise<void> {
+    await workflowPoller.stop(); // ngừng nhắc việc treo
     await scheduler.stop(); // ngừng bắn job mới TRƯỚC khi drain worker
     await workers.stop(); // ngừng nhận việc mới, chờ worker đang chạy xong
     await server.stop(true); // đóng cả connection đang mở

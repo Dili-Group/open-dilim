@@ -7,6 +7,7 @@ import { bossProfile } from "./roots/boss.ts";
 import { dealerProfile } from "./roots/dealer.ts";
 import { defaultProfile } from "./roots/default.ts";
 import { operationsProfile } from "./roots/operations.ts";
+import { warehouseProfile } from "./roots/warehouse.ts";
 import { personalProfile } from "./roots/personal.ts";
 import type { AgentDeps, RootAgent, RootAgentProfile } from "./types.ts";
 
@@ -16,6 +17,7 @@ const PROFILES: readonly RootAgentProfile[] = [
   dealerProfile,
   personalProfile,
   bossProfile,
+  warehouseProfile,
 ];
 
 export class AgentRegistry {

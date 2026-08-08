@@ -2,7 +2,14 @@
 // báo; luồng chạy lượt nằm ở agents/runtime/build-agent.ts.
 
 import { customerSupportSpec } from "../../state/specs.ts";
-import { COMMON_TOOLS, DAILY_TOOLS, DEALER_TOOLS, ORDER_TOOLS } from "../../tools/index.ts";
+import {
+  COMMON_TOOLS,
+  DAILY_TOOLS,
+  DEALER_TOOLS,
+  ORDER_TOOLS,
+  WORKFLOW_LIST_TOOLS,
+  WORKFLOW_REPLY_TOOLS,
+} from "../../tools/index.ts";
 import { DEALER_PROMPT } from "../prompts.ts";
 import { AgentType, type RootAgentProfile } from "../types.ts";
 
@@ -12,5 +19,14 @@ export const dealerProfile: RootAgentProfile = {
   directOnly: false,
   prompt: DEALER_PROMPT,
   memorySpec: customerSupportSpec,
-  tools: [...COMMON_TOOLS, ...ORDER_TOOLS, ...DEALER_TOOLS, ...DAILY_TOOLS],
+  // Bên ĐƯỢC HỎI của việc treo (§6): nhóm khác nhờ hỏi đại lý một dữ kiện (vd mã đơn gốc của
+  // đơn hoàn) → agent hỏi trong nhóm, đại lý trả lời lúc nào thì ghi lúc đó, kể cả 2 ngày sau.
+  tools: [
+    ...COMMON_TOOLS,
+    ...ORDER_TOOLS,
+    ...DEALER_TOOLS,
+    ...DAILY_TOOLS,
+    ...WORKFLOW_REPLY_TOOLS,
+    ...WORKFLOW_LIST_TOOLS,
+  ],
 };

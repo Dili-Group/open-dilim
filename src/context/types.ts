@@ -11,6 +11,7 @@ import type { LlmMessage, LlmSystemBlock } from "../llm/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 import type { MemoryRecall, MemoryScope } from "../state/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
+import type { PendingNotice } from "./pending-block.ts";
 
 /** Nguồn dựng context — app-scoped, dựng 1 lần ở bootstrap. context/ KHÔNG tự mở kết nối. */
 export interface ContextSources {
@@ -38,6 +39,11 @@ export interface TurnInput {
    * sai = rò memory sang khách khác. undefined = bỏ qua recall dài hạn.
    */
   readonly memoryScope?: MemoryScope;
+  /**
+   * Việc nhóm này đang được hỏi mà chưa trả lời (§6). Do WIRING cấp — context/ không tự tra.
+   * Rỗng/undefined = không có việc treo → không in khối nào.
+   */
+  readonly pending?: readonly PendingNotice[];
   readonly signal?: AbortSignal;
 }
 
