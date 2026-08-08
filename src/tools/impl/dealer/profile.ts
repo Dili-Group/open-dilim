@@ -97,6 +97,8 @@ function render(profile: DealerProfile): string {
     line("Người giới thiệu", joinParts(profile.referrerCode, profile.referrerName)),
     line("Nhân viên phụ trách", joinParts(profile.staffName, profile.staffPhone)),
     line("Điện thoại", profile.phone),
+    // Email = email đăng nhập app: đại lý quên mật khẩu cần nhập đúng ô này (skill quen-mat-khau).
+    line("Email", profile.email),
     line("Khu vực", joinParts(profile.ward, profile.district, profile.province)),
   ].filter(isPresent);
 

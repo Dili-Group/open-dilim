@@ -484,6 +484,7 @@ describe("tra_ho_so_dai_ly", () => {
     "dealer-1": {
       code: "DL0123",
       name: "Nguyễn Văn A",
+      email: "dl0123@gmail.com",
       discountTierName: "F2",
       discountTierLabel: "Đại lý cấp 2",
       discountEffectiveFrom: "2025-06-01",
@@ -505,6 +506,8 @@ describe("tra_ho_so_dai_ly", () => {
     expect(result.content).toContain("F2 · Đại lý cấp 2");
     expect(result.content).toContain("01/06/2025");
     expect(result.content).toContain("Trần C · 0900000009");
+    // Email đăng nhập app — đại lý quên mật khẩu cần đọc lại đúng email này.
+    expect(result.content).toContain("Email: dl0123@gmail.com");
     expect(result.content).not.toMatch(/\d+\s*%/);
     // Nhân viên gõ trong nhóm đại lý X → hồ sơ của X, staffId chỉ để audit.
     expect(dealer.seen.at(-1)).toEqual({ dealerId: "dealer-1", staffId: "77" });

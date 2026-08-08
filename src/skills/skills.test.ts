@@ -22,7 +22,20 @@ describe("registry (defs thật)", () => {
       "giuc-don",
       "het-hang",
       "lap-lich",
+      "quen-mat-khau",
     ]);
+  });
+
+  test("quen-mat-khau: chỉ hướng dẫn tự đặt lại, không đưa mật khẩu qua chat", async () => {
+    const registry = await buildSkillRegistry();
+    const skill = registry.get("quen-mat-khau");
+    expect(skill).toBeDefined();
+    expect(skill?.meta.agents).toEqual(["dealer"]);
+    const body = await readBody(skill!);
+    expect(body).toContain("https://app.dilisupplement.com/login");
+    expect(body).toContain("KHÔNG có mật khẩu của ai");
+    // Không nhớ email → tra hồ sơ, không đoán.
+    expect(body).toContain("tra_ho_so_dai_ly");
   });
 
   test("het-hang nêu đủ ba hướng và không hứa tồn kho", async () => {
