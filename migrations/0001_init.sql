@@ -47,16 +47,20 @@ CREATE INDEX IF NOT EXISTS scheduler_jobs_due
   ON scheduler_jobs (next_run_at)
   WHERE enabled;
 
--- pending_actions — human-in-the-loop suspend/resume (§6).
+-- pending_actions — việc đang treo chờ người trả lời (§6). 1 bảng cho MỌI workflow.
 CREATE TABLE IF NOT EXISTS pending_actions (
   approval_id     text        PRIMARY KEY,
-  conversation_id text        NOT NULL,               -- kênh nhận reply duyệt
+  conversation_id text        NOT NULL,               -- nhóm PHẢI trả lời
+  channel        text        NOT NULL DEFAULT '',    -- kênh của nhóm đó (chọn agent + egress)
   workflow       text        NOT NULL,               -- workflow nào để resume
+  subject        text,                               -- khoá nghiệp vụ (mã đơn hoàn...)
   state_snapshot  jsonb       NOT NULL,               -- resume từ chỗ dừng
   idempotency_key text        NOT NULL,               -- chống double-exec khi retry
   status         smallint    NOT NULL DEFAULT 0,  -- PendingStatus (numeric)
-  approver       text        NOT NULL,               -- ai ĐƯỢC quyền duyệt
+  approver       text        NOT NULL,               -- ai ĐƯỢC quyền trả lời/duyệt
   requester_id    text,
+  ask_count       integer     NOT NULL DEFAULT 0,     -- số lần đã hỏi (vào msgId dedupe)
+  next_remind_at   timestamptz,                        -- mốc nhắc kế + ô CAS claim
   expires_at      timestamptz NOT NULL,               -- timeout job quét
   created_at      timestamptz NOT NULL DEFAULT now(),
   resolved_at     timestamptz,
@@ -66,6 +70,15 @@ CREATE TABLE IF NOT EXISTS pending_actions (
 
 CREATE INDEX IF NOT EXISTS pending_actions_timeout
   ON pending_actions (expires_at)
+  WHERE status = 0;
+
+-- Gõ lại đúng khoá đang chờ → INSERT rơi vào ON CONFLICT, KHÔNG hỏi người ta lần thứ hai.
+CREATE UNIQUE INDEX IF NOT EXISTS pending_actions_open_subject
+  ON pending_actions (workflow, subject)
+  WHERE status = 0 AND subject IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS pending_actions_remind
+  ON pending_actions (next_remind_at)
   WHERE status = 0;
 
 -- group_map — (channel, group_id) → khách hàng X. Lookup runtime chạy thẳng PK.

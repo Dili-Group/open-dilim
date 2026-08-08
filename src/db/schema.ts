@@ -86,19 +86,37 @@ export const SCHEDULER_JOBS = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// pending_actions — human-in-the-loop suspend/resume (§6).
+// pending_actions — VIỆC ĐANG TREO chờ người trả lời (§6). MỘT bảng cho MỌI nghiệp vụ: cột
+// `workflow` nói đó là việc gì, `state_snapshot` giữ dữ kiện riêng của việc đó. Thêm nghiệp vụ
+// KHÔNG thêm bảng — thêm một WorkflowDef ở workflows/defs/.
+//
+// Hai kiểu "chờ người" dùng chung bảng này:
+//   - duyệt (§6 gốc): hỏi NGƯỜI CÓ QUYỀN → approved/denied.
+//   - hỏi dữ kiện    : hỏi NHÓM BIẾT VIỆC (vd nhóm đại lý) → câu trả lời lưu vào state_snapshot.
+// Khác nhau ở WorkflowDef, không khác ở bảng.
+//
+// `conversation_id` = nhóm PHẢI TRẢ LỜI (nơi phát yêu cầu tới), `channel` = kênh của nhóm đó
+// (chọn root agent + adapter egress). Nhóm ĐÃ HỎI nằm trong `state_snapshot` — nó chỉ là đích
+// báo kết quả, không tham gia truy vấn nào.
+//
+// `next_remind_at` vừa là due-index vừa là ô CAS claim — cùng thủ pháp fire-once như
+// scheduler_jobs.next_run_at, để hai instance cùng tick không nhắc người ta hai lần.
 // ─────────────────────────────────────────────────────────────────────────────
 export const PENDING_ACTIONS = {
   table: "pending_actions",
   col: {
     approvalId: "approval_id",
     conversationId: "conversation_id",
+    channel: "channel",              // kênh nhóm phải trả lời — NHƯ message thường
     workflow: "workflow",
+    subject: "subject",              // khoá nghiệp vụ (mã đơn hoàn...); NULL = việc không có khoá
     stateSnapshot: "state_snapshot",
     idempotencyKey: "idempotency_key",
     status: "status",
     approver: "approver",
     requesterId: "requester_id",
+    askCount: "ask_count",           // số lần đã hỏi (lần đầu tính 1) — vào msgId chống bắn trùng
+    nextRemindAt: "next_remind_at",  // mốc nhắc kế + ô CAS claim; NULL = không nhắc nữa
     expiresAt: "expires_at",
     createdAt: "created_at",
     resolvedAt: "resolved_at",
@@ -107,6 +125,10 @@ export const PENDING_ACTIONS = {
     timeout: "pending_actions_timeout",
     statusChk: "pending_actions_status_chk",
     idemUniq: "pending_actions_idem_uniq",
+    /** MỘT việc đang treo cho mỗi (workflow, subject) — hỏi lại thứ đang chờ là làm phiền 2 lần. */
+    openSubject: "pending_actions_open_subject",
+    /** Poller quét theo mốc nhắc. */
+    remind: "pending_actions_remind",
   },
 } as const;
 
@@ -256,16 +278,20 @@ CREATE INDEX IF NOT EXISTS ${s.idx.due}
   ON ${s.table} (${s.col.nextRunAt})
   WHERE ${s.col.enabled};
 
--- pending_actions — human-in-the-loop suspend/resume (§6).
+-- pending_actions — việc đang treo chờ người trả lời (§6). 1 bảng cho MỌI workflow.
 CREATE TABLE IF NOT EXISTS ${p.table} (
   ${p.col.approvalId}     text        PRIMARY KEY,
-  ${p.col.conversationId} text        NOT NULL,               -- kênh nhận reply duyệt
+  ${p.col.conversationId} text        NOT NULL,               -- nhóm PHẢI trả lời
+  ${p.col.channel}        text        NOT NULL DEFAULT '',    -- kênh của nhóm đó (chọn agent + egress)
   ${p.col.workflow}       text        NOT NULL,               -- workflow nào để resume
+  ${p.col.subject}        text,                               -- khoá nghiệp vụ (mã đơn hoàn...)
   ${p.col.stateSnapshot}  jsonb       NOT NULL,               -- resume từ chỗ dừng
   ${p.col.idempotencyKey} text        NOT NULL,               -- chống double-exec khi retry
   ${p.col.status}         smallint    NOT NULL DEFAULT ${PendingStatus.Pending},  -- PendingStatus (numeric)
-  ${p.col.approver}       text        NOT NULL,               -- ai ĐƯỢC quyền duyệt
+  ${p.col.approver}       text        NOT NULL,               -- ai ĐƯỢC quyền trả lời/duyệt
   ${p.col.requesterId}    text,
+  ${p.col.askCount}       integer     NOT NULL DEFAULT 0,     -- số lần đã hỏi (vào msgId dedupe)
+  ${p.col.nextRemindAt}   timestamptz,                        -- mốc nhắc kế + ô CAS claim
   ${p.col.expiresAt}      timestamptz NOT NULL,               -- timeout job quét
   ${p.col.createdAt}      timestamptz NOT NULL DEFAULT now(),
   ${p.col.resolvedAt}     timestamptz,
@@ -275,6 +301,15 @@ CREATE TABLE IF NOT EXISTS ${p.table} (
 
 CREATE INDEX IF NOT EXISTS ${p.idx.timeout}
   ON ${p.table} (${p.col.expiresAt})
+  WHERE ${p.col.status} = ${PendingStatus.Pending};
+
+-- Gõ lại đúng khoá đang chờ → INSERT rơi vào ON CONFLICT, KHÔNG hỏi người ta lần thứ hai.
+CREATE UNIQUE INDEX IF NOT EXISTS ${p.idx.openSubject}
+  ON ${p.table} (${p.col.workflow}, ${p.col.subject})
+  WHERE ${p.col.status} = ${PendingStatus.Pending} AND ${p.col.subject} IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS ${p.idx.remind}
+  ON ${p.table} (${p.col.nextRemindAt})
   WHERE ${p.col.status} = ${PendingStatus.Pending};
 
 -- group_map — (channel, group_id) → khách hàng X. Lookup runtime chạy thẳng PK.
