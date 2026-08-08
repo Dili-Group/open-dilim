@@ -43,25 +43,31 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
   const { provider, system, registry, maxTokens, effort, maxIterations, onStep, signal } = input;
   let messages: LlmMessage[] = [...input.messages];
   let announced = false;
+  const startedAt = Date.now();
 
   for (let i = 0; i < maxIterations; i++) {
     // Nhịp "đang xử lý" mỗi bước — giữ typing sống suốt chuỗi tool dài (indicator platform hết
     // hạn sau vài giây nên phải refresh từng vòng).
     await pulse(onStep, signal);
+    const llmAt = Date.now();
     const result = await provider.chat(
       { system, messages, tools: registry.schemas(), maxTokens, effort },
       signal,
     );
+    const llmMs = Date.now() - llmAt;
 
     if (result.stopReason === "tool_use") {
       const toolUses = result.content.filter(isToolUse);
+      trace(i, maxIterations, `llm=${llmMs}ms → tool: ${toolUses.map((c) => c.name).join(", ")}`);
       // Báo TRƯỚC khi chạy tool: giá trị của câu "dạ để em kiểm tra" nằm ở chỗ nó tới sớm.
       if (!announced) {
         announced = await announce(registry, toolUses, input.onAnnounce, signal);
       }
+      const toolsAt = Date.now();
       const toolResults = await Promise.all(
         toolUses.map((call) => runToolCall(registry, call, signal)),
       );
+      trace(i, maxIterations, `tool xong=${Date.now() - toolsAt}ms`);
       messages = [
         ...messages,
         { role: "assistant", content: result.content },
@@ -70,13 +76,25 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
       continue;
     }
 
+    trace(i, maxIterations, `llm=${llmMs}ms → ${result.stopReason}, tổng=${Date.now() - startedAt}ms`);
     if (result.stopReason === "refusal") return REFUSAL_REPLY;
     const text = extractText(result.content);
     if (result.stopReason === "max_tokens" && text === "") return TRUNCATED_REPLY;
     return text;
   }
 
+  trace(maxIterations - 1, maxIterations, `hết vòng, tổng=${Date.now() - startedAt}ms`);
   return EXHAUSTED_REPLY;
+}
+
+/**
+ * Vết chạy từng vòng — CHỈ tên tool + thời gian, không input/output (không rò PII). Deadline lượt
+ * (TURN_TIMEOUT_MS) cắt ngang thành AbortError trần trụi; không có dòng này thì không biết nó
+ * chết ở LLM call hay ở tool nào.
+ */
+function trace(iteration: number, maxIterations: number, detail: string): void {
+  // eslint-disable-next-line no-console
+  console.log(`[agent] vòng ${iteration + 1}/${maxIterations} ${detail}`);
 }
 
 /**
