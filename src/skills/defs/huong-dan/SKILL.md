@@ -1,6 +1,6 @@
 ---
 name: huong-dan
-description: Chỉ đại lý CÁCH LÀM và cấp link tài liệu chính thức — quên mật khẩu / đăng nhập app, ký hợp đồng, đăng ký MST hộ kinh doanh, ký rules hệ thống, tích hợp app giao hàng cá nhân (Viettel Post) với hệ thống, cách tạo đơn trên app, quy trình thanh toán - COD - hoá đơn, giờ shipper lấy hàng, địa chỉ kho, bảng giá niêm yết, drive tài liệu, group cộng đồng. Load khi đại lý hỏi "làm sao", "cách nào", "hướng dẫn", "link ở đâu", "chưa biết làm", "quên mật khẩu", "đăng ký ở đâu".
+description: Chỉ đại lý CÁCH LÀM và cấp link tài liệu chính thức — quên mật khẩu / đăng nhập app, ký hợp đồng, đăng ký MST hộ kinh doanh, ký rules hệ thống, lấy API Key và gắn webhook PosCake (Pancake POS) để đơn tự về hệ thống, tích hợp app giao hàng cá nhân (Viettel Post), cách tạo đơn trên app, quy trình thanh toán - COD - hoá đơn, giờ shipper lấy hàng, địa chỉ kho, bảng giá niêm yết, drive tài liệu, group cộng đồng. Load khi đại lý hỏi "làm sao", "cách nào", "hướng dẫn", "link ở đâu", "chưa biết làm", "quên mật khẩu", "đăng ký ở đâu", "API key", "webhook", "poscake", "pancake".
 agents: dealer
 ---
 
@@ -16,6 +16,7 @@ tiền bao nhiêu, bậc nào) — việc đó ở skill khác.
 | Quên mật khẩu, không đăng nhập được, không nhớ email đăng ký | `references/mat-khau.md` |
 | Ký hợp đồng ở đâu, MST hộ kinh doanh, quy định chiết khấu là gì | `references/gia-nhap.md` |
 | Rules hệ thống, form rule, nộp bản scan, khai page/shop | `references/rules-he-thong.md` |
+| PosCake / Pancake POS: lấy API Key, Shop ID, gắn webhook để đơn tự về hệ thống | `references/poscake.md` |
 | Tích hợp app giao hàng cá nhân / Viettel Post với hệ thống, tích hợp để làm gì | `references/tich-hop-van-chuyen.md` |
 | Tạo đơn trên hệ thống thế nào, điền ô nào, ghi tên hàng ra sao | `references/tao-don.md` |
 | Lên đơn xong trả tiền kiểu gì, COD về khi nào, hoá đơn ra sao | `references/thanh-toan-cod.md` |
@@ -50,6 +51,7 @@ dòng đó.
 | Video đăng ký MST hộ kinh doanh | https://www.youtube.com/watch?v=lmc32PY6v0I |
 | Form Rule hệ thống | https://sale.dilisupplement.com/register |
 | Sheet khai page/shop | https://docs.google.com/spreadsheets/d/1RhkM9s0_anieohKKQ23OGpQfaX31yHr-ia5N97xZX9k/edit?usp=sharing |
+| PosCake (Pancake POS) | https://pos.pages.fm |
 | Video tạo tài khoản Viettel Post (1) | https://www.youtube.com/watch?v=n06g7lAh_9I |
 | Video tạo tài khoản Viettel Post (2) | https://youtu.be/B7xywuTDGUc |
 | Video tích hợp với Hệ thống DiLiM | https://youtu.be/yq1fH-tmzYs?list=PLhrRBPvwjwrXYm3IYiefWFgSZL-ypNtXa&t=167 |
@@ -57,6 +59,9 @@ dòng đó.
 | Drive tài liệu tổng | https://drive.google.com/drive/u/0/folders/1FvTZlP-LXfqB23vwP84IoZmBnQvlG2N6 |
 | Trang hướng dẫn đại lý (bản đầy đủ) | https://dilim-guide-docs.solitary-rice-590b.workers.dev |
 | Đầu mối Đình Trung | 0349 919 705 · https://zalo.me/0349919705 |
+
+**Webhook URL nhận đơn PosCake KHÔNG có trong bảng này** — vận hành cấp riêng cho từng đại lý. Agent
+không tự ghép, không đoán; đại lý cần thì chuyển đầu mối.
 
 ## Luật chung — áp cho mọi hướng dẫn
 

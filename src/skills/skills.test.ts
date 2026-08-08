@@ -40,6 +40,7 @@ describe("registry (defs thật)", () => {
       "gia-nhap.md",
       "kho-lay-hang.md",
       "mat-khau.md",
+      "poscake.md",
       "rules-he-thong.md",
       "tai-lieu-group.md",
       "tao-don.md",
@@ -68,6 +69,17 @@ describe("registry (defs thật)", () => {
     const tien = await readReference(skill!, "thanh-toan-cod.md");
     expect(tien).toContain("T2 – T4 – T6");
     expect(tien).toContain("không tự nhân chia");
+  });
+
+  test("huong-dan/poscake: nêu đường lấy API Key và cảnh báo key = quyền admin", async () => {
+    const registry = await buildSkillRegistry();
+    const skill = registry.get("huong-dan");
+    const ref = await readReference(skill!, "poscake.md");
+    expect(ref).toContain("Kết nối bên thứ 3");
+    expect(ref).toContain("Webhook/API");
+    expect(ref).toContain("quyền ngang tài khoản admin");
+    // Webhook URL cấp riêng từng đại lý → agent không được tự ghép link.
+    expect(ref).toContain("không tự ghép, không đoán");
   });
 
   test("het-hang nêu đủ ba hướng và không hứa tồn kho", async () => {
