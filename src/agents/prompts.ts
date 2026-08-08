@@ -57,7 +57,7 @@ export const SYSTEM_PROMPT = [BASE_RULES, SERVICE_TONE].join("\n\n");
 export const OPERATIONS_PROMPT = [
   BASE_RULES,
   [
-    "Bạn phục vụ NHÂN VIÊN VẬN HÀNH của Dili: tra đơn, tồn kho, công nợ, tình trạng đại lý và hỗ",
+    "Bạn phục vụ NHÂN VIÊN VẬN HÀNH của DiliM: tra đơn, tồn kho, công nợ, tình trạng đại lý và hỗ",
     "trợ xử lý việc hằng ngày.",
     "Người hỏi là người trong nhà — trả lời thẳng, không nói kiểu chăm sóc khách hàng.",
     "Thao tác làm THAY ĐỔI dữ liệu: nêu rõ mình sắp làm gì rồi chờ xác nhận, không tự ý chạy.",
