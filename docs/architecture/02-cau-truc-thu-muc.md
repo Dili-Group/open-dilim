@@ -74,17 +74,15 @@
 │   │       ├── write.ts         #   WRITE (cần confirm / pending)
 │   │       └── http.ts          #   ESCALATE / external call
 │   │
-│   ├── workflows/               # SOP nhiều bước (state machine)
-│   │   ├── index.ts             #   WorkflowRegistry
-│   │   ├── engine.ts            #   chạy state machine: state → transition
-│   │   └── defs/                #   1 file / workflow
-│   │       └── example.ts       #   vd: intake → check → propose → confirm → execute
-│   │
-│   ├── approvals/               # HUMAN-IN-THE-LOOP — suspend/resume khi cần duyệt
-│   │   ├── gate.ts              #   approval gate đặt trong workflow (điểm suspend)
-│   │   ├── resolver.ts          #   nhận approval reply → match pending → resume
-│   │   ├── policy.ts            #   rule: khi nào cần duyệt, ai duyệt, ngưỡng giá trị
-│   │   └── timeout.ts           #   quét pending hết hạn → auto-deny/escalate (chạy như 1 scheduler job)
+│   ├── workflows/               # VIỆC TREO chờ nhóm khác trả lời (§6) — suspend/resume
+│   │   ├── engine.ts            #   mở việc → đẩy lượt hỏi; nhận trả lời → đóng + báo về nơi hỏi
+│   │   ├── poller.ts            #   tick: đóng việc quá hạn → nhắc việc tới hạn (CAS claim)
+│   │   ├── store.ts             #   pending_actions Postgres; 1 bảng cho MỌI workflow
+│   │   ├── schedule.ts          #   mốc nhắc/hạn đóng, kéo vào giờ hành chính VN
+│   │   ├── service.ts           #   WorkflowPort — 1 cổng duy nhất cho tool
+│   │   ├── registry.ts          #   slug → WorkflowDef
+│   │   └── defs/                #   1 file / nghiệp vụ (DATA: hỏi ai, câu chữ, hạn)
+│   │       └── hoi-don-goc.ts   #   vd: đơn hoàn *DH → hỏi đại lý mã đơn gốc
 │   │
 │   ├── scheduler/               # CRON — trigger agent theo lịch (periodic check)
 │   │   ├── poller.ts            #   tick: quét job đến hạn → CAS claim → bắn; cô lập lỗi theo job
