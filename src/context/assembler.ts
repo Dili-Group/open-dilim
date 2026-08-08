@@ -12,6 +12,7 @@ import { renderSkillCatalog } from "../skills/selector.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import { renderMemoryBlock } from "./memory-block.ts";
 import { renderPendingBlock } from "./pending-block.ts";
+import { renderSpeakerBlock } from "./speaker-block.ts";
 import type { ContextSources, TurnContext, TurnInput } from "./types.ts";
 
 const SECTION_SEPARATOR = "\n\n";
@@ -34,7 +35,8 @@ const turnClockFormat = new Intl.DateTimeFormat("en-GB", {
 });
 
 /**
- * Dựng đúng 2 thứ model thấy. Thứ tự section: prompt nền → catalog skill → bản tóm → khối memory,
+ * Dựng đúng 2 thứ model thấy. Thứ tự section: prompt nền → catalog skill → vai người gõ → bản tóm
+ * → việc treo → khối memory,
  * tức ỔN ĐỊNH → BIẾN ĐỘNG, và ranh giới giữa hai nhóm chính là breakpoint prompt cache
  * (provider đặt `cache_control` ở khối đầu — xem llm/providers/anthropic.ts).
  *
@@ -51,6 +53,11 @@ export async function assembleTurnContext(
   // Khối BIẾN ĐỘNG: đổi theo lượt/phòng → phải nằm SAU breakpoint cache, nếu không mỗi lượt là
   // một prefix mới và cache không bao giờ trúng. Bản tóm đổi hiếm nhưng theo PHÒNG, nên vẫn ở đây.
   const volatile: string[] = [];
+
+  // Vai người gõ đứng ĐẦU khối biến động: mọi phần sau (việc treo, memory) đều được đọc qua lăng
+  // kính "đang nói với ai". Rỗng thì renderSpeakerBlock trả "" và joinSections tự bỏ.
+  volatile.push(renderSpeakerBlock(input.speaker));
+
   if (input.summary !== undefined && input.summary !== "") {
     volatile.push(renderSummaryBlock(input.summary));
   }

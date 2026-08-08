@@ -272,6 +272,67 @@ describe("assembleTurnContext — messages", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Khối vai người gõ
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("khối NGƯỜI ĐANG NHẮN LƯỢT NÀY", () => {
+  test("không biết vai → KHÔNG in khối nào", async () => {
+    const ctx = await assembleTurnContext(sources(), { history: [entry()] });
+    expect(sys(ctx)).not.toContain("NGƯỜI ĐANG NHẮN");
+  });
+
+  test("nhân viên → nói rõ là người nội bộ, kèm userId", async () => {
+    const ctx = await assembleTurnContext(sources(), {
+      history: [entry()],
+      speaker: { role: "nhan_vien", id: "42" },
+    });
+    const text = sys(ctx);
+    expect(text).toContain("Nhân viên nội bộ");
+    expect(text).toContain("userId=42");
+  });
+
+  test("có tên → in tên kèm vai (model gọi đúng tên, không 'anh/chị' chung)", async () => {
+    const ctx = await assembleTurnContext(sources(), {
+      history: [entry()],
+      speaker: { role: "nhan_vien", id: "42", name: "Nguyễn Công Giới" },
+    });
+    expect(sys(ctx)).toContain("Nhân viên nội bộ Dilim Nguyễn Công Giới (userId=42)");
+  });
+
+  test("đại lý → khách của công ty, kèm customerId", async () => {
+    const ctx = await assembleTurnContext(sources(), {
+      history: [entry()],
+      speaker: { role: "dai_ly", id: "cus1" },
+    });
+    const text = sys(ctx);
+    expect(text).toContain("Đại lý");
+    expect(text).toContain("customerId=cus1");
+  });
+
+  test("guest → nói chưa rõ vai, KHÔNG in id nào", async () => {
+    const ctx = await assembleTurnContext(sources(), {
+      history: [entry()],
+      speaker: { role: "guest" },
+    });
+    const text = sys(ctx);
+    expect(text).toContain("Chưa định danh");
+    expect(text).not.toContain("userId=");
+    expect(text).not.toContain("customerId=");
+  });
+
+  // Vai đổi theo từng người gõ trong cùng phòng → lọt vào khối cache là cache không bao giờ trúng.
+  test("khối vai nằm ở phần BIẾN ĐỘNG (sau breakpoint cache)", async () => {
+    const ctx = await assembleTurnContext(sources(), {
+      history: [entry()],
+      speaker: { role: "nhan_vien", id: "42" },
+    });
+    const stable = ctx.system.find((block) => block.cache === true);
+    expect(stable?.text).not.toContain("NGƯỜI ĐANG NHẮN");
+    expect(ctx.system.at(-1)?.text).toContain("NGƯỜI ĐANG NHẮN");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Khối việc đang treo (§6)
 // ─────────────────────────────────────────────────────────────────────────────
 

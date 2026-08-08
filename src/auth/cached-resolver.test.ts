@@ -86,6 +86,34 @@ describe("CachedIdentityResolver", () => {
     expect(inner.calls).toBe(1);
   });
 
+  test("tên nhân viên đi qua cache nguyên vẹn (HIT vẫn còn tên)", async () => {
+    const named: Identity = { role: ActorRole.NhanVien, senderId: "u1", userId: "op-1", fullName: "Nguyễn Công Giới" };
+    const redis = new FakeRedis();
+    const inner = new StubResolver(named);
+    const r = new CachedIdentityResolver(inner, redis.send);
+
+    await r.resolve(IN); // seed cache
+    inner.calls = 0;
+    expect(await r.resolve(IN)).toEqual(named);
+    expect(inner.calls).toBe(0);
+  });
+
+  // Cache ghi TRƯỚC khi có field tên: vai vẫn dùng được → không được ép miss chỉ vì thiếu tên.
+  test("cache cũ thiếu fullName → vẫn HIT, chỉ là không có tên", async () => {
+    const redis = new FakeRedis();
+    redis.store.set(
+      authCacheKey("zalo", "u1", "g1"),
+      JSON.stringify({ role: ActorRole.NhanVien, senderId: "u1", userId: "op-1" }),
+    );
+    const inner = new StubResolver(NHAN_VIEN);
+    const r = new CachedIdentityResolver(inner, redis.send);
+
+    const identity = await r.resolve(IN);
+    expect(identity).toEqual(NHAN_VIEN);
+    expect(identity.role === ActorRole.NhanVien && identity.fullName).toBeUndefined();
+    expect(inner.calls).toBe(0);
+  });
+
   test("key gồm groupId → cùng sender khác nhóm = key khác", () => {
     expect(authCacheKey("zalo", "u1", "g1")).not.toBe(authCacheKey("zalo", "u1", "g2"));
     expect(authCacheKey("zalo", "u1")).toBe("auth:zalo:u1:-");

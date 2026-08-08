@@ -22,9 +22,12 @@ export type ActorRole = (typeof ActorRole)[keyof typeof ActorRole];
 /**
  * Định danh người gõ, đã resolve từ senderId. Union rời rạc theo vai:
  * chỉ nhân viên có `userId` (dùng làm `assigned_by` khi gán đại lý).
+ *
+ * `fullName` = tên hiển thị nhân viên (`user_binding.full_name`, do hệ vận hành trả lúc verify).
+ * Optional: bind cũ / response thiếu field thì không có tên — agent gọi theo vai, KHÔNG đoán tên.
  */
 export type Identity =
-  | { role: typeof ActorRole.NhanVien; senderId: string; userId: string }
+  | { role: typeof ActorRole.NhanVien; senderId: string; userId: string; fullName?: string }
   | { role: typeof ActorRole.DaiLy; senderId: string; customerId: string }
   | { role: typeof ActorRole.Guest; senderId: string };
 

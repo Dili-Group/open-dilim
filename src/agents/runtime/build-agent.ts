@@ -7,6 +7,8 @@
 
 import type { AgentResult } from "../../types/index.ts";
 import { assembleTurnContext } from "../../context/assembler.ts";
+import type { TurnSpeaker } from "../../context/speaker-block.ts";
+import type { Identity } from "../../flash-command/types.ts";
 import { buildToolRegistry } from "../../tools/index.ts";
 import type { ToolFactory } from "../../tools/types.ts";
 import type { DistillSpec } from "../../state/types.ts";
@@ -42,6 +44,7 @@ class ProfileRootAgent implements RootAgent {
         },
         {
           history: input.history,
+          speaker: toTurnSpeaker(input.identity),
           summary: input.summary,
           memoryScope: input.memoryScope,
           pending: input.pending,
@@ -96,6 +99,22 @@ class ProfileRootAgent implements RootAgent {
       signal: input.signal,
     });
     return sub ?? this.profile;
+  }
+}
+
+/**
+ * Identity (tầng auth) → vai rút gọn cho ngữ cảnh. Map ở đây vì đây là WIRING giữa auth và context:
+ * context/ không được biết `Identity`, và senderId KHÔNG đi kèm (nó là id kênh, model không dùng
+ * được vào việc gì ngoài rò ra câu trả lời).
+ */
+function toTurnSpeaker(identity: Identity): TurnSpeaker {
+  switch (identity.role) {
+    case "nhan_vien":
+      return { role: "nhan_vien", id: identity.userId, name: identity.fullName };
+    case "dai_ly":
+      return { role: "dai_ly", id: identity.customerId };
+    case "guest":
+      return { role: "guest" };
   }
 }
 

@@ -16,14 +16,16 @@ export class SqlIdentityResolver implements IdentityResolver {
   constructor(private readonly groups: GroupCustomerLookup = new SqlGroupCustomerLookup()) {}
 
   async resolve({ channel, senderId, groupId }: ResolveInput): Promise<Identity> {
-    const userId = firstString(
-      await sql`SELECT user_id FROM user_binding
+    // Lấy luôn full_name trong cùng query: tên đi vào ngữ cảnh agent (context/speaker-block.ts) để
+    // model gọi đúng tên nhân viên thay vì "anh/chị". NULL (bind cũ) → undefined, không phải lỗi.
+    const staffRows: unknown = await sql`SELECT user_id, full_name FROM user_binding
                 WHERE channel = ${channel} AND sender_id = ${senderId}
                   AND revoked_at IS NULL
-                LIMIT 1`,
-      "user_id",
-    );
-    if (userId !== undefined) return { role: "nhan_vien", senderId, userId };
+                LIMIT 1`;
+    const userId = firstString(staffRows, "user_id");
+    if (userId !== undefined) {
+      return { role: "nhan_vien", senderId, userId, fullName: firstString(staffRows, "full_name") };
+    }
 
     if (groupId !== undefined) {
       const role = firstString(

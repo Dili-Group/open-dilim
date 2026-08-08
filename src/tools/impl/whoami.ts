@@ -18,7 +18,9 @@ export function buildWhoamiTool(identity: Identity): Tool {
 function describe(identity: Identity): string {
   switch (identity.role) {
     case "nhan_vien":
-      return `Nhân viên (userId=${identity.userId}).`;
+      return identity.fullName === undefined
+        ? `Nhân viên (userId=${identity.userId}).`
+        : `Nhân viên ${identity.fullName} (userId=${identity.userId}).`;
     case "dai_ly":
       return `Đại lý (customerId=${identity.customerId}).`;
     case "guest":

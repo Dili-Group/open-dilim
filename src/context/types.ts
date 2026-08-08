@@ -12,6 +12,7 @@ import type { SkillRegistry } from "../skills/registry.ts";
 import type { MemoryRecall, MemoryScope } from "../state/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import type { PendingNotice } from "./pending-block.ts";
+import type { TurnSpeaker } from "./speaker-block.ts";
 
 /** Nguồn dựng context — app-scoped, dựng 1 lần ở bootstrap. context/ KHÔNG tự mở kết nối. */
 export interface ContextSources {
@@ -28,6 +29,11 @@ export interface ContextSources {
 /** Dữ liệu của ĐÚNG một lượt. */
 export interface TurnInput {
   readonly history: readonly HistoryEntry[];
+  /**
+   * Vai người gõ lượt này — do WIRING map từ Identity (context/ không tự resolve). undefined = chưa
+   * biết vai → không in khối nào, model coi như phòng vô danh.
+   */
+  readonly speaker?: TurnSpeaker;
   /**
    * Bản tóm phần hội thoại đã trôi khỏi cửa sổ `history` (state/compactor.ts). undefined = phòng
    * chưa đủ dài để nén, hoặc chưa nối tầng compact — không phải lỗi.
