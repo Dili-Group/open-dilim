@@ -1,6 +1,6 @@
 "use client";
 
-import { createRef, useRef } from "react";
+import { createRef, useRef, useState } from "react";
 
 import { AnimatedBeam } from "@/components/ui/animated-beam";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -51,12 +51,19 @@ export function AgentRoutingMap() {
   const sourceRef = useRef<HTMLDivElement>(null);
   const hubRef = useRef<HTMLDivElement>(null);
   // Số node cố định theo dữ liệu → tạo ref một lần, không tạo lại mỗi lần render.
-  const targetRefs = useRef(AGENT_ROUTING.targets.map(() => createRef<HTMLDivElement>()));
+  //
+  // useState (lazy init) chứ KHÔNG useRef: mảng này phải ĐỌC ĐƯỢC lúc render để phát ref xuống
+  // node và dựng đường nối, mà đọc `.current` lúc render là thứ react-hooks/refs chặn. useState
+  // giữ y một mảng suốt đời component và không phải là ref → đọc thoải mái. useMemo cũng đọc
+  // được nhưng React được phép bỏ cache, lúc đó ref đổi và đường nối trỏ vào node đã tháo.
+  const [targetRefs] = useState(() =>
+    AGENT_ROUTING.targets.map(() => createRef<HTMLDivElement>()),
+  );
 
   return (
     <div className="rounded-xl border border-border-strong bg-surface-card p-6 shadow-card">
       <p className="mono-label text-muted">
-        {AGENT_ROUTING.label} · {AGENT_ROUTING.targets.length + 1} agent
+        {AGENT_ROUTING.label} · {AGENT_ROUTING.targets.length + 1} agent+
       </p>
 
       <div
@@ -71,7 +78,7 @@ export function AgentRoutingMap() {
           duration={BEAM_DURATION_S}
           delay={INBOUND_DELAY_S}
         />
-        {targetRefs.current.map((targetRef, i) => (
+        {targetRefs.map((targetRef, i) => (
           <AnimatedBeam
             key={AGENT_ROUTING.targets[i]?.id}
             containerRef={containerRef}
@@ -121,7 +128,7 @@ export function AgentRoutingMap() {
         <div className="z-10 flex flex-col gap-3 sm:gap-4">
           {AGENT_ROUTING.targets.map((target, i) => (
             <div key={target.id} className="flex items-center gap-2 sm:gap-3">
-              <NodeCircle nodeRef={targetRefs.current[i] ?? null}>
+              <NodeCircle nodeRef={targetRefs[i] ?? null}>
                 <Icon name={target.icon as IconName} size={20} className="text-accent" />
               </NodeCircle>
               <div>

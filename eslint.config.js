@@ -7,7 +7,22 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   // Không lint: deps, repo tham chiếu, SQL generate, plugin/skill, chính file config.
-  { ignores: ["node_modules/", "taxlegal/", "migrations/", ".claude/", "**/*.js"] },
+  // `landing/` là project RIÊNG (pnpm workspace, Next.js, eslint 9 + eslint-plugin-react của
+  // chính nó) — lint bằng `pnpm --dir landing lint`. Không bỏ qua ở đây thì `eslint .` của root
+  // đi vào landing/eslint.config.mjs và CRASH: eslint-plugin-react 7.37.5 gọi context.getFilename()
+  // theo API eslint 9, còn root chạy eslint 10 nên rule react/display-name ném TypeError.
+  {
+    ignores: [
+      "node_modules/",
+      "taxlegal/",
+      "migrations/",
+      ".claude/",
+      ".agents/",
+      "landing/",
+      "public/",
+      "**/*.js",
+    ],
+  },
 
   { files: ["src/**/*.ts"], extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked] },
 
