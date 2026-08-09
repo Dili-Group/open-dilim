@@ -50,9 +50,10 @@ export function Footer() {
       </div>
 
       <div className="border-t border-border-subtle">
-        <p className="container-content py-6 text-sm text-faint">
-          {COMPANY.copyright}
-        </p>
+        <div className="container-content flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-6 text-sm text-faint">
+          <p>{COMPANY.productNote}</p>
+          <p>{COMPANY.copyright}</p>
+        </div>
       </div>
     </footer>
   );

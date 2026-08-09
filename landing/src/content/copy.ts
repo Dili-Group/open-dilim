@@ -152,6 +152,8 @@ export const COMPANY = {
   email: "ketoan.dili@gmail.com",
   workingHours: "08h00 – 17h00, thứ Hai đến thứ Bảy",
   copyright: "© 2026 | DILI",
+  /** Ghi công ở footer — cũng là chỗ tên brand đầy đủ xuất hiện trên mọi trang. */
+  productNote: "Open DiLiM Agent là một sản phẩm do Công ty Cổ phần DiLi Supplement phát triển.",
 } as const;
 
 /**

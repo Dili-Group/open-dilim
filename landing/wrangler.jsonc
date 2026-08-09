@@ -8,6 +8,19 @@
     // Cho phép Worker gọi chính nó qua service binding (OpenNext dùng cho ISR/revalidate).
     "global_fetch_strictly_public"
   ],
+  // Tắt *.workers.dev: để mở thì cùng nội dung phục vụ ở hai host, Google coi là
+  // duplicate content và có thể chọn host sai làm bản chính.
+  "workers_dev": false,
+  // `custom_domain` (không phải route pattern): Cloudflare tự tạo bản ghi DNS và
+  // chứng chỉ cho subdomain, và Worker nhận mọi request tới host này. Phải khớp
+  // đúng SITE_URL trong src/lib/site.ts — canonical trỏ một nơi mà site phục vụ ở
+  // nơi khác thì Google index bản workers.dev và bỏ qua canonical.
+  "routes": [
+    {
+      "pattern": "open-dilim.dilisupplement.com",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
