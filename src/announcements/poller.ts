@@ -11,6 +11,7 @@
 import { capForChannel } from "../broadcast/limits.ts";
 import { captureError } from "../observability/sentry.ts";
 import { AGENT_SENDER_ID } from "../types/index.ts";
+import { MAX_ATTEMPTS } from "./types.ts";
 import type { AnnouncementDeps, Delivery } from "./types.ts";
 
 /** Nhịp quét. Cùng nhịp với scheduler/workflows — tin hết hàng không cần mịn hơn một phút. */
@@ -22,9 +23,6 @@ export const DEFAULT_TICK_MS = 60_000;
  * với câu trả lời của người dùng đang chờ.
  */
 export const SEND_BATCH_SIZE = 5;
-
-/** Số lần thử một nhóm trước khi chịu thua. Nhóm bị xoá / bot bị kick thì thử mãi cũng vậy. */
-export const MAX_ATTEMPTS = 4;
 
 /** Giãn cách giữa hai lần thử cùng một nhóm: 2 phút, 4, 8... (backoff nhân đôi từ `attempts`). */
 const BASE_BACKOFF_MS = 2 * 60_000;

@@ -16,8 +16,10 @@
 // GATE: chỉ NHÂN VIÊN có `role_slug = warehouse` (Quản lý kho) mới xin được. Không gate theo
 // nhóm — nhóm chỉ chọn luồng, quyền luôn theo identity backend resolve (nguyên tắc 10/11).
 
-import { MAX_ATTEMPTS } from "../../../announcements/index.ts";
-import { AnnouncementKind } from "../../../announcements/types.ts";
+// Import thẳng file LÁ `announcements/types.ts`, KHÔNG qua barrel `announcements/index.ts`:
+// barrel re-export store.ts/rooms.ts → db/client.ts → config.ts, mà config.ts throw ngay lúc
+// import khi thiếu env. Đi qua barrel là kéo cả tầng tools (rồi agents, rồi worker) chết ở CI.
+import { AnnouncementKind, MAX_ATTEMPTS } from "../../../announcements/types.ts";
 import type { AnnouncementStatus } from "../../../announcements/types.ts";
 import { AnnouncementStatus as AnnouncementState } from "../../../db/schema.ts";
 import { readStringField } from "../../input.ts";

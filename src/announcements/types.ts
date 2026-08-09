@@ -31,6 +31,15 @@ export const AnnouncementKind = {
 } as const;
 export type AnnouncementKind = (typeof AnnouncementKind)[keyof typeof AnnouncementKind];
 
+/**
+ * Số lần thử một nhóm trước khi chịu thua. Nhóm bị xoá / bot bị kick thì thử mãi cũng vậy.
+ *
+ * Đặt ở FILE LÁ này chứ không ở poller.ts vì tool cần đọc nó để nói với người dùng "hệ thống tự
+ * thử lại tối đa N lần". Tool mà import poller (hay barrel index.ts) là kéo `db/client.ts` →
+ * `config.ts` vào cả tầng tools → mọi test import tools chết ngay lúc import khi thiếu env.
+ */
+export const MAX_ATTEMPTS = 4;
+
 /** Một nhóm đại lý sẽ nhận tin. `customerId` để dedupe: một đại lý có thể có nhiều nhóm. */
 export interface DealerRoom {
   readonly channel: string;

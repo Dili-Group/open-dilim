@@ -36,7 +36,8 @@ jobs:
       # Chạy lại test ở đây: main có thể được push thẳng, không phải lúc nào cũng qua PR.
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
-      - run: bun test
+      # Cùng script với CI và với máy dev (--env-file=.env.test) — xem ghi chú ở ci.yml.
+      - run: bun run test
 
       - name: Đăng nhập GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin

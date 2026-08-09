@@ -32,7 +32,9 @@ jobs:
 
       - run: bun run typecheck
 
-      - run: bun test
+      # `bun run test`, KHÔNG `bun test` trần: script pin --env-file=.env.test (rỗng) nên máy dev
+      # chạy đúng env như runner. `bun test` trần ở local tự nạp `.env` → xanh ở local, đỏ ở đây.
+      - run: bun run test
 
       # Build thật để bắt lỗi Dockerfile ngay ở PR (không push — PR từ fork không có quyền ghi).
       - run: docker build -t dilim-agent:ci .

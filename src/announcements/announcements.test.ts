@@ -10,8 +10,8 @@ import { AnnouncementStatus as AnnouncementState, DeliveryStatus } from "../db/s
 import type { BroadcastTarget } from "../broadcast/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import { AnnouncementService } from "./service.ts";
-import { MAX_ATTEMPTS, backoffFrom, tick } from "./poller.ts";
-import { AnnouncementKind } from "./types.ts";
+import { backoffFrom, tick } from "./poller.ts";
+import { AnnouncementKind, MAX_ATTEMPTS } from "./types.ts";
 import type {
   AnnouncementDeps,
   AnnouncementDraft,
