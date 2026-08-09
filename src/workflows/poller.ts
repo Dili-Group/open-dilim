@@ -17,6 +17,13 @@ import type { PendingRequest, WorkflowDeps } from "./types.ts";
 /** Nhịp quét. Mốc nhắc tính theo giờ nên 1 phút là quá đủ độ mịn. */
 export const DEFAULT_TICK_MS = 60_000;
 
+/**
+ * Số việc nhắc song song trong một batch. Store đã chặn trần mỗi tick (`MAX_REMIND_PER_TICK`),
+ * batch ở đây chỉ để 100 việc không phải xếp hàng tuần tự — nhưng vẫn không thả hết một lượt,
+ * tránh mở quá nhiều kết nối Postgres / lượt broadcast cùng lúc.
+ */
+export const REMIND_BATCH_SIZE = 10;
+
 export interface RunningWorkflowPoller {
   /** Dừng nhận tick mới + chờ tick đang chạy xong (không cắt giữa lúc đang bắn). */
   stop(): Promise<void>;
@@ -34,13 +41,27 @@ export async function tick(
   if (expired > 0) console.warn(`[workflows] đóng ${expired} việc quá hạn chờ trả lời.`);
 
   const due = await deps.store.dueForRemind(now);
-  for (const request of due) {
-    try {
-      await remind(deps, registry, request, nowMs);
-    } catch (err) {
-      console.error(`[workflows] nhắc việc ${request.id} lỗi:`, err);
-      captureError(err, "workflows.remind", { requestId: request.id, workflow: request.workflow });
-    }
+
+  // Batch tuần tự, trong batch chạy song song. `remindSafely` không bao giờ reject nên một việc
+  // hỏng không kéo cả batch xuống — batch sau vẫn chạy.
+  for (let start = 0; start < due.length; start += REMIND_BATCH_SIZE) {
+    const batch = due.slice(start, start + REMIND_BATCH_SIZE);
+    await Promise.all(batch.map((request) => remindSafely(deps, registry, request, nowMs)));
+  }
+}
+
+/** Bọc `remind` để lỗi cô lập theo việc (Promise.all không được thấy reject). */
+async function remindSafely(
+  deps: WorkflowDeps,
+  registry: WorkflowRegistry,
+  request: PendingRequest,
+  nowMs: number,
+): Promise<void> {
+  try {
+    await remind(deps, registry, request, nowMs);
+  } catch (err) {
+    console.error(`[workflows] nhắc việc ${request.id} lỗi:`, err);
+    captureError(err, "workflows.remind", { requestId: request.id, workflow: request.workflow });
   }
 }
 
