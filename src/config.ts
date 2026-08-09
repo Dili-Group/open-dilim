@@ -199,6 +199,18 @@ export const CONFIG = {
   // Scheduler (§8) — job def nằm ở bảng scheduler_jobs, đây chỉ là nhịp quét.
   schedulerTickMs: positiveIntEnv("SCHEDULER_TICK_MS", DEFAULT_SCHEDULER_TICK_MS),
 
+  // Phát tin chung tới MỌI nhóm đại lý (kho báo hết hàng — announcements/).
+  //
+  // `approverUserId` = user_id hệ vận hành của người DUY NHẤT được duyệt phát tin (SWE Nguyễn
+  // Công Giới). Là user_id chứ không phải senderId: senderId đổi khi đổi thiết bị/kênh, user_id
+  // thì không. Không phải role_slug: quy tắc chỉ đích danh MỘT người, không phải một chức danh.
+  //
+  // optional() chứ không required() để deployment cũ vẫn boot — nhưng KHÔNG có nghĩa mở cửa:
+  // thiếu env này thì service từ chối mọi lượt chốt phát tin (fail-closed, xem announcements/).
+  announce: {
+    approverUserId: optional("ANNOUNCE_APPROVER_USER_ID"),
+  },
+
   // Sentry (báo lỗi từ xa). Optional: thiếu SENTRY_DSN → tắt hẳn, app chạy như cũ.
   // tracesSampleRate mặc định 0 = chỉ gửi lỗi, không gửi trace (trace tốn quota, chưa cần).
   sentry: {

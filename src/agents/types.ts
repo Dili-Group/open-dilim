@@ -1,6 +1,7 @@
 // types.ts — hợp đồng tầng agents. File LÁ: registry.ts và roots/* cùng import từ đây nên không
 // tạo cycle (contract ← root agent ← registry).
 
+import type { AnnouncePort } from "../announcements/types.ts";
 import type { Effort } from "../config.ts";
 import type { LLMProvider } from "../llm/types.ts";
 import type { Identity } from "../flash-command/types.ts";
@@ -51,6 +52,11 @@ export interface AgentDeps {
   readonly daily?: DailyPort;
   /** Cổng việc-chờ-trả-lời (§6) cho tool mở/đóng việc treo. undefined = chưa nối → tool trả lỗi. */
   readonly workflow?: WorkflowPort;
+  /**
+   * Cổng PHÁT TIN CHUNG tới mọi nhóm đại lý (kho báo hết hàng). Chỉ có đường XIN phát — quyết
+   * định duyệt nằm ở `AnnounceApprovalPort`, cổng đó KHÔNG đi qua agent. undefined = chưa nối.
+   */
+  readonly announce?: AnnouncePort;
 }
 
 export interface AgentRunInput {

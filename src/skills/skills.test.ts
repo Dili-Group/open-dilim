@@ -16,6 +16,7 @@ describe("registry (defs thật)", () => {
     const names = registry.catalog().map((m) => m.name).sort();
     expect(names).toEqual([
       "bao-cao-cuoi-ngay",
+      "bao-het-hang",
       "chiet-khau",
       "don-hang",
       "don-hoan",

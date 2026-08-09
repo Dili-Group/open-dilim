@@ -35,15 +35,19 @@ Cả 2 dùng chung cơ chế suspend/resume — khác ở: ai duyệt, auth chec
 `approvals/gate.ts` (suspend) → `state/pending.ts` (lưu) → `broadcast/` (phát yêu cầu) →
 `message-ingest/` (nhận reply) → `auth/permissions.ts` (verify quyền) → `approvals/resolver.ts` (resume).
 
-## 2 kiểu chờ người, MỘT cơ chế
+## 3 kiểu chờ người
 
 | Kiểu | Hỏi ai | Kết cục | Trạng thái |
 |------|--------|---------|-----------|
-| **Duyệt** (§ trên) | người CÓ QUYỀN | approved / denied | chưa dựng |
+| **Duyệt chung** (§ trên) | người CÓ QUYỀN | approved / denied | chưa dựng (`approvals/`) |
 | **Hỏi dữ kiện** | nhóm BIẾT VIỆC (vd nhóm đại lý) | câu trả lời lưu vào `state_snapshot` | **đã dựng** (`workflows/`) |
+| **Duyệt phát tin** | MỘT người đích danh (`ANNOUNCE_APPROVER_USER_ID`) | đợt phát chạy / bị huỷ | **đã dựng** (`announcements/`) |
 
-Cả hai dùng chung bảng `pending_actions` và chung vòng đời suspend → nhắc → hết hạn. Khác nhau nằm
-ở **một `WorkflowDef`** (DATA ở `workflows/defs/`): hỏi ai, câu chữ gì, hạn bao lâu, nhắc mấy tiếng.
+Hai kiểu đầu dùng chung bảng `pending_actions`; kiểu thứ ba có bảng riêng — xem cuối mục.
+
+Hai kiểu đầu dùng chung bảng `pending_actions` và chung vòng đời suspend → nhắc → hết hạn. Khác
+nhau nằm ở **một `WorkflowDef`** (DATA ở `workflows/defs/`): hỏi ai, câu chữ gì, hạn bao lâu, nhắc
+mấy tiếng.
 
 ### Kiểu "hỏi dữ kiện" chạy thế nào
 
@@ -77,6 +81,42 @@ cho agent.
 Việc GHI mà khách hay yêu cầu (huỷ đơn, sửa đơn) hiện xử lý bằng cách: agent tra trạng thái thật,
 nói rõ còn làm được hay không, rồi **chuyển nhân viên vận hành** — xem skill `don-hang`
 (`references/huy-don.md`). Dựng xong gate thì chỗ đó mới thành tầng A (khách tự xác nhận).
+
+## Duyệt phát tin toàn hệ đại lý (`announcements/`)
+
+Kho báo hết hàng → agent soạn tin → **mọi nhóm đại lý** cùng nhận một câu. Bán kính lớn nhất trong
+hệ thống và không rút lại được, nên đường đi có **ba cửa** và agent chỉ qua được hai cửa đầu:
+
+```
+thủ kho nói hết hàng
+  1. soan_thong_bao_het_hang → nháp ở Redis (TTL 10') — chưa ghi DB, chưa ai nhận
+     agent đọc NGUYÊN VĂN cho thủ kho nghe, thủ kho chốt
+  2. gui_thong_bao_het_hang  → GETDEL nháp → INSERT bản gốc (AwaitingApproval)
+                                + N row nhận với next_attempt_at = NULL
+                                + DM yêu cầu duyệt cho người duyệt      ❗ CHƯA AI NHẬN
+        ... chờ người thật ...
+  3. /duyet-thongbao <id>    → status=Approved + đặt next_attempt_at cho N row  ← FLASH COMMAND
+     /tuchoi-thongbao <id> <lý do> → status=Rejected, không nhóm nào nhận
+  4. poller: CAS claim từng row → broadcast + ghi history nhóm → retry backoff, thua sau 4 lần
+  5. báo kết quả về nhóm kho
+```
+
+**Ba chốt, mỗi chốt bịt một đường vòng:**
+
+| Chốt | Ở đâu | Bịt cái gì |
+|---|---|---|
+| `role_slug = warehouse` | trong tool | ai cũng xin phát tin được |
+| `next_attempt_at = NULL` khi tạo | trong DB | model "tự gửi" — không có mốc thì không tick nào nhặt |
+| Duyệt là **flash command**, không phải tool | `flash-command/` | LLM tự duyệt / bị prompt injection lái |
+
+Người duyệt nhận diện bằng `user_id` hệ vận hành (`ANNOUNCE_APPROVER_USER_ID`), **không** bằng
+senderId (đổi thiết bị là mất) và **không** bằng `role_slug` (quy tắc chỉ đích danh một người).
+Thiếu env này = không ai phát được — fail-closed, không phải mở cửa.
+
+Vì sao **không** dùng `workflows/`: `dispatchAsk` đẩy Envelope nên mỗi nhóm chạy một lượt LLM và tự
+soạn lại câu → N nhóm đọc N câu khác nhau; `findAnswered` chặn mở lại cùng khoá nên sản phẩm hết
+lần hai sẽ không gửi được; unique `(workflow, subject)` buộc ghép sản phẩm + đại lý + mốc thời gian
+vào một chuỗi khoá.
 
 ## 3 điểm dễ sai (async)
 

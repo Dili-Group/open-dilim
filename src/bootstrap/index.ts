@@ -41,6 +41,14 @@ import {
   startWorkflowPoller,
 } from "../workflows/index.ts";
 import {
+  AnnouncementService,
+  RedisDraftStore,
+  SqlAnnouncementStore,
+  SqlDealerRoomLookup,
+  startAnnouncementPoller,
+} from "../announcements/index.ts";
+import { SqlApproverRoomLookup } from "../announcements/store.ts";
+import {
   buildDedupe,
   buildHistoryStore,
   buildMemoryStore,
@@ -126,6 +134,28 @@ export async function bootstrap(): Promise<Services> {
   };
   const workflow = new WorkflowService(workflowDeps, workflowRegistry);
 
+  // Phát tin chung tới mọi nhóm đại lý (kho báo hết hàng). Dùng LẠI broadcaster + history của
+  // egress: tin phát chung đi cùng đường với câu trả lời thường, và nằm trong history nhóm đại lý
+  // để agent bên đó trích lại được (skill het-hang Luật 2).
+  //
+  // KHÔNG dùng broker: phía nhận không chạy lượt LLM nào — mọi đại lý phải đọc đúng một câu.
+  const announceDeps = {
+    store: new SqlAnnouncementStore(),
+    rooms: new SqlDealerRoomLookup(),
+    drafts: new RedisDraftStore(commandOf(redis)),
+    broadcaster,
+    history,
+    approverRooms: new SqlApproverRoomLookup(),
+    approverUserId: config.announce.approverUserId,
+  };
+  if (config.announce.approverUserId === undefined) {
+    console.warn(
+      "[bootstrap] thiếu ANNOUNCE_APPROVER_USER_ID → KHÔNG phát được thông báo nào cho đại lý " +
+        "(fail-closed: không có người duyệt thì không ai phát được).",
+    );
+  }
+  const announce = new AnnouncementService(announceDeps);
+
   const agents = buildAgentRegistry({
     provider: llm,
     config,
@@ -136,6 +166,7 @@ export async function bootstrap(): Promise<Services> {
     discount,
     daily,
     workflow,
+    announce,
   });
   assertSkillAgentScopes(skills, agents);
 
@@ -176,6 +207,8 @@ export async function bootstrap(): Promise<Services> {
     workflow,
     workflowDeps,
     workflowRegistry,
+    announce,
+    announceDeps,
     historyReader: history,
     historyWriter: history,
     memoryWriters,
@@ -208,6 +241,7 @@ export async function start(): Promise<RunningSystem> {
     broadcaster: services.broadcaster,
     typing: services.typing,
     workflow: services.workflow,
+    announceApprovals: services.announce,
     workerCount: services.config.workerCount,
     turnTimeoutMs: services.config.turnTimeoutMs,
   });
@@ -235,7 +269,15 @@ export async function start(): Promise<RunningSystem> {
     services.config.schedulerTickMs,
   );
 
+  // Nguồn phát thứ ba: gửi dần các đợt thông báo ĐÃ ĐƯỢC DUYỆT tới từng nhóm đại lý. Đợt chưa
+  // duyệt không có row nào tới hạn nên poller chạy không cũng vô hại.
+  const announcePoller = startAnnouncementPoller(
+    services.announceDeps,
+    services.config.schedulerTickMs,
+  );
+
   async function stop(): Promise<void> {
+    await announcePoller.stop(); // ngừng phát tin đại lý
     await workflowPoller.stop(); // ngừng nhắc việc treo
     await scheduler.stop(); // ngừng bắn job mới TRƯỚC khi drain worker
     await workers.stop(); // ngừng nhận việc mới, chờ worker đang chạy xong

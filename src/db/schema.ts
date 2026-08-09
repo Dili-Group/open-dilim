@@ -21,6 +21,29 @@ export const PendingStatus = {
 export type PendingStatus = (typeof PendingStatus)[keyof typeof PendingStatus];
 export const PENDING_STATUS_VALUES: readonly number[] = Object.values(PendingStatus);
 
+// Trạng thái một ĐỢT phát tin. Đợt phát KHÔNG tự chạy sau khi thủ kho chốt: nó nằm ở
+// AwaitingApproval cho tới khi người duyệt đích danh (CONFIG.announce.approverUserId) gật.
+// Fail-closed: mọi trạng thái khác Approved đều KHÔNG có row nhận nào tới hạn gửi.
+export const AnnouncementStatus = {
+  AwaitingApproval: 0,
+  Approved: 1,
+  Rejected: 2,
+} as const;
+export type AnnouncementStatus = (typeof AnnouncementStatus)[keyof typeof AnnouncementStatus];
+export const ANNOUNCEMENT_STATUS_VALUES: readonly number[] = Object.values(AnnouncementStatus);
+
+// Trạng thái một lượt GIAO tin phát chung tới một nhóm. Cùng thủ pháp numeric enum như
+// PendingStatus. Tách khỏi PendingStatus vì vòng đời khác hẳn: ở đây không có ai duyệt/từ chối,
+// chỉ có "chưa gửi → gửi được / chịu thua".
+export const DeliveryStatus = {
+  Pending: 0,
+  Sent: 1,
+  /** Hết lượt thử. KHÔNG tự gửi lại nữa — người phát phải tự quyết làm gì tiếp. */
+  Failed: 2,
+} as const;
+export type DeliveryStatus = (typeof DeliveryStatus)[keyof typeof DeliveryStatus];
+export const DELIVERY_STATUS_VALUES: readonly number[] = Object.values(DeliveryStatus);
+
 // Role trong group. nhan_vien KHÔNG ở đây — nhận diện qua user_binding (định danh toàn cục,
 // không theo group). group_member chỉ lưu grant dai_ly; guest = KHÔNG có row (default đóng).
 // guest lưu tường minh chỉ khi cần demote 1 người từng là dai_ly mà không xoá vết.
@@ -133,6 +156,81 @@ export const PENDING_ACTIONS = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// announcements — MỘT tin phát chung tới nhiều nhóm đại lý (vd kho báo hết hàng).
+//
+// Text soạn ĐÚNG MỘT LẦN và nằm ở đây, không sinh lại cho từng nhóm: mọi đại lý phải đọc đúng
+// cùng một câu. Bảng này là bản gốc; ai đã nhận nằm ở announcement_deliveries.
+//
+// TÁCH khỏi pending_actions dù cùng là "việc chờ chạy": pending_actions hỏi MỘT nhóm rồi chờ
+// MỘT đáp án (unique (workflow, subject) khi treo, có ask_count/next_remind_at/answer). Phát tin
+// là bắn N nhóm và không chờ ai — dùng chung bảng thì poller việc-treo sẽ nhặt nhầm row và cố
+// `dispatchAsk` chúng.
+//
+// HAI CHỮ KÝ mới phát được: thủ kho chốt (`created_by`) rồi người duyệt đích danh gật
+// (`approved_by`). Trước khi gật, mọi row nhận có `next_attempt_at = NULL` nên không tick nào
+// nhặt — cửa duyệt nằm ở DỮ LIỆU, không ở prompt.
+// ─────────────────────────────────────────────────────────────────────────────
+export const ANNOUNCEMENTS = {
+  table: "announcements",
+  col: {
+    id: "id",
+    kind: "kind",             // loại tin (het_hang...) — để soát/thống kê, không đổi cách gửi
+    text: "text",             // NGUYÊN VĂN gửi đi. Không template hoá, không sinh lại lúc gửi
+    status: "status",         // AnnouncementStatus — chỉ Approved mới có row tới hạn gửi
+    createdBy: "created_by",  // senderId thủ kho chốt (audit: ai xin phát tin toàn hệ)
+    // Phòng thủ kho đã chốt — đích báo ngược "đã duyệt / bị từ chối". Cùng vai trò `origin` của
+    // việc treo: người chờ kết quả không nhất thiết còn ở lượt nào đang chạy.
+    originChannel: "origin_channel",
+    originConversation: "origin_conversation",
+    approvedBy: "approved_by",     // user_id người duyệt (audit: ai cho phát)
+    approvedAt: "approved_at",
+    rejectReason: "reject_reason", // lý do từ chối, để thủ kho biết sửa gì
+    createdAt: "created_at",
+  },
+  idx: {
+    /** Liệt kê đợt đang chờ duyệt cho người duyệt soát. */
+    awaiting: "announcements_awaiting",
+    statusChk: "announcements_status_chk",
+  },
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// announcement_deliveries — MỘT ROW MỖI NHÓM NHẬN. Đây là chỗ "N đại lý = N bản ghi bền":
+// worker chết giữa đợt phát thì các row chưa gửi vẫn còn, poller tick sau gửi tiếp.
+//
+// `next_attempt_at` vừa là due-index vừa là ô CAS claim — cùng thủ pháp fire-once như
+// scheduler_jobs.next_run_at và pending_actions.next_remind_at, để hai instance cùng tick không
+// gửi cho một nhóm hai lần.
+// ─────────────────────────────────────────────────────────────────────────────
+export const ANNOUNCEMENT_DELIVERIES = {
+  table: "announcement_deliveries",
+  col: {
+    id: "id",
+    announcementId: "announcement_id",
+    channel: "channel",
+    groupId: "group_id",
+    customerId: "customer_id",       // đại lý sở hữu nhóm — để soát "đại lý nào chưa nhận"
+    status: "status",                // DeliveryStatus
+    attempts: "attempts",            // số lần đã thử gửi
+    lastError: "last_error",         // lý do lần hỏng gần nhất — để người phát biết vì sao
+    // Mốc thử kế + ô CAS claim. NULL có HAI nghĩa, cả hai đều là "không tick nào nhặt": đợt phát
+    // chưa được duyệt (row sinh ra đã NULL), hoặc lượt này đã xong/chịu thua.
+    nextAttemptAt: "next_attempt_at",
+    sentAt: "sent_at",
+    createdAt: "created_at",
+  },
+  idx: {
+    /** Poller quét theo mốc thử kế. */
+    due: "announcement_deliveries_due",
+    /** Soát một đợt phát: bao nhiêu sent/failed, nhóm nào lỗi. */
+    byAnnouncement: "announcement_deliveries_by_announcement",
+    /** Một nhóm nhận MỘT lần cho mỗi đợt phát — chặn cứng ở DB, không dựa vào code gọi đúng. */
+    targetUniq: "announcement_deliveries_target_uniq",
+    statusChk: "announcement_deliveries_status_chk",
+  },
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // group_map — (channel, group_id) → khách hàng X (auth). Định danh nhóm chat.
 // id đến từ hệ nguồn (Zalo/FB/CRM) → KHÔNG FK. customer_id inject server-side, không tin payload.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -226,7 +324,11 @@ export function buildInitSql(): string {
   const b = USER_BINDING;
   const gm = GROUP_MEMBER;
   const gb = GROUP_BLOCK;
+  const an = ANNOUNCEMENTS;
+  const ad = ANNOUNCEMENT_DELIVERIES;
   const statusList = PENDING_STATUS_VALUES.join(", ");
+  const deliveryStatusList = DELIVERY_STATUS_VALUES.join(", ");
+  const announcementStatusList = ANNOUNCEMENT_STATUS_VALUES.join(", ");
   const roleList = GROUP_ROLE_VALUES.map((r) => `'${r}'`).join(", ");
 
   return `-- GENERATED từ src/db/schema.ts qua gen-migration.ts — KHÔNG sửa tay.
@@ -311,6 +413,54 @@ CREATE UNIQUE INDEX IF NOT EXISTS ${p.idx.openSubject}
 CREATE INDEX IF NOT EXISTS ${p.idx.remind}
   ON ${p.table} (${p.col.nextRemindAt})
   WHERE ${p.col.status} = ${PendingStatus.Pending};
+
+-- announcements — bản gốc MỘT tin phát chung. Text soạn 1 lần, mọi nhóm đọc y hệt nhau.
+-- Nằm ở AwaitingApproval cho tới khi người duyệt đích danh gật; trước đó không row nhận nào tới hạn.
+CREATE TABLE IF NOT EXISTS ${an.table} (
+  ${an.col.id}                 uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  ${an.col.kind}               text        NOT NULL,       -- het_hang | ... (soát/thống kê)
+  ${an.col.text}               text        NOT NULL,       -- NGUYÊN VĂN gửi đi
+  ${an.col.status}             smallint    NOT NULL DEFAULT ${AnnouncementStatus.AwaitingApproval},
+  ${an.col.createdBy}          text        NOT NULL,       -- senderId thủ kho chốt (audit)
+  ${an.col.originChannel}      text        NOT NULL,       -- phòng báo ngược kết quả duyệt
+  ${an.col.originConversation} text        NOT NULL,
+  ${an.col.approvedBy}         text,                       -- user_id người duyệt (audit)
+  ${an.col.approvedAt}         timestamptz,
+  ${an.col.rejectReason}       text,
+  ${an.col.createdAt}          timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ${an.idx.statusChk} CHECK (${an.col.status} IN (${announcementStatusList}))
+);
+
+CREATE INDEX IF NOT EXISTS ${an.idx.awaiting}
+  ON ${an.table} (${an.col.createdAt})
+  WHERE ${an.col.status} = ${AnnouncementStatus.AwaitingApproval};
+
+-- announcement_deliveries — 1 row mỗi nhóm nhận. Poller gửi + retry; sống qua restart.
+CREATE TABLE IF NOT EXISTS ${ad.table} (
+  ${ad.col.id}             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  ${ad.col.announcementId} uuid        NOT NULL REFERENCES ${an.table}(${an.col.id}) ON DELETE CASCADE,
+  ${ad.col.channel}        text        NOT NULL,
+  ${ad.col.groupId}        text        NOT NULL,
+  ${ad.col.customerId}     text        NOT NULL,           -- đại lý sở hữu nhóm (soát ai chưa nhận)
+  ${ad.col.status}         smallint    NOT NULL DEFAULT ${DeliveryStatus.Pending},
+  ${ad.col.attempts}       integer     NOT NULL DEFAULT 0,
+  ${ad.col.lastError}      text,                           -- lý do lần hỏng gần nhất
+  ${ad.col.nextAttemptAt}  timestamptz,                    -- mốc thử kế + ô CAS claim; NULL = chưa duyệt HOẶC thôi thử
+  ${ad.col.sentAt}         timestamptz,
+  ${ad.col.createdAt}      timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ${ad.idx.statusChk} CHECK (${ad.col.status} IN (${deliveryStatusList}))
+);
+
+-- Một nhóm nhận MỘT lần mỗi đợt phát. Chặn ở DB: insert lại (retry lượt tool) không nhân đôi tin.
+CREATE UNIQUE INDEX IF NOT EXISTS ${ad.idx.targetUniq}
+  ON ${ad.table} (${ad.col.announcementId}, ${ad.col.channel}, ${ad.col.groupId});
+
+CREATE INDEX IF NOT EXISTS ${ad.idx.due}
+  ON ${ad.table} (${ad.col.nextAttemptAt})
+  WHERE ${ad.col.status} = ${DeliveryStatus.Pending};
+
+CREATE INDEX IF NOT EXISTS ${ad.idx.byAnnouncement}
+  ON ${ad.table} (${ad.col.announcementId});
 
 -- group_map — (channel, group_id) → khách hàng X. Lookup runtime chạy thẳng PK.
 CREATE TABLE IF NOT EXISTS ${g.table} (

@@ -19,6 +19,11 @@ import type { ConversationCompactor, MemoryWriterLookup, SummaryReader } from ".
 import type { WorkflowDeps } from "../workflows/types.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
 import type { WorkflowRegistry } from "../workflows/registry.ts";
+import type {
+  AnnounceApprovalPort,
+  AnnouncePort,
+  AnnouncementDeps,
+} from "../announcements/types.ts";
 
 /** Mọi service dựng lúc boot, share cho các tầng downstream (worker/gateway). */
 export interface Services {
@@ -60,6 +65,13 @@ export interface Services {
   readonly workflow: WorkflowPort;
   readonly workflowDeps: WorkflowDeps;
   readonly workflowRegistry: WorkflowRegistry;
+  /**
+   * Phát tin chung tới mọi nhóm đại lý. Ba mảnh vì ba người dùng khác nhau: tool của agent chỉ
+   * XIN phát (`AnnouncePort`, đã nằm trong AgentDeps), flash command của người duyệt QUYẾT
+   * (`AnnounceApprovalPort` — agent không cầm), poller cần `deps` để gửi thật.
+   */
+  readonly announce: AnnouncePort & AnnounceApprovalPort;
+  readonly announceDeps: AnnouncementDeps;
   /** Đọc history — CÙNG instance với ingestDeps.history. */
   readonly historyReader: HistoryReader;
   /** Ghi history (flash reply) — CÙNG instance với historyReader/ingestDeps.history. */

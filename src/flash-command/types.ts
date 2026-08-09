@@ -25,9 +25,19 @@ export type ActorRole = (typeof ActorRole)[keyof typeof ActorRole];
  *
  * `fullName` = tên hiển thị nhân viên (`user_binding.full_name`, do hệ vận hành trả lúc verify).
  * Optional: bind cũ / response thiếu field thì không có tên — agent gọi theo vai, KHÔNG đoán tên.
+ *
+ * `roleSlug` = vai trong hệ vận hành (`user_binding.role_slug`, vd `warehouse` = quản lý kho).
+ * Dùng để GATE tool chỉ một chức danh được gọi. Optional và FAIL-CLOSED: bind cũ (verify chưa
+ * trả field) → undefined → tool từ chối. Không có nghĩa "mọi nhân viên đều được".
  */
 export type Identity =
-  | { role: typeof ActorRole.NhanVien; senderId: string; userId: string; fullName?: string }
+  | {
+      role: typeof ActorRole.NhanVien;
+      senderId: string;
+      userId: string;
+      fullName?: string;
+      roleSlug?: string;
+    }
   | { role: typeof ActorRole.DaiLy; senderId: string; customerId: string }
   | { role: typeof ActorRole.Guest; senderId: string };
 
@@ -39,6 +49,11 @@ export type { Mention };
 // Port quản job cron — định nghĩa ở tầng scheduler (chủ sở hữu khái niệm), flash-command chỉ dùng.
 import type { JobAdmin, JobSummary } from "../scheduler/types.ts";
 export type { JobAdmin, JobSummary };
+
+// Cửa DUYỆT phát tin toàn hệ đại lý — định nghĩa ở tầng announcements. Chỉ flash-command cầm
+// interface này; agent KHÔNG (quyết định duyệt không được nằm trong tầm với của LLM).
+import type { AnnounceApprovalPort } from "../announcements/types.ts";
+export type { AnnounceApprovalPort };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Ports — seam I/O. Implementation cấp lúc khởi động, không nằm ở đây.
@@ -140,6 +155,11 @@ export interface FlashContext {
   readonly ops: OpsPort;
   /** Quản job cron của CHÍNH phòng này (`/lich`). Xem scheduler §8. */
   readonly jobs: JobAdmin;
+  /**
+   * Duyệt/từ chối tin phát toàn hệ đại lý. undefined = chưa wiring → lệnh duyệt trả lỗi rõ,
+   * KHÔNG mặc định cho qua.
+   */
+  readonly announce?: AnnounceApprovalPort;
 }
 
 /**

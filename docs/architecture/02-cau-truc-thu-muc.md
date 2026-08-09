@@ -84,6 +84,13 @@
 │   │   └── defs/                #   1 file / nghiệp vụ (DATA: hỏi ai, câu chữ, hạn)
 │   │       └── hoi-don-goc.ts   #   vd: đơn hoàn *DH → hỏi đại lý mã đơn gốc
 │   │
+│   ├── announcements/           # PHÁT MỘT TIN tới MỌI nhóm đại lý (kho báo hết hàng)
+│   │   ├── service.ts           #   AnnouncePort (agent XIN phát) + AnnounceApprovalPort (người duyệt)
+│   │   ├── store.ts             #   announcements + announcement_deliveries: 1 row mỗi nhóm nhận
+│   │   ├── poller.ts            #   tick: gửi lượt đã DUYỆT (CAS claim) + retry backoff, KHÔNG qua LLM
+│   │   ├── drafts.ts            #   nháp ở Redis (GETDEL) — chốt được đúng một lần
+│   │   └── rooms.ts             #   group_map enabled − group_block, dedupe theo customer_id
+│   │
 │   ├── scheduler/               # CRON — trigger agent theo lịch (periodic check)
 │   │   ├── poller.ts            #   tick: quét job đến hạn → CAS claim → bắn; cô lập lỗi theo job
 │   │   ├── repo.ts              #   job def Postgres; claim = CAS trên next_run_at (fire-once)

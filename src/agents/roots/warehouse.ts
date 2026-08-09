@@ -9,7 +9,12 @@
 // vận hành, đúng như trước khi có agent này.
 
 import { internalOpsSpec } from "../../state/specs.ts";
-import { COMMON_TOOLS, WORKFLOW_ASK_TOOLS, WORKFLOW_LIST_TOOLS } from "../../tools/index.ts";
+import {
+  COMMON_TOOLS,
+  WAREHOUSE_ANNOUNCE_TOOLS,
+  WORKFLOW_ASK_TOOLS,
+  WORKFLOW_LIST_TOOLS,
+} from "../../tools/index.ts";
 import { WAREHOUSE_PROMPT } from "../prompts.ts";
 import { AgentType, type RootAgentProfile } from "../types.ts";
 
@@ -19,5 +24,12 @@ export const warehouseProfile: RootAgentProfile = {
   directOnly: false,
   prompt: WAREHOUSE_PROMPT,
   memorySpec: internalOpsSpec,
-  tools: [...COMMON_TOOLS, ...WORKFLOW_ASK_TOOLS, ...WORKFLOW_LIST_TOOLS],
+  tools: [
+    ...COMMON_TOOLS,
+    ...WORKFLOW_ASK_TOOLS,
+    ...WORKFLOW_LIST_TOOLS,
+    // Xin phát tin hết hàng cho toàn bộ đại lý. Tool tự gate theo `role_slug = warehouse`, và
+    // đường phát còn một cửa nữa: người duyệt đích danh gõ /duyet-thongbao. Agent chỉ soạn và xin.
+    ...WAREHOUSE_ANNOUNCE_TOOLS,
+  ],
 };

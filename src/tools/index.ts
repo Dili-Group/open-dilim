@@ -19,6 +19,11 @@ import { buildDailyDetailTool, buildDailyReportTool } from "./impl/dealer/daily.
 import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
 import { buildWorkflowAnswerTool } from "./impl/workflow/answer.ts";
 import { buildWorkflowListTool } from "./impl/workflow/list.ts";
+import {
+  buildStockNoticeDraftTool,
+  buildStockNoticeSendTool,
+  buildStockNoticeStatusTool,
+} from "./impl/warehouse/het-hang.ts";
 
 /** Bộ tool ai cũng có: biết mình là ai + đọc skill/reference. Không chạm dữ liệu nghiệp vụ. */
 export const COMMON_TOOLS: readonly ToolFactory[] = [
@@ -101,6 +106,22 @@ export const WORKFLOW_REPLY_TOOLS: readonly ToolFactory[] = [
 
 export const WORKFLOW_LIST_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildWorkflowListTool(ctx),
+];
+
+/**
+ * Tool PHÁT TIN HẾT HÀNG tới mọi nhóm đại lý — bán kính ảnh hưởng lớn nhất trong cả bộ tool.
+ *
+ * Hàng rào KHÔNG nằm ở chỗ khai bộ này cho agent nào, mà nằm trong chính tool: cả ba từ chối nếu
+ * người gõ không phải nhân viên có `role_slug = warehouse` (quản lý kho). Chốt gửi còn phải qua
+ * hai bước — soạn nháp, người thật duyệt, rồi mới xếp hàng (nguyên tắc 7).
+ *
+ * Gửi thật do poller (`announcements/poller.ts`) làm ngầm, KHÔNG qua LLM: mọi đại lý phải đọc
+ * đúng một câu. `soat_thong_bao` là đường để quản lý kho biết đợt phát đã tới đâu.
+ */
+export const WAREHOUSE_ANNOUNCE_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildStockNoticeDraftTool(ctx),
+  (ctx: ToolContext): Tool => buildStockNoticeSendTool(ctx),
+  (ctx: ToolContext): Tool => buildStockNoticeStatusTool(ctx),
 ];
 
 /**

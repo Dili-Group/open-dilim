@@ -6,6 +6,7 @@
 import { foldVietnamese } from "./normalize.ts";
 import {
   fail,
+  type AnnounceApprovalPort,
   type FlashCommand,
   type FlashContext,
   type FlashResult,
@@ -53,6 +54,7 @@ export type DispatchInput = {
   readonly repo: IdentityRepo;
   readonly ops: OpsPort;
   readonly jobs: JobAdmin;
+  readonly announce?: AnnounceApprovalPort;
 };
 
 export class FlashRegistry {
@@ -110,6 +112,7 @@ export class FlashRegistry {
       repo: input.repo,
       ops: input.ops,
       jobs: input.jobs,
+      announce: input.announce,
     };
 
     try {

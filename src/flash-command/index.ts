@@ -3,6 +3,7 @@
 // Thêm lệnh mới: tạo file trong commands/, import + register ở đây. Không sửa registry.ts.
 
 import block from "./commands/block.ts";
+import { duyetThongbao, thongbaoCho, tuchoiThongbao } from "./commands/duyet-thongbao.ts";
 import huyKetnoi from "./commands/huy-ketnoi.ts";
 import ketnoiDaily from "./commands/ketnoi-daily.ts";
 import ketnoiHethong from "./commands/ketnoi-hethong.ts";
@@ -17,7 +18,10 @@ export const flashRegistry = new FlashRegistry()
   .register(huyKetnoi)
   .register(lich)
   .register(block)
-  .register(unlock);
+  .register(unlock)
+  .register(duyetThongbao)
+  .register(tuchoiThongbao)
+  .register(thongbaoCho);
 
 export { FlashRegistry, parseCommand } from "./registry.ts";
 export type { DispatchInput, ParsedCommand } from "./registry.ts";

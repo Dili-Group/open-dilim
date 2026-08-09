@@ -58,6 +58,7 @@ function parseCachedIdentity(raw: unknown, senderId: string): Identity | null {
 
   if (rec["role"] === ActorRole.NhanVien && typeof rec["userId"] === "string") {
     const fullName = rec["fullName"];
+    const roleSlug = rec["roleSlug"];
     return {
       role: ActorRole.NhanVien,
       senderId,
@@ -65,6 +66,9 @@ function parseCachedIdentity(raw: unknown, senderId: string): Identity | null {
       // Tên là phần TRANG TRÍ: cache cũ (ghi trước khi có field) hay kiểu sai thì bỏ tên, KHÔNG
       // coi cả bản ghi là rác — vai vẫn đúng, ép miss chỉ để lấy tên là tốn query vô ích.
       fullName: typeof fullName === "string" ? fullName : undefined,
+      // Chức danh thì KHÔNG trang trí — nó là gate. Thiếu/sai kiểu → undefined → tool từ chối.
+      // Fail-closed: cache ghi trước khi có field này chỉ làm mất quyền tối đa 1 TTL, không cấp thừa.
+      roleSlug: typeof roleSlug === "string" ? roleSlug : undefined,
     };
   }
   if (rec["role"] === ActorRole.DaiLy && typeof rec["customerId"] === "string") {

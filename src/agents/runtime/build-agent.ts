@@ -67,6 +67,7 @@ class ProfileRootAgent implements RootAgent {
           discount: this.deps.discount,
           daily: this.deps.daily,
           workflow: this.deps.workflow,
+          announce: this.deps.announce,
         }),
         maxTokens: this.deps.config.maxTokens,
         effort: this.deps.config.effort,

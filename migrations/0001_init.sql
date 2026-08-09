@@ -81,6 +81,54 @@ CREATE INDEX IF NOT EXISTS pending_actions_remind
   ON pending_actions (next_remind_at)
   WHERE status = 0;
 
+-- announcements — bản gốc MỘT tin phát chung. Text soạn 1 lần, mọi nhóm đọc y hệt nhau.
+-- Nằm ở AwaitingApproval cho tới khi người duyệt đích danh gật; trước đó không row nhận nào tới hạn.
+CREATE TABLE IF NOT EXISTS announcements (
+  id                 uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind               text        NOT NULL,       -- het_hang | ... (soát/thống kê)
+  text               text        NOT NULL,       -- NGUYÊN VĂN gửi đi
+  status             smallint    NOT NULL DEFAULT 0,
+  created_by          text        NOT NULL,       -- senderId thủ kho chốt (audit)
+  origin_channel      text        NOT NULL,       -- phòng báo ngược kết quả duyệt
+  origin_conversation text        NOT NULL,
+  approved_by         text,                       -- user_id người duyệt (audit)
+  approved_at         timestamptz,
+  reject_reason       text,
+  created_at          timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT announcements_status_chk CHECK (status IN (0, 1, 2))
+);
+
+CREATE INDEX IF NOT EXISTS announcements_awaiting
+  ON announcements (created_at)
+  WHERE status = 0;
+
+-- announcement_deliveries — 1 row mỗi nhóm nhận. Poller gửi + retry; sống qua restart.
+CREATE TABLE IF NOT EXISTS announcement_deliveries (
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  announcement_id uuid        NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+  channel        text        NOT NULL,
+  group_id        text        NOT NULL,
+  customer_id     text        NOT NULL,           -- đại lý sở hữu nhóm (soát ai chưa nhận)
+  status         smallint    NOT NULL DEFAULT 0,
+  attempts       integer     NOT NULL DEFAULT 0,
+  last_error      text,                           -- lý do lần hỏng gần nhất
+  next_attempt_at  timestamptz,                    -- mốc thử kế + ô CAS claim; NULL = chưa duyệt HOẶC thôi thử
+  sent_at         timestamptz,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT announcement_deliveries_status_chk CHECK (status IN (0, 1, 2))
+);
+
+-- Một nhóm nhận MỘT lần mỗi đợt phát. Chặn ở DB: insert lại (retry lượt tool) không nhân đôi tin.
+CREATE UNIQUE INDEX IF NOT EXISTS announcement_deliveries_target_uniq
+  ON announcement_deliveries (announcement_id, channel, group_id);
+
+CREATE INDEX IF NOT EXISTS announcement_deliveries_due
+  ON announcement_deliveries (next_attempt_at)
+  WHERE status = 0;
+
+CREATE INDEX IF NOT EXISTS announcement_deliveries_by_announcement
+  ON announcement_deliveries (announcement_id);
+
 -- group_map — (channel, group_id) → khách hàng X. Lookup runtime chạy thẳng PK.
 CREATE TABLE IF NOT EXISTS group_map (
   channel      text        NOT NULL,                 -- zalo | fb | ... (tránh đụng group_id giữa kênh)

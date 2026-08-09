@@ -4,6 +4,7 @@
 // nghiệp vụ LLM sinh (mã đơn, ngày...). Act-as handle (userId/customerId) bind từ identity
 // SERVER-SIDE qua closure lúc dựng tool cho request — xem buildTools(identity) trong index.ts.
 
+import type { AnnouncePort } from "../announcements/types.ts";
 import type { Identity } from "../flash-command/types.ts";
 import type { DailyPort, DealerPort, DiscountPort, OrderPort } from "../operational/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
@@ -72,6 +73,12 @@ export interface ToolContext {
   readonly room?: RoomRef;
   /** Cổng nghiệp vụ chờ-trả-lời (§6). undefined = chưa nối → tool trả lỗi nghiệp vụ, không throw. */
   readonly workflow?: WorkflowPort;
+  /**
+   * Cổng PHÁT TIN CHUNG tới mọi nhóm đại lý (kho báo hết hàng). Bán kính ảnh hưởng lớn nhất trong
+   * mọi cổng ở đây — tool của nó tự gate theo `role_slug`, và chốt gửi phải qua hai bước.
+   * undefined = chưa nối → tool trả lỗi nghiệp vụ.
+   */
+  readonly announce?: AnnouncePort;
 }
 
 export type ToolFactory = (ctx: ToolContext) => Tool;

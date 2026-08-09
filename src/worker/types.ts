@@ -9,6 +9,7 @@ import type { AgentRegistry } from "../agents/registry.ts";
 import type { Broadcaster } from "../broadcast/types.ts";
 import type { TypingFactory } from "../broadcast/typing-factory.ts";
 import type { FlashRegistry } from "../flash-command/registry.ts";
+import type { AnnounceApprovalPort } from "../announcements/types.ts";
 import type { IdentityRepo, OpsPort } from "../flash-command/types.ts";
 import type { JobAdmin } from "../scheduler/types.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
@@ -55,6 +56,11 @@ export interface WorkerContext {
   readonly ops: OpsPort;
   /** Port quản job cron của phòng (`/lich`) — flash command dùng, agent KHÔNG chạm. */
   readonly jobs: JobAdmin;
+  /**
+   * Cửa duyệt tin phát toàn hệ đại lý (`/duyet-thongbao`) — flash command dùng, agent KHÔNG chạm.
+   * undefined = chưa wiring → lệnh duyệt trả lỗi, không mặc định cho qua.
+   */
+  readonly announceApprovals?: AnnounceApprovalPort;
   /**
    * Tra chủ sở hữu phòng để dựng MemoryScope (memory thuộc PHÒNG, không thuộc người gõ).
    * undefined = chưa nối tầng memory → lượt chạy không có trí nhớ dài hạn, không phải lỗi.
