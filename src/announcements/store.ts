@@ -44,6 +44,12 @@ export class SqlAnnouncementStore implements AnnouncementStore {
     const groupIds = input.rooms.map((room) => room.groupId);
     const customerIds = input.rooms.map((room) => room.customerId);
 
+    // Mảng PHẢI bind qua `sql.array(x, "TEXT")`, KHÔNG phải `${x}::text[]`.
+    // Bun.sql (1.3.11) serialize mảng JS trần thành chuỗi nối dấu phẩy `zalo,zalo` — Postgres
+    // đọc ra "malformed array literal" vì thiếu `{}`. Còn `sql.array(x)::text[]` (có cast thừa)
+    // thì bọc thêm nháy kép vào từng phần tử → channel lưu thành `"zalo"`, sai âm thầm.
+    // `sql.array(x, "TEXT")` đã mang sẵn kiểu phần tử nên bỏ hẳn cast.
+
     // `next_attempt_at` để NGỎ (NULL) — row nhận sinh ra đã nằm ngoài due-index. Chỉ `approve`
     // đặt mốc. Không có tham số nào ở đây cho phép bỏ qua bước đó.
     const rows: unknown = await sql`
@@ -57,7 +63,8 @@ export class SqlAnnouncementStore implements AnnouncementStore {
         (announcement_id, channel, group_id, customer_id, status)
       SELECT created.id, target.channel, target.group_id, target.customer_id, ${DeliveryStatus.Pending}
       FROM created,
-           unnest(${channels}::text[], ${groupIds}::text[], ${customerIds}::text[])
+           unnest(${sql.array(channels, "TEXT")}, ${sql.array(groupIds, "TEXT")},
+                  ${sql.array(customerIds, "TEXT")})
              AS target(channel, group_id, customer_id)
       ON CONFLICT (announcement_id, channel, group_id) DO NOTHING
       RETURNING announcement_id`;

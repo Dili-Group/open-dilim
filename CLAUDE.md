@@ -67,6 +67,17 @@ Chưa có test runner. Khi thêm test: dùng `bun test`.
 - Không circular import. Config/secret chỉ qua `config.ts`, không đọc `process.env` rải rác.
 - Không magic number/string lặp → đặt const có tên.
 
+**SQL (Bun.sql + Postgres)**
+- Query LUÔN qua tagged template `sql`...${x}``. Không nối string. `sql.unsafe()` chỉ với input tin cậy.
+- Mảng: bind bằng `sql.array(x, "TEXT")`, KHÔNG `${x}::text[]`. Bun serialize mảng JS trần thành
+  chuỗi nối phẩy (`a,b,c`) → `22P02 malformed array literal`. Và ĐỪNG cast thêm sau `sql.array(x)`
+  — cast thừa bọc nháy kép vào từng phần tử, ghi vào DB sai âm thầm.
+- jsonb: bind `${json}::text::jsonb`, KHÔNG `${json}::jsonb` trần — cast trần khiến Bun encode
+  hai lần, cột nhận string scalar thay vì object.
+- Kiểu param nào Bun encode "lạ" (mảng, json, enum, interval) → thử trên Postgres thật trước khi
+  tin, đừng suy từ cú pháp. Query đã sửa phải chạy được ít nhất một lần trên DB thật/temp table.
+- Cột mới trên bảng đã tồn tại → viết migration `ALTER` tay; `gen:migration` chỉ dựng lại 0001.
+
 **Secrets & I/O**
 - Không hardcode key/token. Không log secret, PII, nội dung message người dùng ở mức debug.
 - Mọi file/shell op sandbox trong `CONFIG.workdir`. Validate path, chặn traversal (`../`).
