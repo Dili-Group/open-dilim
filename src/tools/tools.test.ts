@@ -20,7 +20,18 @@ import type {
   OrderPrincipal,
   OrderSearchPage,
 } from "../operational/types.ts";
-import { COMMON_TOOLS, DEALER_TOOLS, ORDER_TOOLS, buildToolRegistry, readStringField } from "./index.ts";
+import {
+  COMMON_TOOLS,
+  DAILY_TOOLS,
+  DEALER_TIER_TOOLS,
+  DEALER_TOOLS,
+  ORDER_TOOLS,
+  POSCAKE_TOOLS,
+  WAREHOUSE_ANNOUNCE_TOOLS,
+  WORKFLOW_ASK_TOOLS,
+  buildToolRegistry,
+  readStringField,
+} from "./index.ts";
 import { readIntegerField } from "./input.ts";
 import { buildUseSkillTool } from "./impl/use-skill.ts";
 import { buildUseReferenceTool } from "./impl/use-reference.ts";
@@ -494,6 +505,27 @@ describe("buildToolRegistry", () => {
       .map((s) => s.name)
       .sort();
     expect(names).toEqual(["use_reference", "use_skill", "whoami"]);
+  });
+
+  // Tin announce broadcast thẳng, KHÔNG vào history → model không thấy nó và rất dễ mở câu trả
+  // lời y hệt. Hai tin liền cùng kiểu mở là thứ người nhận đọc ra ngay là máy soạn.
+  test('KHÔNG announce nào mở đầu bằng "Dạ"', () => {
+    const all = [
+      ...COMMON_TOOLS,
+      ...ORDER_TOOLS,
+      ...DEALER_TOOLS,
+      ...DEALER_TIER_TOOLS,
+      ...DAILY_TOOLS,
+      ...POSCAKE_TOOLS,
+      ...WORKFLOW_ASK_TOOLS,
+      ...WAREHOUSE_ANNOUNCE_TOOLS,
+    ];
+    const registry = buildToolRegistry(all, { skills, identity: STAFF });
+    for (const schema of registry.schemas()) {
+      const announce = registry.get(schema.name)?.announce;
+      if (announce === undefined) continue;
+      expect(`${schema.name}: ${announce.startsWith("Dạ")}`).toBe(`${schema.name}: false`);
+    }
   });
 
   test("KHÔNG schema nào chứa trường danh tính (chống confused-deputy)", () => {

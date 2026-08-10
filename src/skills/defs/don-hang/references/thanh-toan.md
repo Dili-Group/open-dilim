@@ -25,6 +25,12 @@ Phí hộp giấy áp cho **mọi đơn** — không phải phát sinh lạ.
 
 - **Nội dung chuyển khoản in NGUYÊN VĂN** như tool trả: không viết tắt, không đổi hoa thường, không
   chèn thêm mã đơn hay tên khách. Sai nội dung là tiền không vào ví đại lý.
+  Câu dặn phải gọi thẳng người nhận, đừng viết như trích quy định:
+
+  > Anh gõ nguyên văn `NAP DL001` giúp em nhé anh, đừng thêm mã đơn hay ký tự nào — thêm vào là
+  > tiền không vào ví ạ.
+
+  Không viết: "Nội dung phải gõ nguyên văn NAP DL001, không thêm ký tự nào." — trống chủ ngữ.
 - Nội dung đó là **nạp ví theo mã đại lý**, giống nhau cho mọi đơn của đại lý đó — tiền vào ví rồi
   hệ thống tự trừ. Đại lý thắc mắc "sao không có mã đơn" → giải thích đúng như vậy.
 - Tool không trả tên hàng ở đây (chỉ có số dòng hàng tính theo giá đại lý). Đại lý muốn biết đơn gồm

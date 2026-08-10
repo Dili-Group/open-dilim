@@ -39,7 +39,7 @@ export function buildOrderVideoTool(ctx: ToolContext): Tool {
       },
       required: ["ma_van_don"],
     },
-    announce: "Em lấy video của đơn giúp anh/chị ạ.",
+    announce: "Em lấy video của đơn chút ạ.",
     run: (input: unknown, signal?: AbortSignal): Promise<ToolResult> => runLookup(ctx, input, signal),
   };
 }

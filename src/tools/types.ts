@@ -34,6 +34,11 @@ export interface Tool {
    * phát 1 lần/lượt). Khai ở đây vì "việc này lâu, phải trấn an khách" là tính chất CỦA TOOL —
    * loop/worker chỉ chuyển phát, model không được quyết (nói rồi mới im lặng còn tệ hơn im luôn).
    * Bỏ trống = tool nhanh/nội bộ, không báo gì.
+   *
+   * KHÔNG mở đầu bằng "Dạ": tin này không vào history nên model không thấy nó, câu trả lời ngay
+   * sau đó rất dễ mở y hệt → người nhận thấy hai tin liền cùng một kiểu mở, đọc ra là máy soạn.
+   * Câu này cũng đi tới CẢ nhóm nội bộ lẫn nhóm đại lý → giữ trung tính, đừng xưng hô riêng cho
+   * một phía ("giúp anh/chị" nghe lạc trong nhóm vận hành).
    */
   readonly announce?: string;
   run(input: unknown, signal?: AbortSignal): Promise<ToolResult>;

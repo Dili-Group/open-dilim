@@ -36,7 +36,7 @@ export function buildWorkflowOpenTool(ctx: ToolContext): Tool {
       required: ["ma_viec", "khoa"],
     },
     // Tra hệ vận hành + gửi câu hỏi sang nhóm khác mất vài giây → trấn an trước.
-    announce: "Dạ em hỏi lại bên liên quan rồi báo anh/chị ạ.",
+    announce: "Em hỏi lại bên liên quan rồi báo lại ạ.",
     run: (input: unknown, signal?: AbortSignal): Promise<ToolResult> => runOpen(ctx, input, signal),
   };
 }

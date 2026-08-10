@@ -394,7 +394,7 @@ describe("handleEnvelope", () => {
 
     expect(result.status).toBe("reply");
     expect(broadcaster.sent.map((s) => s.text)).toEqual([
-      "Dạ em kiểm tra đơn hàng giúp anh/chị ạ.",
+      "Em kiểm tra đơn hàng chút ạ.",
       "Dạ đơn DH-1 đang giao ạ.",
     ]);
     // Tin báo là câu trấn an cố định → KHÔNG vào history (chỉ tin người dùng + reply thật).

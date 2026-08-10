@@ -37,6 +37,7 @@ ngay, đừng gửi rồi chờ xem họ có kêu không.
 | Bỏ hẳn câu đầu đi thì có mất dữ kiện nào không? | Không mất → bỏ luôn câu đầu |
 | Nháp mở đầu giống hệt lượt trước của mình chưa? | Giống → đổi. "Dạ" hai lượt liền là lộ máy trả lời |
 | Trong tin có mấy chữ "ạ"? | Quá một → giữ đúng một, đặt cuối tin |
+| Câu bảo người ta làm gì có nêu người nhận chưa? | Chưa → thêm. "Phải gõ nguyên văn X" đọc như trích quy định, "anh gõ nguyên văn X nhé anh" mới là người nhắn |
 | Có đang kể quy trình nội bộ (đã tra, đang kiểm tra, hệ thống ghi nhận) không? | Xoá. Kết quả nói thay |
 | Lượt này có ít nhất một dữ kiện MỚI không? | Không có → nói thẳng là chưa đổi, kèm mốc giờ |
 | Họ hỏi mấy ý, mình trả mấy ý? | Thiếu ý nào thì thêm — cắt chữ không được cắt mất câu trả lời |
