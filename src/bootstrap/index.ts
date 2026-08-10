@@ -33,6 +33,7 @@ import { AgentApiOrderPort } from "../operational/order-api.ts";
 import { AgentApiDealerPort } from "../operational/profile-api.ts";
 import { AgentApiDiscountPort } from "../operational/discount-api.ts";
 import { AgentApiDailyPort } from "../operational/daily-api.ts";
+import { AgentApiPoscakePort } from "../operational/poscake-api.ts";
 import { AgentApiOrderOwnerPort } from "../operational/owner-api.ts";
 import {
   SqlPendingStore,
@@ -100,6 +101,9 @@ export async function bootstrap(): Promise<Services> {
   // đọc hồ sơ không cầm được đường ghi.
   const discount = new AgentApiDiscountPort(agentApi);
   const daily = new AgentApiDailyPort(agentApi);
+  // Cổng ghi CREDENTIAL PosCake của đại lý — tách port riêng để chỉ tool `nap_poscake` cầm được,
+  // tool đọc đơn/hồ sơ không chạm tới key của đại lý.
+  const poscake = new AgentApiPoscakePort(agentApi);
 
   // Egress dựng TRƯỚC agent vì tầng workflows cần broadcaster (báo kết quả về phòng đã hỏi, có
   // khi 2 ngày sau — lúc đó không còn lượt agent nào đang chạy để nhờ gửi hộ).
@@ -165,6 +169,7 @@ export async function bootstrap(): Promise<Services> {
     dealer,
     discount,
     daily,
+    poscake,
     workflow,
     announce,
   });

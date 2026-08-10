@@ -5,7 +5,13 @@ import type { AnnouncePort } from "../announcements/types.ts";
 import type { Effort } from "../config.ts";
 import type { LLMProvider } from "../llm/types.ts";
 import type { Identity } from "../flash-command/types.ts";
-import type { DailyPort, DealerPort, DiscountPort, OrderPort } from "../operational/types.ts";
+import type {
+  DailyPort,
+  DealerPort,
+  DiscountPort,
+  OrderPort,
+  PoscakePort,
+} from "../operational/types.ts";
 import type { PendingNotice } from "../context/pending-block.ts";
 import type { TurnSpeaker } from "../context/speaker-block.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
@@ -51,6 +57,8 @@ export interface AgentDeps {
   readonly discount?: DiscountPort;
   /** Cổng đọc sổ ngày cho tool báo cáo cuối ngày. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
   readonly daily?: DailyPort;
+  /** Cổng nạp tài khoản PosCake của đại lý (Shop ID + API Key). undefined = chưa nối → tool trả lỗi. */
+  readonly poscake?: PoscakePort;
   /** Cổng việc-chờ-trả-lời (§6) cho tool mở/đóng việc treo. undefined = chưa nối → tool trả lỗi. */
   readonly workflow?: WorkflowPort;
   /**

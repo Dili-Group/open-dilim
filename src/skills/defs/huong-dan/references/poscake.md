@@ -38,21 +38,33 @@ lưu.
 **Link webhook không cố định**: vận hành cấp riêng cho từng đại lý. Agent **không có sẵn link này,
 không tự ghép, không đoán**. Đại lý hỏi link → chuyển đầu mối để lấy đúng link của họ.
 
-## Bước 4 — Gửi thông tin cho công ty
+## Bước 4 — Nạp vào hệ thống: agent làm ngay trong nhóm
 
-Đại lý gửi **Shop ID + API Key** cho **đầu mối Đình Trung** để vận hành hoàn tất đấu nối.
+Có **đủ Shop ID + API Key** thì đại lý gửi thẳng **trong nhóm riêng của họ** (nhóm đang chat) →
+agent gọi tool **`nap_poscake`** với đúng hai giá trị đại lý vừa gửi. Không bắt đại lý nhắn thêm cho
+ai nữa.
 
-Gửi **riêng cho đầu mối, không nhắn vào nhóm chung**.
+- Mới có **một** trong hai → hỏi nốt cái còn thiếu, **chưa gọi tool**.
+- Tool báo **ĐÃ NẠP** → nói đã nạp xong, kèm Shop ID tool trả về. Tool báo lỗi → đọc đúng hướng xử
+  lý trong kết quả tool, **không tự tuyên bố đã nạp**.
+- Đây là nhóm riêng của đại lý. Ở **nhóm chung nhiều đại lý** thì KHÔNG: bảo họ nhắn trong nhóm
+  riêng hoặc gửi **đầu mối Đình Trung**.
+
+Việc còn lại (**Bước 3 — dán Webhook URL**) vẫn do đại lý tự làm; agent không có link đó.
 
 ## Luật bảo mật — nói rõ cho đại lý
 
 **API Key PosCake có quyền ngang tài khoản admin: đọc và GHI toàn bộ dữ liệu cửa hàng, không giới
 hạn bớt quyền được.** Ai cầm key đó thao tác được như chủ shop.
 
+- Agent nhận API Key **chỉ để đưa thẳng vào `nap_poscake`**: **không nhắc lại chuỗi key** trong câu
+  trả lời, không tóm tắt nó, không chép nó sang tin khác, không lấy lại key trong tin nhắn cũ để
+  gọi tool lần nữa. Cần nạp lại → hỏi đại lý gửi key mới.
+- Nạp xong: nhắc đại lý rằng key vừa gửi **vẫn nằm trong lịch sử nhóm** — nhóm có người ngoài đọc
+  được thì xoá key đó và tạo key mới.
 - Đại lý lỡ dán API Key vào **nhóm chung** → agent **không nhắc lại chuỗi đó**. Hướng dẫn ngay:
-  vào **Webhook/API → tab API Key → xoá key vừa lộ → Thêm mới** key khác, rồi gửi lại key mới cho
-  đầu mối.
-- Agent **không nhận, không đọc lại, không lưu, không chuyển tiếp** API Key.
+  vào **Webhook/API → tab API Key → xoá key vừa lộ → Thêm mới** key khác, rồi gửi key mới trong
+  nhóm riêng của họ.
 - Đại lý muốn ngắt kết nối → xoá key trong tab API Key và xoá Webhook URL. Đơn thôi chảy về hệ thống
   ngay sau đó.
 
@@ -63,12 +75,14 @@ hạn bớt quyền được.** Ai cầm key đó thao tác được như chủ 
 | Không thấy mục Cấu hình / Nâng cao | Đang dùng app điện thoại hoặc tài khoản không phải admin — xem "Điều kiện" |
 | Quên copy key rồi | Không xem lại được. Xoá key cũ, **Thêm mới** key khác |
 | Đã dán webhook mà đơn không về | Kiểm key còn **bật** ở cột On/Off, và dán **đúng link** vận hành cấp. Vẫn không được → chuyển đầu mối, kèm Shop ID |
+| `nap_poscake` báo hệ vận hành từ chối | Kiểm lại Shop ID (đúng dãy số sau `/shop/`) và key còn **bật**. Đúng cả rồi vẫn từ chối → chuyển đầu mối kèm Shop ID |
 | Hỏi tồn kho/sản phẩm có đồng bộ không | Ngoài phạm vi hướng dẫn này — chuyển đầu mối |
 
 ## Ranh giới
 
+Agent **làm được đúng một việc**: nạp Shop ID + API Key đại lý đưa vào hệ thống bằng `nap_poscake`.
+
 Agent **không**: đăng nhập hộ PosCake, tạo key hộ, dán webhook hộ, kiểm tra hộ webhook đã chạy chưa,
-xác nhận đơn đã đồng bộ. Toàn bộ thao tác do đại lý tự làm trên tài khoản của họ; phần đấu nối phía
-DILIM do vận hành làm.
+xác nhận đơn đã đồng bộ. Mọi thao tác **trên PosCake** do đại lý tự làm trên tài khoản của họ.
 
 Đại lý hỏi **đơn cụ thể đã về hệ thống chưa** → đó là tra cứu, nạp skill `don-hang`.

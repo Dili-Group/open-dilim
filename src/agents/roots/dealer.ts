@@ -8,6 +8,7 @@ import {
   DEALER_TIER_TOOLS,
   DEALER_TOOLS,
   ORDER_TOOLS,
+  POSCAKE_TOOLS,
   WORKFLOW_LIST_TOOLS,
   WORKFLOW_REPLY_TOOLS,
 } from "../../tools/index.ts";
@@ -26,12 +27,16 @@ export const dealerProfile: RootAgentProfile = {
   // DEALER_TIER_TOOLS mang đường GHI duy nhất của agent này (nâng bậc chiết khấu). Nó ở đây vì
   // cuộc trao đổi nâng mức diễn ra ngay trong nhóm đại lý: đại lý xin, nhân viên phụ trách gõ xác
   // nhận. Tool tự chặn theo vai người gõ, không dựa vào prompt.
+  //
+  // POSCAKE_TOOLS cũng ghi, nhưng ghi thứ CỦA ĐẠI LÝ (Shop ID + API Key PosCake của họ) nên đại lý
+  // tự gõ được — đi liền sau khi agent hướng dẫn lấy key (skill `huong-dan`, reference poscake.md).
   tools: [
     ...COMMON_TOOLS,
     ...ORDER_TOOLS,
     ...DEALER_TOOLS,
     ...DEALER_TIER_TOOLS,
     ...DAILY_TOOLS,
+    ...POSCAKE_TOOLS,
     ...WORKFLOW_REPLY_TOOLS,
     ...WORKFLOW_LIST_TOOLS,
   ],

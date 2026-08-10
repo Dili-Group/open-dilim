@@ -16,6 +16,7 @@ import {
   buildDiscountTierUpgradeTool,
 } from "./impl/dealer/discount.ts";
 import { buildDailyDetailTool, buildDailyReportTool } from "./impl/dealer/daily.ts";
+import { buildPoscakeRegisterTool } from "./impl/dealer/poscake.ts";
 import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
 import { buildWorkflowAnswerTool } from "./impl/workflow/answer.ts";
 import { buildWorkflowListTool } from "./impl/workflow/list.ts";
@@ -82,6 +83,19 @@ export const DEALER_TIER_TOOLS: readonly ToolFactory[] = [
 export const DAILY_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildDailyReportTool(ctx),
   (ctx: ToolContext): Tool => buildDailyDetailTool(ctx),
+];
+
+/**
+ * Tool NẠP TÀI KHOẢN POSCAKE: ghi Shop ID + API Key PosCake của đại lý phòng này vào hệ vận hành
+ * (đơn PosCake tự chảy về DILIM). Đi kèm skill `huong-dan` — đại lý làm theo reference `poscake.md`
+ * để lấy hai thứ đó, rồi gửi ngay trong nhóm thay vì nhắn riêng đầu mối.
+ *
+ * Bộ DUY NHẤT nhận credential của đại lý làm tham số. Hàng rào nằm trong tool: guest không gọi
+ * được, key không bao giờ được in lại/log lại, và tool KHÔNG dán webhook URL hộ (link đó vận hành
+ * cấp riêng từng đại lý).
+ */
+export const POSCAKE_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildPoscakeRegisterTool(ctx),
 ];
 
 /**

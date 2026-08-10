@@ -238,6 +238,33 @@ export interface DiscountPort {
 }
 
 /**
+ * Kết quả nạp tài khoản PosCake của đại lý. `shopId` là BẰNG CHỨNG backend đã ghi — thiếu nó thì
+ * không biết đã nạp hay chưa, port báo lỗi shape chứ không dựng kết quả nửa vời (xem poscake-api.ts).
+ */
+export interface PoscakeShopLink {
+  readonly shopId: string;
+  readonly dealerCode?: string;
+}
+
+/**
+ * Cổng NẠP tài khoản PosCake (Pancake POS) của đại lý vào hệ vận hành. Đường GHI, và thứ ghi vào
+ * là BÍ MẬT của đại lý (API key PosCake = quyền ngang admin shop).
+ *
+ * TÁCH port riêng vì lý do đó: tool nào cầm cổng này là tool chạm được credential — chỉ
+ * `nap_poscake` được khai. Key đi qua đây MỘT chiều: gửi lên backend rồi thôi, không đọc lại,
+ * không log, không nằm trong kết quả trả về LLM.
+ */
+export interface PoscakePort {
+  register(
+    p: OrderPrincipal & {
+      readonly shopId: string;
+      readonly apiKey: string;
+      readonly signal?: AbortSignal;
+    },
+  ): Promise<PoscakeShopLink>;
+}
+
+/**
  * Chủ sở hữu một đơn (tra NGƯỢC từ mã vận đơn). Dùng cho đơn hoàn `*DH` ở nhóm kho: lúc đó chưa
  * biết đại lý nào để mà ép phạm vi, chính việc cần làm là tra ra đại lý.
  */

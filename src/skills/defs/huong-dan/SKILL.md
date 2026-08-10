@@ -16,7 +16,7 @@ tiền bao nhiêu, bậc nào) — việc đó ở skill khác.
 | Quên mật khẩu, không đăng nhập được, không nhớ email đăng ký | `references/mat-khau.md` |
 | Ký hợp đồng ở đâu, MST hộ kinh doanh, quy định chiết khấu là gì | `references/gia-nhap.md` |
 | Rules hệ thống, form rule, nộp bản scan, khai page/shop | `references/rules-he-thong.md` |
-| PosCake / Pancake POS: lấy API Key, Shop ID, gắn webhook để đơn tự về hệ thống | `references/poscake.md` |
+| PosCake / Pancake POS: lấy API Key, Shop ID, gắn webhook để đơn tự về hệ thống — và **nạp** tài khoản đó vào hệ thống (`nap_poscake`) | `references/poscake.md` |
 | Tích hợp app giao hàng cá nhân / Viettel Post với hệ thống, tích hợp để làm gì | `references/tich-hop-van-chuyen.md` |
 | Tạo đơn trên hệ thống thế nào, điền ô nào, ghi tên hàng ra sao | `references/tao-don.md` |
 | Lên đơn xong trả tiền kiểu gì, COD về khi nào, hoá đơn ra sao | `references/thanh-toan-cod.md` |

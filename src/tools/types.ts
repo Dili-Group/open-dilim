@@ -6,7 +6,13 @@
 
 import type { AnnouncePort } from "../announcements/types.ts";
 import type { Identity } from "../flash-command/types.ts";
-import type { DailyPort, DealerPort, DiscountPort, OrderPort } from "../operational/types.ts";
+import type {
+  DailyPort,
+  DealerPort,
+  DiscountPort,
+  OrderPort,
+  PoscakePort,
+} from "../operational/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
 import type { RoomRef } from "../workflows/types.ts";
@@ -64,6 +70,12 @@ export interface ToolContext {
   readonly discount?: DiscountPort;
   /** Cổng đọc sổ ngày (xuất kho/hoàn/tiền phải trả/tiền hoàn). undefined = chưa nối → tool trả lỗi. */
   readonly daily?: DailyPort;
+  /**
+   * Cổng NẠP tài khoản PosCake của đại lý (Shop ID + API Key). Cổng duy nhất chạm CREDENTIAL của
+   * đại lý — chỉ agent nào thật sự hướng dẫn PosCake mới được khai (POSCAKE_TOOLS ở tools/index.ts).
+   * undefined = chưa nối → tool trả lỗi nghiệp vụ.
+   */
+  readonly poscake?: PoscakePort;
   /**
    * NHÓM của lượt này (kênh + id nhóm). Việc treo liên nhóm neo vào đây: nhóm hỏi là nhóm
    * này, và nhóm được hỏi cũng phải khớp nhóm này thì mới cho trả lời.
