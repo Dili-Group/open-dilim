@@ -20,6 +20,7 @@ describe("registry (defs thật)", () => {
       "chiet-khau",
       "don-hang",
       "don-hoan",
+      "emoji",
       "giong-dieu",
       "giuc-don",
       "het-hang",
@@ -99,6 +100,24 @@ describe("registry (defs thật)", () => {
     expect(skill).toBeDefined();
     expect(skill?.meta.agents).toEqual(["dealer", "operations"]);
     expect(await readBody(skill!)).toContain("Agent KHÔNG đặt được lịch");
+  });
+
+  test("emoji: chỉ agent đại lý thấy, luật SENSITIVE và bảng Unicode 6.0 nằm đúng chỗ", async () => {
+    const registry = await buildSkillRegistry();
+    const skill = registry.get("emoji");
+    expect(skill).toBeDefined();
+    // Profile viết theo tin gửi đại lý → chỉ agent dealer nạp.
+    expect(skill?.meta.agents).toEqual(["dealer"]);
+    const body = await readBody(skill!);
+    expect(body).toContain("SENSITIVE");
+    expect(body).toContain("Không ngoại lệ");
+    expect([...(await listReferences(skill!))].sort()).toEqual([
+      "bang-emoji.md",
+      "ranh-gioi.md",
+      "vi-du.md",
+    ]);
+    // Bảng là nguồn duy nhất model được tra → phải có codepoint để đối chiếu, không chỉ hình.
+    expect(await readReference(skill!, "bang-emoji.md")).toContain("U+1F4E6");
   });
 
   test("catalog chỉ trả meta (name/description)", async () => {
