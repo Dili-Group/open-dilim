@@ -33,7 +33,7 @@ agent:   vẫn gate TỪNG tool theo identity (defense-in-depth)
 | channel | agentType | Phục vụ | `directOnly` | memorySpec |
 |---------|-----------|---------|--------------|------------|
 | `zalo` | `dealer` | Kế toán đại lý, trong nhóm của chính đại lý đó | false | `customerSupportSpec` |
-| `zalo-vanhanh` | `operations` | Nhân viên vận hành Dili (Sales Admin, quản lý) | false | `internalOpsSpec` |
+| `van-hanh` | `operations` | Nhân viên vận hành Dili (Sales Admin, quản lý) | false | `internalOpsSpec` |
 | `zalo-sep` | `boss` | Ban lãnh đạo — hỏi để ra quyết định | false | `internalOpsSpec` |
 | `zalo-canhan` | `personal` | Trợ lý riêng, CHỈ chat 1-1 | **true** | `personalSpec` |
 | *(khác)* | *(default)* | Channel chưa map — lượt vẫn chạy được | false | `customerSupportSpec` |

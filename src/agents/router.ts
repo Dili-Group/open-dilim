@@ -13,7 +13,7 @@ import { AgentType } from "./types.ts";
 // về default agent, đúng nhưng không phải ý bạn.
 const CHANNEL_AGENT: Readonly<Record<string, AgentType>> = {
   zalo: AgentType.Dealer,
-  "zalo-vanhanh": AgentType.Operations,
+  "van-hanh": AgentType.Operations,
   "zalo-sep": AgentType.Boss,
   "zalo-canhan": AgentType.Personal,
   "zalo-kho": AgentType.Warehouse,

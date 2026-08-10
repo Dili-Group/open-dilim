@@ -190,7 +190,10 @@ export class AnnouncementService implements AnnouncePort, AnnounceApprovalPort {
     if (room === undefined) {
       // Có người duyệt nhưng không nhắn được cho họ = đợt phát sẽ nằm chờ mà không ai hay. Từ
       // chối ngay còn hơn đẻ ra một đợt treo im lặng.
-      return { kind: "missing", detail: "người duyệt chưa nối tài khoản nên hệ thống không nhắn được" };
+      return {
+        kind: "missing",
+        detail: "người duyệt chưa nối tài khoản trên kênh vận hành nên hệ thống không nhắn được",
+      };
     }
     return { kind: "room", room };
   }

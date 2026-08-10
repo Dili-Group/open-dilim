@@ -232,6 +232,8 @@ describe("resolveAgentType", () => {
     expect(resolveAgentType("zalo")).toBe(AgentType.Dealer);
     expect(resolveAgentType("ZALO-SEP")).toBe(AgentType.Boss);
     expect(resolveAgentType("zalo-canhan")).toBe(AgentType.Personal);
+    // Khoá phải khớp key trong CONFIG.channels: lệch tên = OperationsAgent không ai gọi tới.
+    expect(resolveAgentType("van-hanh")).toBe(AgentType.Operations);
   });
 
   test("channel lạ → undefined (registry rơi về default, không đoán agent)", () => {

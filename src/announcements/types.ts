@@ -136,7 +136,8 @@ export interface ApproverRoom {
 
 /**
  * Tra phòng của người duyệt để gửi yêu cầu duyệt. undefined = người đó chưa `/ketnoi-hethong`
- * trên kênh nào → KHÔNG có đường hỏi → service từ chối chốt (không đẻ đợt phát không ai duyệt được).
+ * trên KÊNH VẬN HÀNH → KHÔNG có đường hỏi → service từ chối chốt (không đẻ đợt phát không ai
+ * duyệt được). Bind ở kênh khác không tính: đích của yêu cầu duyệt là kênh vận hành, cố định.
  */
 export interface ApproverRoomLookup {
   roomOf(userId: string): Promise<ApproverRoom | undefined>;

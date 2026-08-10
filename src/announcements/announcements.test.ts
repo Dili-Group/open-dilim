@@ -31,7 +31,7 @@ import type {
 } from "./types.ts";
 
 const APPROVER_USER = "NV_GIOI";
-const APPROVER_ROOM: ApproverRoom = { channel: "zalo-vanhanh", conversationId: "uid-gioi" };
+const APPROVER_ROOM: ApproverRoom = { channel: "van-hanh", conversationId: "uid-gioi" };
 const KHO_ROOM: ApproverRoom = { channel: "zalo-kho", conversationId: "kho-1" };
 const KEEPER = "sender-thu-kho";
 const NOW = Date.parse("2026-08-10T02:00:00Z");

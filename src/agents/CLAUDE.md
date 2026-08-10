@@ -25,7 +25,7 @@ src/agents/
                        #   Chạm tool khai `announce` → phát 1 tin báo "đang xử lý" (1 lần/lượt)
 
   roots/               # DATA — thêm agent = thêm 1 file + 1 dòng ở registry.ts
-    operations.ts      #   channel zalo-vanhanh
+    operations.ts      #   channel van-hanh
     dealer.ts          #   channel zalo
     personal.ts        #   channel zalo-canhan (directOnly)
     boss.ts            #   channel zalo-sep

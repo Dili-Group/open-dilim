@@ -282,16 +282,25 @@ export class SqlAnnouncementStore implements AnnouncementStore {
 }
 
 /**
- * Chiều ngược `user_binding`: `user_id` hệ vận hành → phòng nhắn được cho người đó.
+ * Chiều ngược `user_binding`: `user_id` hệ vận hành → phòng nhắn được cho người đó, GIỚI HẠN
+ * trong đúng một kênh (`channel`, thực tế là kênh vận hành).
+ *
+ * Khoá theo kênh chứ không lấy bind mới nhất trên kênh bất kỳ: người duyệt cũng bind ở kênh kho
+ * hay kênh cá nhân, và "bind mới nhất" đổi mỗi lần họ đổi máy → yêu cầu duyệt sẽ bay sang phòng
+ * khác tuỳ lịch sử bind. Đích của yêu cầu duyệt phải xác định trước, không phụ thuộc dữ liệu.
  *
  * Chat 1-1: adapter ingest đặt `conversationId` = uid người gửi, nên `sender_id` CHÍNH LÀ id
- * phòng DM. Một người có thể bind nhiều kênh → lấy bind mới nhất, cùng lối chọn với
- * `SqlCustomerRoomLookup.roomOf` (một thứ tự tường minh, không phụ thuộc thứ tự row trả về).
+ * phòng DM. Cùng kênh vẫn có thể nhiều row (bind lại sau khi đổi máy) → lấy row mới nhất, một
+ * thứ tự tường minh chứ không phụ thuộc thứ tự row trả về.
  */
 export class SqlApproverRoomLookup implements ApproverRoomLookup {
+  constructor(private readonly channel: string) {}
+
   async roomOf(userId: string): Promise<ApproverRoom | undefined> {
     const rows: unknown = await sql`SELECT channel, sender_id FROM user_binding
-                                    WHERE user_id = ${userId} AND revoked_at IS NULL
+                                    WHERE user_id = ${userId}
+                                      AND channel = ${this.channel}
+                                      AND revoked_at IS NULL
                                     ORDER BY bound_at DESC
                                     LIMIT 1`;
     if (!Array.isArray(rows) || rows.length === 0) return undefined;

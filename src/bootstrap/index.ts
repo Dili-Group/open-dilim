@@ -61,6 +61,7 @@ import {
 import { startWorkers } from "../worker/index.ts";
 import { SqlJobRepo, startScheduler } from "../scheduler/index.ts";
 import { checkInfra, loadConfig } from "./env.ts";
+import { OPERATIONS_CHANNEL } from "../config.ts";
 import { type RunningSystem, type Services } from "./container.ts";
 
 /**
@@ -152,7 +153,7 @@ export async function bootstrap(): Promise<Services> {
     drafts: new RedisDraftStore(commandOf(redis)),
     broadcaster,
     history,
-    approverRooms: new SqlApproverRoomLookup(),
+    approverRooms: new SqlApproverRoomLookup(OPERATIONS_CHANNEL),
     approverUserId: config.announce.approverUserId,
   };
   if (config.announce.approverUserId === undefined) {

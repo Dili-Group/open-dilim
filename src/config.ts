@@ -75,9 +75,15 @@ function zaloChannel(prefix: string): ZaloChannelConfig | undefined {
 //
 // Thêm kênh: thêm 1 key ở đây + 1 dòng bảng ở agents/router.ts. Platform khác (Telegram) khai
 // type config riêng, không dùng lại ZaloChannelConfig.
+/**
+ * Kênh của nhân viên vận hành. Đặt tên vì có nơi phải TRA ĐÍCH DANH kênh này chứ không phải
+ * "kênh nào cũng được": người duyệt phát tin chỉ được hỏi qua đây (xem `announcements/`).
+ */
+export const OPERATIONS_CHANNEL = "van-hanh";
+
 const channels = {
   zalo: zaloChannel("ZALO"), // đại lý — kênh đang chạy thật
-  "zalo-vanhanh": zaloChannel("ZALO_VANHANH"), // nhân viên vận hành
+  [OPERATIONS_CHANNEL]: zaloChannel("ZALO_VANHANH"), // nhân viên vận hành
   "zalo-sep": zaloChannel("ZALO_SEP"), // ban lãnh đạo
   "zalo-canhan": zaloChannel("ZALO_CANHAN"), // trợ lý riêng 1-1
   "zalo-kho": zaloChannel("ZALO_KHO"), // kho — nhóm nhận mã vận đơn hoàn
