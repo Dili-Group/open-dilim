@@ -409,11 +409,22 @@ export interface DailyPort {
  * approval gate (§6).
  */
 export interface OrderPort {
-  /** Tìm đơn theo mã vận đơn / tên khách / SĐT khách. Backend chỉ quét 30 ngày gần nhất. */
+  /**
+   * Tìm đơn theo mã vận đơn / tên khách / SĐT khách. Backend chỉ quét 30 ngày gần nhất.
+   *
+   * Lọc ngày theo NGÀY TẠO ĐƠN (`created_at`, giờ Việt Nam) — khác mốc của sổ ngày (`DailyPort`)
+   * vốn tính theo ngày xuất kho / ngày hoàn. `today` do BACKEND chốt và ĐÈ `createdFrom`/`createdTo`.
+   */
   search(
     p: OrderPrincipal & {
       readonly search?: string;
       readonly status?: number;
+      /** true = đơn tạo trong hôm nay (giờ VN, backend tự chốt). Đè hai mốc dưới. */
+      readonly today?: boolean;
+      /** `YYYY-MM-DD` giờ VN. Đã validate ở tầng tool, port không tự sửa. */
+      readonly createdFrom?: string;
+      /** `YYYY-MM-DD` giờ VN, trọn ngày. */
+      readonly createdTo?: string;
       readonly pageSize?: number;
       readonly signal?: AbortSignal;
     },

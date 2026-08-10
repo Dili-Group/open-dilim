@@ -175,14 +175,25 @@ function makePayment(over: Partial<OrderPayment> = {}): OrderPayment {
 
 class FakeOrders implements OrderPort {
   readonly seen: OrderPrincipal[] = [];
+  /** Bộ lọc ngày của mỗi lần `search` — chốt tool truyền đúng thứ backend hiểu. */
+  readonly searched: { today?: boolean; createdFrom?: string; createdTo?: string }[] = [];
   constructor(
     private readonly owned: readonly OwnedOrder[],
     private readonly links: Readonly<Record<string, readonly OrderCameraLink[]>> = {},
     private readonly payments: Readonly<Record<string, OrderPayment>> = {},
   ) {}
 
-  search(p: OrderPrincipal & { search?: string; status?: number }): Promise<OrderSearchPage> {
+  search(
+    p: OrderPrincipal & {
+      search?: string;
+      status?: number;
+      today?: boolean;
+      createdFrom?: string;
+      createdTo?: string;
+    },
+  ): Promise<OrderSearchPage> {
     this.seen.push({ dealerId: p.dealerId, staffId: p.staffId });
+    this.searched.push({ today: p.today, createdFrom: p.createdFrom, createdTo: p.createdTo });
     const orders = this.mine(p.dealerId)
       .filter((o) => p.status === undefined || o.status === p.status)
       .filter((o) => p.search === undefined || matches(o, p.search));
@@ -289,6 +300,50 @@ describe("tra_don_hang", () => {
     expect(hit.content).toContain("VTP01");
     const none = await buildOrderStatusTool(ctx).run({ trang_thai: 14 });
     expect(none.content).toContain("Không thấy");
+  });
+
+  test("hom_nay → cờ today lên port, không tự tính ngày", async () => {
+    const port = new FakeOrders([{ dealerId: "dealer-1", order: makeOrder() }]);
+    const result = await buildOrderStatusTool({ ...ctx, orders: port }).run({ hom_nay: true });
+    expect(port.searched[0]).toEqual({ today: true, createdFrom: undefined, createdTo: undefined });
+    expect(result.content).toContain("tạo hôm nay");
+  });
+
+  test("tu_ngay/den_ngay dd/mm/yyyy → chuyển sang YYYY-MM-DD", async () => {
+    const port = new FakeOrders([{ dealerId: "dealer-1", order: makeOrder() }]);
+    await buildOrderStatusTool({ ...ctx, orders: port }).run({
+      tu_ngay: "01/08/2026",
+      den_ngay: "2026-08-10",
+    });
+    expect(port.searched[0]).toEqual({
+      today: undefined,
+      createdFrom: "2026-08-01",
+      createdTo: "2026-08-10",
+    });
+  });
+
+  test("hom_nay đè khoảng ngày — không gửi cả hai cho backend", async () => {
+    const port = new FakeOrders([{ dealerId: "dealer-1", order: makeOrder() }]);
+    await buildOrderStatusTool({ ...ctx, orders: port }).run({
+      hom_nay: true,
+      tu_ngay: "01/08/2026",
+    });
+    expect(port.searched[0]).toEqual({ today: true, createdFrom: undefined, createdTo: undefined });
+  });
+
+  test("ngày rác → isError kèm hướng dẫn, KHÔNG gọi API", async () => {
+    const port = new FakeOrders([{ dealerId: "dealer-1", order: makeOrder() }]);
+    const result = await buildOrderStatusTool({ ...ctx, orders: port }).run({ tu_ngay: "hôm kia" });
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("dd/mm/yyyy");
+    expect(port.searched).toHaveLength(0);
+  });
+
+  test("lọc ngày không ra đơn → câu 'không thấy' phải kèm khoảng ngày đã lọc", async () => {
+    const empty = new FakeOrders([]);
+    const result = await buildOrderStatusTool({ ...ctx, orders: empty }).run({ hom_nay: true });
+    expect(result.content).toContain("Không thấy");
+    expect(result.content).toContain("tạo hôm nay");
   });
 
   test("chat 1-1 (không có chủ phòng) → dùng customerId của identity đại lý", async () => {

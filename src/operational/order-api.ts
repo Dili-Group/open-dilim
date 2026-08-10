@@ -51,6 +51,9 @@ export class AgentApiOrderPort implements OrderPort {
     p: OrderPrincipal & {
       search?: string;
       status?: number;
+      today?: boolean;
+      createdFrom?: string;
+      createdTo?: string;
       pageSize?: number;
       signal?: AbortSignal;
     },
@@ -58,7 +61,17 @@ export class AgentApiOrderPort implements OrderPort {
     const pageSize = Math.min(Math.max(1, p.pageSize ?? DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE);
     const body = await this.api.get(ORDERS_PATH, {
       principal: toPrincipal(p),
-      query: { search: p.search, status: p.status, page: 1, page_size: pageSize },
+      query: {
+        search: p.search,
+        status: p.status,
+        // Backend đọc cờ dạng chuỗi "true"; false = không gửi param (gửi "false" backend vẫn coi là
+        // có mặt ở vài route), để `created_from`/`created_to` tự quyết định.
+        today: p.today === true ? "true" : undefined,
+        created_from: p.createdFrom,
+        created_to: p.createdTo,
+        page: 1,
+        page_size: pageSize,
+      },
       signal: p.signal,
     });
 

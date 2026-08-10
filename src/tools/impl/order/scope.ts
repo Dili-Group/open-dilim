@@ -131,6 +131,33 @@ export function todayInVietnam(now: Date = new Date()): string {
 }
 
 /**
+ * Ngày do model gõ → `YYYY-MM-DD`. Nhận `dd/mm/yyyy` (người Việt đọc) lẫn `YYYY-MM-DD`. Sai định
+ * dạng hoặc ngày không có thật (31/02) → undefined: tool phải hỏi lại, KHÔNG gửi chuỗi lạ lên API.
+ */
+export function parseVietnamDate(raw: string): string | undefined {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (iso !== null) return checkDate(iso[1], iso[2], iso[3]);
+
+  const vn = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(raw);
+  if (vn !== null) return checkDate(vn[3], vn[2], vn[1]);
+
+  return undefined;
+}
+
+function checkDate(
+  year: string | undefined,
+  month: string | undefined,
+  day: string | undefined,
+): string | undefined {
+  if (year === undefined || month === undefined || day === undefined) return undefined;
+  const normalized = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  // Dựng ở UTC rồi so lại chuỗi: `Date` nhận 2026-02-31 và tự trôi sang 03-03, so chuỗi bắt được.
+  const parsed = new Date(`${normalized}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed.toISOString().slice(0, 10) === normalized ? normalized : undefined;
+}
+
+/**
  * `a - b` trên chuỗi tiền, làm bằng BigInt scale 2 chữ số thập phân — KHÔNG parseFloat: hiệu của hai
  * số tiền đi qua float 64-bit là số tiền có thể lệch. Một trong hai không parse được → undefined
  * (nơi gọi bỏ hẳn dòng, không in một con số nửa vời).

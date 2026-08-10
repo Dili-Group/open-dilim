@@ -14,6 +14,17 @@ export function readIntegerField(input: unknown, key: string): number | undefine
   return /^-?\d+$/.test(trimmed) ? Number(trimmed) : undefined;
 }
 
+/**
+ * Field cờ true/false trong object input. Model hay trả `"true"`/`"false"` dạng chuỗi → nhận.
+ * Thiếu / rác → false: cờ lọc chỉ bật khi model nói rõ là bật.
+ */
+export function readBooleanField(input: unknown, key: string): boolean {
+  if (typeof input !== "object" || input === null) return false;
+  const value = (input as Record<string, unknown>)[key];
+  if (typeof value === "boolean") return value;
+  return typeof value === "string" && value.trim().toLowerCase() === "true";
+}
+
 /** Field chuỗi non-empty trong object input. Không phải object / thiếu / sai kiểu → undefined. */
 export function readStringField(input: unknown, key: string): string | undefined {
   if (typeof input !== "object" || input === null) return undefined;

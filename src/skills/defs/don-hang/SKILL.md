@@ -1,6 +1,6 @@
 ---
 name: don-hang
-description: Xử lý mọi việc về đơn hàng của đại lý — tra trạng thái, báo huỷ đơn, hỏi số tiền của đơn, xin video camera đóng gói. Load khi đại lý hoặc thành viên nhắc "đơn", "hàng", "giao", "huỷ", "thanh toán", "chuyển khoản", "nạp ví", "QR", "công nợ", "COD", "video", "camera", "mã vận đơn".
+description: Xử lý mọi việc về đơn hàng của đại lý — tra trạng thái, liệt kê đơn theo ngày tạo, báo huỷ đơn, hỏi số tiền của đơn, xin video camera đóng gói. Load khi đại lý hoặc thành viên nhắc "đơn", "hàng", "giao", "huỷ", "thanh toán", "chuyển khoản", "nạp ví", "QR", "công nợ", "COD", "video", "camera", "mã vận đơn", "đơn hôm nay", "đơn ngày...".
 agents: dealer
 ---
 
@@ -11,6 +11,7 @@ Năm việc khách hay hỏi, dùng chung 3 bước: **phân loại việc → c
 | Khách muốn | Tool | Chi tiết |
 |---|---|---|
 | Đơn tới đâu rồi | `tra_don_hang` | `references/trang-thai.md` |
+| Đơn hôm nay / trong khoảng ngày | `tra_don_hang` (`hom_nay`, `tu_ngay`/`den_ngay`) | mốc là NGÀY TẠO đơn — xem Bước 2 |
 | Báo huỷ đơn | KHÔNG có tool ghi | `references/huy-don.md` |
 | Tiền của đơn (tổng, COD, phí ship) | `tra_don_hang` (chi tiết đơn) | `references/thanh-toan.md` |
 | Cần chuyển bao nhiêu để đơn được đi | `tra_tien_can_chuyen` | `references/thanh-toan.md` |
@@ -37,7 +38,18 @@ trống để lấy đơn gần đây, rồi:
 Không đoán bừa một mã. `video_don_hang` và `tra_tien_can_chuyen` **bắt buộc có mã vận đơn** — sai đơn
 ở đây là đưa nhầm bằng chứng cho một vụ tranh chấp, hoặc để đại lý chuyển sai số tiền.
 
-## Bước 2 — Cửa sổ 30 ngày
+## Bước 2 — Lọc theo ngày, và cửa sổ 30 ngày
+
+Khách hỏi cả **nhóm đơn theo ngày** ("hôm nay em lên mấy đơn", "đơn tuần này", "đơn ngày 8 sao
+rồi") → `tra_don_hang` với `hom_nay: true`, hoặc `tu_ngay`/`den_ngay` dạng `dd/mm/yyyy`. Không tự
+tính hôm nay là ngày mấy — cứ `hom_nay: true`, hệ thống chốt theo giờ Việt Nam.
+
+Mốc ở đây là **NGÀY TẠO ĐƠN**, không phải ngày xuất kho. Đơn tạo hôm qua mà hôm nay mới xuất thì
+KHÔNG nằm trong `hom_nay`. Khách hỏi "hôm nay xuất mấy đơn / hôm nay phải chuyển bao nhiêu" là
+việc của sổ ngày (skill `bao-cao-cuoi-ngay`, tool `bao_cao_ngay`) — đừng trả bằng danh sách này.
+
+Tool liệt kê tối đa 10 đơn nhưng có báo tổng. Còn dư thì nói rõ tổng bao nhiêu đơn và hỏi khách
+muốn lọc thêm gì (trạng thái, tên khách), **đừng** gọi lặp để gom cho đủ rồi tự cộng.
 
 Hệ thống chỉ tra được **đơn trong 30 ngày gần nhất**. Không thấy đơn thì nói là *không thấy đơn đó
 của đại lý mình* và hỏi lại mã vận đơn — **đừng nói "đơn không tồn tại"**: có thể là đơn của đại lý

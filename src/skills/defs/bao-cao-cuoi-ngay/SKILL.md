@@ -40,8 +40,9 @@ Không kèm: danh sách toàn bộ mã đơn, tồn kho, doanh số lũy kế, s
 Đại lý cần bốn con số để đối chiếu sổ, không cần bản trình bày.
 
 **Mốc ngày là NGÀY XUẤT KHO / NGÀY HOÀN, không phải ngày tạo đơn.** Đơn tạo hôm trước mà xuất hôm
-nay thuộc hôm nay. Đại lý hỏi "đơn hôm nay" mà ý là đơn mới tạo → nói rõ số này tính theo ngày
-xuất/hoàn kho.
+nay thuộc hôm nay. Đại lý hỏi "đơn hôm nay" mà ý là đơn mới TẠO hôm nay → đó là việc của skill
+`don-hang` (`tra_don_hang` với `hom_nay: true`), nói rõ hai mốc khác nhau chứ đừng trả bằng số của
+báo cáo này.
 
 ## Luật 2 — Số nào tool trả, số đó in
 

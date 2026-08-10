@@ -204,6 +204,26 @@ describe("AgentApiOrderPort", () => {
     );
   });
 
+  test("search: lọc ngày tạo đi vào query today / created_from / created_to", async () => {
+    const { fetchImpl, calls } = stubFetch(200, { success: true, data: [], meta: { total: 0 } });
+    const port = new AgentApiOrderPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    await port.search({ dealerId: "42", createdFrom: "2026-08-01", createdTo: "2026-08-10" });
+    const range = new URL(calls[0]?.url ?? "").searchParams;
+    expect(range.get("created_from")).toBe("2026-08-01");
+    expect(range.get("created_to")).toBe("2026-08-10");
+    expect(range.get("today")).toBeNull();
+
+    await port.search({ dealerId: "42", today: true });
+    expect(new URL(calls[1]?.url ?? "").searchParams.get("today")).toBe("true");
+
+    // today: false = không lọc gì cả → không được gửi param lên backend.
+    await port.search({ dealerId: "42", today: false });
+    expect(new URL(calls[2]?.url ?? "").searchParams.get("today")).toBeNull();
+  });
+
   test("parse đơn: tiền giữ nguyên CHUỖI, mã trạng thái giữ nguyên số", async () => {
     const { fetchImpl } = stubFetch(200, {
       success: true,
