@@ -9,7 +9,7 @@ doanh**, **đọc quy định chiết khấu**.
 thông tin; phần soạn và ký về phía công ty do vận hành xử lý sau.
 
 Đại lý hỏi "ký xong chưa", "hợp đồng của em tới đâu" → agent **không tra được trạng thái hợp đồng**.
-Nói thẳng chưa tra được và chuyển đầu mối Đình Trung.
+Nói thẳng chưa tra được và chuyển Nhóm Hỗ trợ.
 
 ## 2. Đăng ký MST hộ kinh doanh
 
@@ -19,7 +19,7 @@ mã số thuế đại lý cung cấp (xem `thanh-toan-cod.md`).
 Gửi link **Video đăng ký MST hộ kinh doanh** — video hướng dẫn đăng ký mới nhất.
 
 Đại lý hỏi thủ tục thuế sâu hơn (mức thuế, kê khai thế nào, cần giấy tờ gì) → **không tự trả lời**.
-Đó là việc ngoài phạm vi hệ thống; chuyển đầu mối.
+Đó là việc ngoài phạm vi hệ thống; chuyển Nhóm Hỗ trợ.
 
 ## 3. Quy định mức chiết khấu
 

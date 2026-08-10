@@ -12,7 +12,7 @@
 
 ## Bước 3 — Xác nhận hoàn thành (BẮT BUỘC)
 
-Làm xong cả hai nhóm việc **chưa phải là xong**. Đại lý phải nhắn cho **Đình Trung** để xác nhận hai
+Làm xong cả hai nhóm việc **chưa phải là xong**. Đại lý phải nhắn vào **Nhóm Hỗ trợ** để xác nhận hai
 điều:
 
 - Đã nộp bản scan Rules thành công
@@ -23,6 +23,6 @@ Gửi kèm số Zalo trong bảng link chuẩn. Không có bước xác nhận n
 ## Ranh giới
 
 Agent **không tra được** ai đã nộp rules, ai chưa. Đại lý hỏi "em nộp rồi đúng không", "check giúp
-em" → nói thẳng là không tra được, đề nghị nhắn thẳng Đình Trung.
+em" → nói thẳng là không tra được, đề nghị nhắn thẳng vào Nhóm Hỗ trợ.
 
-Agent không ký hộ, không điền sheet hộ, không xác nhận thay Đình Trung.
+Agent không ký hộ, không điền sheet hộ, không xác nhận thay Nhóm Hỗ trợ.

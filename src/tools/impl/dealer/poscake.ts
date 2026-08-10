@@ -27,7 +27,7 @@ const API_KEY_PATTERN = /^\S{10,300}$/;
 
 const NO_PORT: ToolResult = {
   content:
-    "Chức năng nạp tài khoản PosCake chưa sẵn sàng — báo đại lý là em chuyển đầu mối xử lý, " +
+    "Chức năng nạp tài khoản PosCake chưa sẵn sàng — báo đại lý là em chuyển Nhóm Hỗ trợ xử lý, " +
     "KHÔNG nói là đã nạp.",
   isError: true,
 };
@@ -140,7 +140,7 @@ function failure(err: AgentApiError): ToolResult {
       content:
         `Hệ vận hành TỪ CHỐI thông tin PosCake vừa gửi (mã ${err.code}). Chưa nạp được. Báo đại lý ` +
         "kiểm lại Shop ID và kiểm key còn BẬT ở cột On/Off trong tab API Key, rồi gửi lại. Vẫn " +
-        "không được thì chuyển đầu mối Đình Trung kèm Shop ID.",
+        "không được thì chuyển Nhóm Hỗ trợ kèm Shop ID.",
       isError: true,
     };
   }
@@ -161,7 +161,7 @@ function renderResult(result: PoscakeShopLink): string {
     line("Đại lý", result.dealerCode),
     "Còn một bước ĐẠI LÝ tự làm: dán Webhook URL vào PosCake (Webhook/API → tab Webhook URL). Link " +
       "đó vận hành cấp riêng từng đại lý — agent KHÔNG có, không tự ghép; đại lý chưa có link thì " +
-      "chuyển đầu mối Đình Trung.",
+      "chuyển Nhóm Hỗ trợ.",
     KEY_EXPOSURE_NOTE,
   ]
     .filter((text): text is string => text !== undefined)

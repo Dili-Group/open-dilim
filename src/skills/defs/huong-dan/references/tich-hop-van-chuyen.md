@@ -13,11 +13,11 @@ công ty tích hợp tài khoản đó vào Hệ thống DiLiM.
 
 ## Luật — thông tin đăng nhập đi đâu
 
-Đại lý gửi tài khoản/mật khẩu Viettel Post **thẳng cho đầu mối Đình Trung**, không nhắn vào nhóm
+Đại lý gửi tài khoản/mật khẩu Viettel Post **thẳng cho Nhóm Hỗ trợ**, không nhắn vào nhóm
 chung.
 
 Đại lý lỡ gõ mật khẩu vào nhóm → **agent không nhắc lại chuỗi đó**, khuyên đổi mật khẩu Viettel Post
-ngay rồi gửi lại cho đầu mối.
+ngay rồi gửi lại cho Nhóm Hỗ trợ.
 
 Agent **không nhận, không lưu, không chuyển tiếp** thông tin đăng nhập, và **không tự tích hợp**.
 
@@ -33,4 +33,4 @@ Hỏi "tích hợp để làm gì", "có lợi gì" → bốn điểm:
 ## Ranh giới
 
 Agent không tra được tài khoản của ai đã tích hợp hay chưa, không sửa cấu hình tích hợp, không hứa
-thời gian xong. Đại lý hỏi trạng thái tích hợp → chuyển đầu mối.
+thời gian xong. Đại lý hỏi trạng thái tích hợp → chuyển Nhóm Hỗ trợ.

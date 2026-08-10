@@ -36,7 +36,7 @@ Vẫn trong **Webhook/API**, chuyển sang tab **Webhook URL** → dán link web
 lưu.
 
 **Link webhook không cố định**: vận hành cấp riêng cho từng đại lý. Agent **không có sẵn link này,
-không tự ghép, không đoán**. Đại lý hỏi link → chuyển đầu mối để lấy đúng link của họ.
+không tự ghép, không đoán**. Đại lý hỏi link → chuyển Nhóm Hỗ trợ để lấy đúng link của họ.
 
 ## Bước 4 — Nạp vào hệ thống: agent làm ngay trong nhóm
 
@@ -48,7 +48,7 @@ ai nữa.
 - Tool báo **ĐÃ NẠP** → nói đã nạp xong, kèm Shop ID tool trả về. Tool báo lỗi → đọc đúng hướng xử
   lý trong kết quả tool, **không tự tuyên bố đã nạp**.
 - Đây là nhóm riêng của đại lý. Ở **nhóm chung nhiều đại lý** thì KHÔNG: bảo họ nhắn trong nhóm
-  riêng hoặc gửi **đầu mối Đình Trung**.
+  riêng hoặc gửi **Nhóm Hỗ trợ**.
 
 Việc còn lại (**Bước 3 — dán Webhook URL**) vẫn do đại lý tự làm; agent không có link đó.
 
@@ -74,9 +74,9 @@ hạn bớt quyền được.** Ai cầm key đó thao tác được như chủ 
 |---|---|
 | Không thấy mục Cấu hình / Nâng cao | Đang dùng app điện thoại hoặc tài khoản không phải admin — xem "Điều kiện" |
 | Quên copy key rồi | Không xem lại được. Xoá key cũ, **Thêm mới** key khác |
-| Đã dán webhook mà đơn không về | Kiểm key còn **bật** ở cột On/Off, và dán **đúng link** vận hành cấp. Vẫn không được → chuyển đầu mối, kèm Shop ID |
-| `nap_poscake` báo hệ vận hành từ chối | Kiểm lại Shop ID (đúng dãy số sau `/shop/`) và key còn **bật**. Đúng cả rồi vẫn từ chối → chuyển đầu mối kèm Shop ID |
-| Hỏi tồn kho/sản phẩm có đồng bộ không | Ngoài phạm vi hướng dẫn này — chuyển đầu mối |
+| Đã dán webhook mà đơn không về | Kiểm key còn **bật** ở cột On/Off, và dán **đúng link** vận hành cấp. Vẫn không được → chuyển Nhóm Hỗ trợ, kèm Shop ID |
+| `nap_poscake` báo hệ vận hành từ chối | Kiểm lại Shop ID (đúng dãy số sau `/shop/`) và key còn **bật**. Đúng cả rồi vẫn từ chối → chuyển Nhóm Hỗ trợ kèm Shop ID |
+| Hỏi tồn kho/sản phẩm có đồng bộ không | Ngoài phạm vi hướng dẫn này — chuyển Nhóm Hỗ trợ |
 
 ## Ranh giới
 

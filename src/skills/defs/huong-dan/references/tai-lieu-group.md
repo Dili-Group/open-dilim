@@ -29,7 +29,7 @@ Gửi **đúng group cho đúng việc**, đừng dội cả bảng vào một t
 ## Group riêng tư phải duyệt
 
 Nhiều group cần bảo mật nên **phải được duyệt mới vào được**. Đại lý bấm link mà không vào được →
-không phải lỗi link: nhắn **Đình Trung** để được duyệt.
+không phải lỗi link: nhắn **Nhóm Hỗ trợ** để được duyệt.
 
 Agent **không duyệt được** ai vào group, không mời hộ, không tạo group.
 
