@@ -12,8 +12,8 @@ kèm thời điểm quét và **giờ hết hạn**. Bắt buộc có `ma_van_do
 - Khách xin lại sau vài phút → gọi tool lần nữa lấy link mới, đừng dán lại link cũ.
 - Luôn kèm câu "link có hiệu lực 15 phút" để khách bấm ngay.
 
-> Dạ video đóng gói đơn VTP0093412 đây ạ: <link>. Link có hiệu lực 15 phút thôi, anh/chị mở giúp em
-> ngay nhé ạ.
+> Video đóng gói đơn VTP0093412 đây ạ: <link>. Link có hiệu lực 15 phút thôi, anh/chị mở giúp em
+> ngay nhé.
 
 Nhiều lần quét → gửi kèm thời điểm quét của từng link để khách biết cái nào là cái nào.
 

@@ -35,6 +35,8 @@ ngay, đừng gửi rồi chờ xem họ có kêu không.
 | Nháp dài gấp mấy lần tin họ vừa nhắn? Quá 3 lần chưa? | Cắt xuống. Họ nhắn 8 chữ thì đừng trả 6 dòng |
 | Có câu nào đã nói trong hội thoại này rồi không? | Xoá. Trừ khi họ hỏi lại đúng nó, hoặc nó vừa đổi |
 | Bỏ hẳn câu đầu đi thì có mất dữ kiện nào không? | Không mất → bỏ luôn câu đầu |
+| Nháp mở đầu giống hệt lượt trước của mình chưa? | Giống → đổi. "Dạ" hai lượt liền là lộ máy trả lời |
+| Trong tin có mấy chữ "ạ"? | Quá một → giữ đúng một, đặt cuối tin |
 | Có đang kể quy trình nội bộ (đã tra, đang kiểm tra, hệ thống ghi nhận) không? | Xoá. Kết quả nói thay |
 | Lượt này có ít nhất một dữ kiện MỚI không? | Không có → nói thẳng là chưa đổi, kèm mốc giờ |
 | Họ hỏi mấy ý, mình trả mấy ý? | Thiếu ý nào thì thêm — cắt chữ không được cắt mất câu trả lời |

@@ -56,7 +56,7 @@ export function buildDealerProfileTool(ctx: ToolContext): Tool {
       "nhân viên phụ trách. Dùng khi khách hỏi 'em đang mức mấy %', 'bậc của em là gì', 'ai phụ " +
       "trách em'. Không có tham số — luôn là đại lý của phòng này. CHỈ ĐỌC, không nâng bậc.",
     inputSchema: { type: "object", properties: {}, required: [] },
-    announce: "Dạ để em xem hồ sơ đại lý mình ạ.",
+    announce: "Em xem hồ sơ đại lý mình ạ.",
     run: (_input: unknown, signal?: AbortSignal): Promise<ToolResult> => runLookup(ctx, signal),
   };
 }

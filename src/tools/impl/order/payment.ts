@@ -49,7 +49,7 @@ export function buildOrderPaymentTool(ctx: ToolContext): Tool {
       },
       required: ["ma_van_don"],
     },
-    announce: "Dạ để em kiểm tra số tiền cần chuyển của đơn này ạ.",
+    announce: "Em xem số tiền cần chuyển của đơn này ạ.",
     run: (input: unknown, signal?: AbortSignal): Promise<ToolResult> => runLookup(ctx, input, signal),
   };
 }

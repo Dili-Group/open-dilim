@@ -66,7 +66,7 @@ export function buildPoscakeRegisterTool(ctx: ToolContext): Tool {
       },
       required: ["shop_id", "api_key"],
     },
-    announce: "Dạ em nạp tài khoản PosCake vào hệ thống, chờ em chút ạ.",
+    announce: "Em nạp tài khoản PosCake vào hệ thống, chờ em chút ạ.",
     run: (input: unknown, signal?: AbortSignal): Promise<ToolResult> => run(ctx, input, signal),
   };
 }

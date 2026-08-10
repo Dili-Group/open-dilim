@@ -153,7 +153,7 @@ export function buildStockNoticeSendTool(ctx: ToolContext): Tool {
       },
       required: ["ma_ban_nhap"],
     },
-    announce: "Dạ em chuyển thông báo này đi duyệt ngay ạ.",
+    announce: "Em chuyển thông báo này đi duyệt ngay.",
     run: (input: unknown): Promise<ToolResult> => runSend(ctx, input),
   };
 }

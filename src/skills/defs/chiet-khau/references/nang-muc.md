@@ -40,13 +40,13 @@ còn Rich People Business / Thương Hiệu Bạc Tỷ là diện giám đốc x
 
 ### Hỏi mức hiện tại (gọi `tra_ho_so_dai_ly` trước)
 
-> Dạ hồ sơ bên em ghi đại lý mình đang ở bậc `<tên bậc>`, áp dụng từ `<ngày hiệu lực>` ạ. Con số
+> Hồ sơ bên em ghi đại lý mình đang ở bậc `<tên bậc>`, áp dụng từ `<ngày hiệu lực>`. Con số
 > phần trăm cụ thể thì tuỳ từng sản phẩm nên em không chốt ở đây được — anh/chị cần con số chính
 > xác em nhờ kế toán xác nhận ngay ạ.
 
 ### Hồ sơ chưa xếp bậc
 
-> Dạ hệ thống chưa gắn bậc chiết khấu nào cho đại lý mình ạ. Em chuyển bên vận hành kiểm tra và xếp
+> Hệ thống chưa gắn bậc chiết khấu nào cho đại lý mình ạ. Em chuyển bên vận hành kiểm tra và xếp
 > bậc, có kết quả em báo anh/chị liền.
 
 ### Xin nâng, đã có nhánh rõ
@@ -56,19 +56,19 @@ còn Rich People Business / Thương Hiệu Bạc Tỷ là diện giám đốc x
 
 ### Nhánh quảng cáo 1 triệu/ngày
 
-> Dạ diện này trong 30 ngày đầu mình **vẫn lấy hàng ở mức 30%** ạ. Chạy đủ 30 ngày và gửi đủ minh
+> Diện này trong 30 ngày đầu mình **vẫn lấy hàng ở mức 30%**. Chạy đủ 30 ngày và gửi đủ minh
 > chứng thì công ty ghi bù 20% vào công nợ, cấn trừ dần vào các đơn sau, tính cho các đơn phát sinh
 > trong thời gian cam kết — tổng lại là 50% ạ.
 
 ### Diện đã hết hạn
 
-> Dạ theo văn bản, diện `<Leader Nuskin / Thương Hiệu Bạc Tỷ>` áp dụng đến hết 30/05/2026, mốc này
-> đã qua ạ. Trường hợp của anh/chị em ghi nhận và trình Giám đốc Lê Chí Linh xác nhận, em không tự
+> Theo văn bản, diện `<Leader Nuskin / Thương Hiệu Bạc Tỷ>` áp dụng đến hết 30/05/2026, mốc này
+> đã qua. Trường hợp của anh/chị em ghi nhận và trình Giám đốc Lê Chí Linh xác nhận, em không tự
 > chốt mức được ạ.
 
 ### Chạm cả hai bảng
 
-> Dạ anh/chị đang chạm hai diện: `<diện 1>` và `<diện 2>`. Em ghi nhận cả hai và chuyển bên duyệt
+> Anh/chị đang chạm hai diện: `<diện 1>` và `<diện 2>`. Em ghi nhận cả hai và chuyển bên duyệt
 > chốt mức áp dụng ạ.
 
 ## Câu KHÔNG được dùng

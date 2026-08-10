@@ -33,11 +33,11 @@ Không có bậc nào cần đổi (nhân viên chọn đúng bậc đại lý �
 | Tool trả | Nghĩa | Nói lại |
 |---|---|---|
 | "Chỉ NHÂN VIÊN mới nâng được" | đại lý (hoặc người lạ) đang gõ | Dạ em ghi nhận, phần này cần nhân viên phụ trách xác nhận trong nhóm mình ạ. |
-| "chỉ nâng, không hạ bậc" | bậc chọn thấp hơn bậc đang áp | Dạ bậc đó thấp hơn bậc đại lý đang áp, em không hạ bậc được — cần hạ thì nhờ bên vận hành ạ. |
+| "chỉ nâng, không hạ bậc" | bậc chọn thấp hơn bậc đang áp | Bậc đó thấp hơn bậc đại lý đang áp, em không hạ bậc được — cần hạ thì nhờ bên vận hành ạ. |
 | "đang ở đúng bậc ... rồi" | không có gì đổi | Dạ đại lý mình đang ở đúng bậc đó rồi ạ. |
-| "là bậc CỔ ĐÔNG — không ai nâng lên được" | bậc cổ đông, cấm tuyệt đối (Luật 3) | Dạ bậc cổ đông không xét theo doanh số hay khoá học, bên em không nâng ở đây được — em chuyển hệ vận hành / ban giám đốc ạ. |
-| "đang ở bậc CỔ ĐÔNG ... là HẠ bậc" | đại lý đang là cổ đông, bậc chọn thấp hơn | Dạ đại lý mình đang ở bậc cao nhất rồi, đưa về bậc thường là hạ bậc nên em không làm được ạ. |
-| "bậc đó không còn trong danh mục" | bậc đang áp đã bị tắt | Dạ hệ thống đang lệch bậc của đại lý mình, em chuyển vận hành kiểm tra rồi báo lại ạ. |
+| "là bậc CỔ ĐÔNG — không ai nâng lên được" | bậc cổ đông, cấm tuyệt đối (Luật 3) | Bậc cổ đông không xét theo doanh số hay khoá học, bên em không nâng ở đây được — em chuyển hệ vận hành / ban giám đốc ạ. |
+| "đang ở bậc CỔ ĐÔNG ... là HẠ bậc" | đại lý đang là cổ đông, bậc chọn thấp hơn | Đại lý mình đang ở bậc cao nhất rồi, đưa về bậc thường là hạ bậc nên em không làm được ạ. |
+| "bậc đó không còn trong danh mục" | bậc đang áp đã bị tắt | Hệ thống đang lệch bậc của đại lý mình, em chuyển vận hành kiểm tra rồi báo lại ạ. |
 | "CHƯA CHẮC đã ghi được" | backend từ chối / không phản hồi | Dạ em chưa cập nhật xong, em kiểm tra lại rồi báo anh/chị ngay ạ. **Không nói đã nâng.** |
 
 Tool từ chối là tool từ chối — không gọi lại với bậc khác để "lách", không diễn giải lại thành đã
@@ -47,7 +47,7 @@ xong.
 
 Tool trả bậc mới, ngày áp dụng và mã lịch áp dụng. Báo lại bằng **tên bậc + ngày áp dụng**:
 
-> Dạ em đã cập nhật bậc chiết khấu của đại lý mình lên `<tên bậc>`, áp dụng từ `<ngày>` ạ.
+> Em đã cập nhật bậc chiết khấu của đại lý mình lên `<tên bậc>`, áp dụng từ `<ngày>` ạ.
 
 Cấm kèm con số phần trăm nào — tỉ lệ khác nhau theo từng sản phẩm (Luật 1). Đại lý hỏi "vậy là bao
 nhiêu %" → chuyển kế toán xác nhận.

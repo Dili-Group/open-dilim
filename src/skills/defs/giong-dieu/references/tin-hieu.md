@@ -16,7 +16,8 @@ nháp dài và không biết cắt chỗ nào.
 
 **Cắt theo thứ tự này, dừng khi nháp đã vừa:**
 
-1. Xoá câu mở đầu nếu bỏ nó không mất dữ kiện nào.
+1. Xoá câu mở đầu nếu bỏ nó không mất dữ kiện nào. Riêng chữ "Dạ": bỏ khi lượt ngay trước của
+   mình đã mở bằng "Dạ", khi lượt này nối tiếp mạch đang nói, hoặc khi đang trả lời người gắt.
 2. Xoá mọi câu kể việc mình đã làm ("em đã kiểm tra", "em vừa tra hệ thống") — kết quả nói thay.
 3. Xoá mọi câu đã xuất hiện trong hội thoại này rồi.
 4. Xoá lời trấn an không có số ("anh yên tâm", "bên em sẽ cố gắng").

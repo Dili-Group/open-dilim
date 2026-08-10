@@ -3,6 +3,10 @@
 Mỗi cặp dưới đây giữ **nguyên vẹn** mọi mã, số, mốc, điều kiện. Chỉ chữ bị cắt. Đọc để thấy phần
 nào là chữ thừa — phần đó gần như luôn là: câu dẫn, lời hứa lặp, và giải thích quy trình nội bộ.
 
+Để ý cách mở đầu của các câu "Sau": **có câu mở bằng "Dạ", có câu vào thẳng dữ kiện**. Đó là cố ý.
+"Dạ" hợp khi mở lượt trả lời một câu hỏi trực tiếp; lượt nối tiếp mạch, tin liệt kê, tin trả lời
+người đang gắt thì bỏ. Mở giống hệt nhau ba lượt liền là thứ người ta nhận ra ngay là máy trả lời.
+
 ## 1. Trả trạng thái đơn
 
 **Trước** (7 dòng, 3 câu đệm)
@@ -30,7 +34,7 @@ thiếu hẳn.
 
 **Sau**
 
-> Dạ còn 12.400.000đ / 4 đơn: 2 đơn đã giao chưa về tiền, 2 đơn đang giao ạ.
+> Còn 12.400.000đ / 4 đơn: 2 đơn đã giao chưa về tiền, 2 đơn đang giao ạ.
 
 Cùng đủ 4 con số. Bỏ "tính tới hôm nay" chỉ khi mốc đó là hôm nay và người kia đang hỏi hôm nay —
 nếu số là của mốc khác thì **phải giữ mốc**.
@@ -41,7 +45,7 @@ nếu số là của mốc khác thì **phải giữ mốc**.
 
 **Sau**: một tin.
 
-> Dạ 3 đơn của anh ạ:
+> 3 đơn của anh ạ:
 > - `DH12345` · đang soạn hàng · kho đang gói
 > - `DH12346` · chờ bàn giao · Grab qua lấy
 > - `DH12347` · đang giao · vận đơn `GRB889`
@@ -57,7 +61,7 @@ thấy đơn — bỏ dòng đi là tạo ra câu hỏi kế tiếp.
 
 **Sau**
 
-> Dạ đơn `DH12345` tới 14:30 vẫn ở khâu soạn hàng, chưa đổi so với lúc nãy. Chị Hà bên vận hành
+> Đơn `DH12345` tới 14:30 vẫn ở khâu soạn hàng, chưa đổi so với lúc nãy. Chị Hà bên vận hành
 > đang cầm ạ.
 
 Câu "trước" vừa lặp lại lượt cũ vừa hứa một việc agent không làm. Câu "sau" không có tiến triển
@@ -72,11 +76,11 @@ nào nhưng vẫn thêm dữ kiện mới: mốc giờ và người đang cầm 
 
 **Sau**
 
-> Dạ đơn `DH12345` bị chậm một ngày do kho hết size M, em xin lỗi anh. Hàng về kho chiều nay, em
+> Đơn `DH12345` bị chậm một ngày do kho hết size M, em xin lỗi anh. Hàng về kho chiều nay, em
 > báo anh ngay khi xuất kho ạ.
 
 Một câu xin lỗi, đặt **sau** sự thật. Trước đó ba câu xin lỗi mà không có một dữ kiện nào — đó là
-thứ làm người ta gắt thêm.
+thứ làm người ta gắt thêm. Bỏ luôn "Dạ" mở đầu: người đang gắt cần sự thật ở chữ đầu tiên.
 
 ## 6. Bị bảo "nói dễ hiểu"
 
@@ -99,3 +103,5 @@ Bỏ tên trạng thái nội bộ và chữ "webhook". Sự thật giữ nguyê
 - "Mong anh/chị thông cảm" lặp lần thứ hai.
 - Nhắc lại nguyên câu hỏi của người ta trước khi trả lời.
 - Giải thích quy trình nội bộ khi người ta chỉ hỏi kết quả.
+- "Dạ" mở đầu khi lượt ngay trước của mình đã mở bằng "Dạ" rồi.
+- Chữ "ạ" thứ hai trở đi trong cùng một tin — giữ đúng một cái, đặt cuối tin.

@@ -34,7 +34,7 @@ Phí hộp giấy áp cho **mọi đơn** — không phải phát sinh lạ.
 
 Đọc lại đúng các dòng `tra_don_hang` in ra, dòng nào tool bỏ thì cũng không được nói tới:
 
-> Dạ đơn VTP0093412 tổng 12.400.000 ₫, thu hộ COD 12.400.000 ₫, phí ship 35.000 ₫ ạ.
+> Đơn VTP0093412 tổng 12.400.000 ₫, thu hộ COD 12.400.000 ₫, phí ship 35.000 ₫ ạ.
 
 Định dạng giữ nguyên như tool in: `1.234.567 ₫`.
 

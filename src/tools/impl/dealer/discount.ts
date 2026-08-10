@@ -69,7 +69,7 @@ export function buildDiscountTierListTool(ctx: ToolContext): Tool {
       "phòng này đang áp cùng những bậc nâng lên được. Dùng trước khi bàn chuyện nâng mức, và để " +
       "lấy id bậc cho nang_bac_chiet_khau. Không có tham số — luôn là đại lý của phòng này. CHỈ ĐỌC.",
     inputSchema: { type: "object", properties: {}, required: [] },
-    announce: "Dạ để em xem bảng bậc chiết khấu ạ.",
+    announce: "Em xem bảng bậc chiết khấu ạ.",
     run: (_input: unknown, signal?: AbortSignal): Promise<ToolResult> => runList(ctx, signal),
   };
 }
@@ -97,7 +97,7 @@ export function buildDiscountTierUpgradeTool(ctx: ToolContext): Tool {
       },
       required: ["bac_id", "ly_do"],
     },
-    announce: "Dạ em ghi nhận và đang cập nhật bậc chiết khấu ạ.",
+    announce: "Em ghi nhận, đang cập nhật bậc chiết khấu ạ.",
     run: (input: unknown, signal?: AbortSignal): Promise<ToolResult> =>
       runUpgrade(ctx, input, signal),
   };

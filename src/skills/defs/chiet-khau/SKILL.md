@@ -59,7 +59,7 @@ tiếp lên cổ đông.
 
 `nang_bac_chiet_khau` từ chối thẳng mọi bậc cổ đông. Đừng thử gọi rồi diễn giải lại lời từ chối.
 
-> Dạ bậc cổ đông không thuộc diện nâng theo doanh số hay khoá học ạ, bên em không xét ở đây được.
+> Dạ bậc cổ đông không thuộc diện nâng theo doanh số hay khoá học, bên em không xét ở đây được.
 > Em ghi nhận nguyện vọng và chuyển hệ vận hành / ban giám đốc ạ.
 
 Đại lý **đang là** cổ đông thì cũng không đổi bậc qua agent — mọi bậc thường đều thấp hơn, mà hạ

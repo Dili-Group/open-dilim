@@ -100,7 +100,7 @@ export function buildDailyReportTool(ctx: ToolContext): Tool {
       },
       required: [],
     },
-    announce: "Dạ để em kiểm tra cho mình ạ.",
+    announce: "Dạ em kiểm tra cho mình ạ.",
     run: (input: unknown, signal?: AbortSignal): Promise<ToolResult> => runReport(ctx, input, signal),
   };
 }
@@ -132,7 +132,7 @@ export function buildDailyDetailTool(ctx: ToolContext): Tool {
       },
       required: ["muc"],
     },
-    announce: "Dạ để em lấy danh sách đơn cho mình ạ.",
+    announce: "Em lấy danh sách đơn cho mình ạ.",
     run: (input: unknown, signal?: AbortSignal): Promise<ToolResult> => runDetail(ctx, input, signal),
   };
 }

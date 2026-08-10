@@ -93,7 +93,7 @@ export function buildOrderStatusTool(ctx: ToolContext): Tool {
       required: [],
     },
     // Gọi hệ vận hành mất vài giây → báo khách trước, đừng để khách nhìn màn hình trống.
-    announce: "Dạ để em kiểm tra đơn hàng giúp anh/chị ạ.",
+    announce: "Dạ em kiểm tra đơn hàng giúp anh/chị ạ.",
     run: (input: unknown, signal?: AbortSignal): Promise<ToolResult> => runLookup(ctx, input, signal),
   };
 }
