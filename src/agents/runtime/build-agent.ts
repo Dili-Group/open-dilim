@@ -45,6 +45,7 @@ class ProfileRootAgent implements RootAgent {
         {
           history: input.history,
           speaker: toTurnSpeaker(input.identity),
+          speakers: input.speakers,
           summary: input.summary,
           memoryScope: input.memoryScope,
           pending: input.pending,
@@ -110,7 +111,7 @@ class ProfileRootAgent implements RootAgent {
  * context/ không được biết `Identity`, và senderId KHÔNG đi kèm (nó là id kênh, model không dùng
  * được vào việc gì ngoài rò ra câu trả lời).
  */
-function toTurnSpeaker(identity: Identity): TurnSpeaker {
+export function toTurnSpeaker(identity: Identity): TurnSpeaker {
   switch (identity.role) {
     case "nhan_vien":
       return { role: "nhan_vien", id: identity.userId, name: identity.fullName };

@@ -7,6 +7,7 @@ import type { LLMProvider } from "../llm/types.ts";
 import type { Identity } from "../flash-command/types.ts";
 import type { DailyPort, DealerPort, DiscountPort, OrderPort } from "../operational/types.ts";
 import type { PendingNotice } from "../context/pending-block.ts";
+import type { TurnSpeaker } from "../context/speaker-block.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
 import type { RoomRef } from "../workflows/types.ts";
 import type { AgentResult, HistoryEntry } from "../types/index.ts";
@@ -62,6 +63,11 @@ export interface AgentDeps {
 export interface AgentRunInput {
   readonly identity: Identity;
   readonly history: readonly HistoryEntry[];
+  /**
+   * Vai/tên của MỌI người có mặt trong `history`, theo senderId — worker resolve, agent chỉ chuyển
+   * tiếp vào prefix từng tin. Không có = mọi tin in vai `?` (vẫn chạy, chỉ kém ngữ cảnh).
+   */
+  readonly speakers?: ReadonlyMap<string, TurnSpeaker>;
   /** Bản tóm phần hội thoại đã trôi khỏi `history` — worker đọc, agent chỉ chuyển tiếp. */
   readonly summary?: string;
   /** Do worker cấp — agent KHÔNG tự derive (derive sai = rò memory sang khách khác). */

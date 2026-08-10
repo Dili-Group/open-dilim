@@ -231,24 +231,56 @@ describe("assembleTurnContext — khối memory (§7)", () => {
   });
 });
 
-// Dấu thời gian "[HH:mm dd/mm/YYYY] " đầu mỗi lượt user — regex thay vì so chuỗi cứng để không
-// vỡ theo tz-data của máy chạy test.
-const TIME_PREFIX = /^\[\d{2}:\d{2} \d{2}\/\d{2}\/\d{4}\] /;
+// Prefix mỗi lượt user: "[HH:mm dd/mm/YYYY - senderId - Tên - vai]: " — regex thay vì so chuỗi
+// cứng để không vỡ theo tz-data của máy chạy test.
+const TIME = String.raw`\d{2}:\d{2} \d{2}/\d{2}/\d{4}`;
+
+/** Bốn ô của prefix; ô nào hệ thống chưa biết thì gọi với "?". */
+function prefix(senderId: string, name: string, role: string): string {
+  const esc = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return String.raw`^\[${TIME} - ${esc(senderId)} - ${esc(name)} - ${esc(role)}\]: `;
+}
 
 describe("assembleTurnContext — messages", () => {
-  test("direct: text kèm dấu thời gian, không prefix speaker", async () => {
+  test("chat 1-1 vẫn in đủ 4 ô, ô chưa biết là `?`", async () => {
     const ctx = await assembleTurnContext(sources(), { history: [entry({ text: "chào" })] });
     const part = ctx.messages[0]?.content[0];
     expect(part?.type).toBe("text");
-    expect((part as { text: string }).text).toMatch(new RegExp(`${TIME_PREFIX.source}chào$`));
+    expect((part as { text: string }).text).toMatch(new RegExp(`${prefix("u1", "?", "?")}chào$`));
   });
 
-  test("group: dấu thời gian + senderId để model trả đúng người", async () => {
+  test("có speakers → tin mang đúng tên + vai của CHÍNH người viết tin đó", async () => {
     const ctx = await assembleTurnContext(sources(), {
-      history: [entry({ isGroup: true, senderId: "An", text: "cho hỏi giá" })],
+      history: [
+        entry({ isGroup: true, senderId: "u1", text: "cho hỏi giá" }),
+        entry({ msgId: "m2", isGroup: true, senderId: "u2", text: "để anh xem" }),
+      ],
+      speakers: new Map([
+        ["u1", { role: "dai_ly" as const, id: "KH1", name: "Chị Lan" }],
+        ["u2", { role: "nhan_vien" as const, id: "nv7", name: "Hà" }],
+      ]),
     });
-    const part = ctx.messages[0]?.content[0];
-    expect((part as { text: string }).text).toMatch(new RegExp(`${TIME_PREFIX.source}An: cho hỏi giá$`));
+    const texts = ctx.messages.map((m) => (m.content[0] as { text: string }).text);
+    expect(texts[0]).toMatch(new RegExp(`${prefix("u1", "Chị Lan", "dai_ly")}cho hỏi giá$`));
+    expect(texts[1]).toMatch(new RegExp(`${prefix("u2", "Hà", "nhan_vien")}để anh xem$`));
+  });
+
+  test("không có tên hệ thống → lấy tên hiển thị channel; không có nữa → `?`", async () => {
+    const ctx = await assembleTurnContext(sources(), {
+      history: [entry({ isGroup: true, senderId: "u1", senderName: "Chú Bảy", text: "ê" })],
+      speakers: new Map([["u1", { role: "dai_ly" as const, id: "KH1" }]]),
+    });
+    const text = (ctx.messages[0]?.content[0] as { text: string }).text;
+    expect(text).toMatch(new RegExp(`${prefix("u1", "Chú Bảy", "dai_ly")}ê$`));
+  });
+
+  test("người lạ không có trong speakers → vai `?`, KHÔNG đoán", async () => {
+    const ctx = await assembleTurnContext(sources(), {
+      history: [entry({ isGroup: true, senderId: "la", text: "ai đó" })],
+      speakers: new Map([["u1", { role: "dai_ly" as const, id: "KH1" }]]),
+    });
+    const text = (ctx.messages[0]?.content[0] as { text: string }).text;
+    expect(text).toMatch(new RegExp(`${prefix("la", "?", "?")}ai đó$`));
   });
 
   test("lượt agent → assistant, KHÔNG stamp thời gian (tránh nhại vào câu trả lời)", async () => {
@@ -266,8 +298,8 @@ describe("assembleTurnContext — messages", () => {
     const ctx = await assembleTurnContext(sources(), { history });
     const texts = ctx.messages.map((m) => (m.content[0] as { text: string }).text);
     expect(texts).toHaveLength(2);
-    expect(texts[0]).toMatch(new RegExp(`${TIME_PREFIX.source}a$`));
-    expect(texts[1]).toMatch(new RegExp(`${TIME_PREFIX.source}b$`));
+    expect(texts[0]).toMatch(new RegExp(`${prefix("u1", "?", "?")}a$`));
+    expect(texts[1]).toMatch(new RegExp(`${prefix("u1", "?", "?")}b$`));
   });
 });
 

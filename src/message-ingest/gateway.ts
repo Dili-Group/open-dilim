@@ -92,6 +92,7 @@ function toHistoryEntry(e: Envelope): HistoryEntry {
     conversationId: e.conversationId,
     msgId: e.msgId,
     senderId: e.senderId,
+    ...(e.senderName === undefined ? {} : { senderName: e.senderName }),
     text: e.text,
     isGroup: e.isGroup,
     role: "user",

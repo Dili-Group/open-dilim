@@ -35,6 +35,12 @@ export interface TurnInput {
    */
   readonly speaker?: TurnSpeaker;
   /**
+   * senderId → vai/tên, cho MỌI người xuất hiện trong `history` (không chỉ người gõ lượt này).
+   * Prefix từng tin lấy vai ở đây. Do WIRING resolve (context/ không được biết `Identity`).
+   * Thiếu key nào → tin của người đó in vai `?`, không phải lỗi: người lạ vẫn nhắn được vào nhóm.
+   */
+  readonly speakers?: ReadonlyMap<string, TurnSpeaker>;
+  /**
    * Bản tóm phần hội thoại đã trôi khỏi cửa sổ `history` (state/compactor.ts). undefined = phòng
    * chưa đủ dài để nén, hoặc chưa nối tầng compact — không phải lỗi.
    */

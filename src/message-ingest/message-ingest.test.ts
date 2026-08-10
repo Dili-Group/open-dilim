@@ -130,6 +130,20 @@ describe("gateway", () => {
     expect(ctx.published[0]?.conversationId).toBe("U9");
   });
 
+  test("senderName → vào history; payload thiếu tên thì không có field", async () => {
+    const gw = makeGateway(ctx.deps);
+    await gw.handle(webhook(event({ msgId: "n1", senderName: "  Chị Lan  " })));
+    await gw.handle(webhook(event({ msgId: "n2" })));
+    expect(ctx.history[0]?.senderName).toBe("Chị Lan");
+    expect(ctx.history[1]?.senderName).toBeUndefined();
+  });
+
+  test("tên rác dài → cắt trần 40 ký tự", async () => {
+    const gw = makeGateway(ctx.deps);
+    await gw.handle(webhook(event({ senderName: "x".repeat(200) })));
+    expect(ctx.history[0]?.senderName).toHaveLength(40);
+  });
+
   test("dedupe: cùng msgId 2 lần → publish 1 lần", async () => {
     const gw = makeGateway(ctx.deps);
     const p = event({ mentions: [{ uid: AGENT_UID }] });

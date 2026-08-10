@@ -16,6 +16,9 @@ import { isAddressed, type Ingestor, type ParsedMessage } from "../ingestor.ts";
 // phần cần chốt là input ký. Verify FAIL-CLOSED: thiếu/sai chữ ký → false.
 const SIGNATURE_HEADER = "x-zevent-signature";
 
+/** Trần tên hiển thị: tên do người dùng tự đặt, đi vào prefix của MỌI tin trong prompt. */
+const MAX_SENDER_NAME_CHARS = 40;
+
 export class ZaloIngestor implements Ingestor {
   /**
    * Tên kênh do WIRING cấp, không hard-code: nhiều tài khoản Zalo = nhiều kênh, mỗi kênh một
@@ -69,6 +72,8 @@ export class ZaloIngestor implements Ingestor {
       msgId,
       conversationId,
       senderId,
+      // senderName = tên hiển thị Zalo. Không phải event nào cũng có → thiếu thì bỏ hẳn field.
+      ...(readName(event.senderName) ?? {}),
       isGroup,
       addressedToAgent: isAddressed(isGroup, text, mentions, this.config.agentUid),
       text,
@@ -76,6 +81,16 @@ export class ZaloIngestor implements Ingestor {
       ts: readTs(event.ts),
     };
   }
+}
+
+/**
+ * Tên hiển thị người gửi. Người dùng tự đặt → cắt trần độ dài (tên rác dài đi vào MỌI tin của
+ * prompt) và bỏ khoảng trắng thừa. Không phải chuỗi / rỗng → undefined (gọi theo vai).
+ */
+function readName(raw: unknown): { senderName: string } | undefined {
+  if (typeof raw !== "string") return undefined;
+  const name = raw.trim().slice(0, MAX_SENDER_NAME_CHARS);
+  return name === "" ? undefined : { senderName: name };
 }
 
 /** content = string (text/command) → lấy thẳng; object (photo/...) → chưa trích text, "". */

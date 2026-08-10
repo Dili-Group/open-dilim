@@ -12,10 +12,14 @@ import { renderSkillCatalog } from "../skills/selector.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import { renderMemoryBlock } from "./memory-block.ts";
 import { renderPendingBlock } from "./pending-block.ts";
-import { renderSpeakerBlock } from "./speaker-block.ts";
+import { renderSpeakerBlock, type TurnSpeaker } from "./speaker-block.ts";
 import type { ContextSources, TurnContext, TurnInput } from "./types.ts";
 
 const SECTION_SEPARATOR = "\n\n";
+
+// Ô prefix mà hệ thống KHÔNG biết. Có mặt để prefix luôn đủ 4 ô — model đọc "?" là "chưa rõ",
+// khác hẳn với ô trống (nhìn như lệch cột, dễ đọc nhầm tên thành vai).
+const UNKNOWN_FIELD = "?";
 
 // Múi giờ khách (Việt Nam). Dấu thời gian in theo giờ địa phương để model suy luận sáng/chiều
 // đúng, KHÔNG lệch 7 tiếng như UTC. Định dạng người Việt đọc quen "21:47 05/08/2026" — giống hệt
@@ -77,7 +81,7 @@ export async function assembleTurnContext(
 
   return {
     system: buildSystemBlocks(stable, volatile),
-    messages: toMessages(input.history),
+    messages: toMessages(input.history, input.speakers),
   };
 }
 
@@ -105,20 +109,31 @@ function joinSections(sections: readonly string[]): string {
 }
 
 /**
- * History → message. Lượt agent (flash reply / lượt agent) → assistant, KHÔNG prefix speaker
- * cũng KHÔNG prefix thời gian (stamp vào content agent = dạy model tự nhại timestamp vào câu
- * trả lời gửi ra ngoài). Lượt người dùng → user; mỗi lượt user gắn `[thời gian]` để model biết
- * lượt nào đến trước/sau + khoảng cách thật giữa các tin; group đa speaker thêm senderId.
+ * History → message. Lượt agent (flash reply / lượt agent) → assistant, KHÔNG prefix gì cả (stamp
+ * vào content agent = dạy model tự nhại prefix vào câu trả lời gửi ra ngoài).
+ *
+ * Lượt người dùng → user, prefix CỐ ĐỊNH 4 ô: `[thời gian - senderId - Tên - vai]: nội dung`.
+ * Bốn ô luôn có mặt kể cả chat 1-1: thiếu ô nào là model phải suy, mà nó suy sai thì gọi nhầm
+ * người trong nhóm đông. Không biết → in `?`, KHÔNG bỏ trống ô (mất cột thì prefix hết đọc được).
+ *
+ * Vai lấy từ `speakers` (wiring resolve theo senderId, xem worker/handler.ts); tên ưu tiên tên hệ
+ * thống biết (nhân viên đã bind) rồi mới tới tên hiển thị channel — tên hiển thị người dùng tự đặt.
  */
-function toMessages(history: readonly HistoryEntry[]): LlmMessage[] {
+function toMessages(
+  history: readonly HistoryEntry[],
+  speakers: ReadonlyMap<string, TurnSpeaker> | undefined,
+): LlmMessage[] {
   return history.map((entry) => {
     if (entry.role === "agent") {
       return { role: "assistant" as const, content: [{ type: "text" as const, text: entry.text }] };
     }
-    const speaker = entry.isGroup ? `${entry.senderId}: ` : "";
+    const speaker = speakers?.get(entry.senderId);
+    const name = speaker?.name ?? entry.senderName ?? UNKNOWN_FIELD;
+    const role = speaker?.role ?? UNKNOWN_FIELD;
+    const prefix = `[${formatTurnTime(entry.ts)} - ${entry.senderId} - ${name} - ${role}]`;
     return {
       role: "user" as const,
-      content: [{ type: "text" as const, text: `[${formatTurnTime(entry.ts)}] ${speaker}${entry.text}` }],
+      content: [{ type: "text" as const, text: `${prefix}: ${entry.text}` }],
     };
   });
 }

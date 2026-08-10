@@ -21,6 +21,12 @@ export interface Envelope {
   readonly msgId: string;          // idempotency + audit
   readonly conversationId: string; // phòng: key state/history/order-lock
   readonly senderId: string;       // người gửi → worker resolve vai
+  /**
+   * Tên hiển thị channel gửi kèm (Zalo `dName`). CHỈ để gọi tên trong câu trả lời — KHÔNG dùng để
+   * suy vai/quyền (người dùng tự đặt được), KHÔNG dùng để đoán giới tính hay tuổi.
+   * undefined = payload không có → agent gọi theo vai.
+   */
+  readonly senderName?: string;
   readonly isGroup: boolean;
   readonly addressedToAgent: boolean; // kết quả trigger gate (§5 bước 2)
   readonly text: string;
@@ -45,6 +51,8 @@ export interface HistoryEntry {
   readonly conversationId: string;
   readonly msgId: string;
   readonly senderId: string;
+  /** Tên hiển thị lúc gửi (xem `Envelope.senderName`). Lưu theo tin: người ta đổi tên được. */
+  readonly senderName?: string;
   readonly text: string;
   readonly isGroup: boolean;
   /** Người dùng gõ (ingest) hay agent trả (flash reply / lượt agent). Thiếu ở entry cũ → coi là user. */

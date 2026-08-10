@@ -4,7 +4,10 @@
 // hệt nhau). Dedupe (bước 4) đã làm ở ingest (biến thể "ingest dày") nên worker không lặp lại.
 
 import { resolveAgentType } from "../agents/router.ts";
+import { toTurnSpeaker } from "../agents/runtime/build-agent.ts";
 import type { RootAgent } from "../agents/types.ts";
+import type { TurnSpeaker } from "../context/speaker-block.ts";
+import type { Identity } from "../flash-command/types.ts";
 import { MemoryOwnerKind, type MemoryScope } from "../state/types.ts";
 import { toDistillTurns } from "../state/memory-writer.ts";
 import { HISTORY_BUFFER_TURNS, HISTORY_WINDOW_TURNS } from "../state/session.ts";
@@ -104,8 +107,10 @@ export async function handleEnvelope(
     const pending = await readPendingNotices(ctx, envelope);
     const onStep = buildTypingPulse(ctx, envelope);
     const onAnnounce = buildAnnouncer(ctx, envelope);
+    const speakers = await resolveSpeakers(ctx, envelope, identity, history);
     const result = await agent.run({
       identity,
+      speakers,
       history,
       summary,
       memoryScope,
@@ -144,6 +149,47 @@ export async function handleEnvelope(
   } catch (err) {
     return { status: "failed", step, error: err instanceof Error ? err : new Error(String(err)) };
   }
+}
+
+/**
+ * Vai + tên của MỌI người có tin trong cửa sổ history, theo senderId. Bước AUTH chỉ resolve NGƯỜI
+ * GÕ lượt này, nhưng prefix từng tin phải mang vai của chính người viết tin đó: nhóm đại lý có cả
+ * nhân viên DiLiM lẫn người của đại lý, model đọc nhầm vai là trả lời sai kiểu và xưng hô sai người.
+ *
+ * Best-effort: resolver hỏng cho một người → bỏ người đó khỏi map (tin của họ in vai `?`), KHÔNG
+ * giết lượt. Người gõ lượt này dùng lại `identity` đã resolve ở bước AUTH, không tra hai lần.
+ * Các người còn lại tra song song và gần như luôn trúng cache Redis 8h (CachedIdentityResolver).
+ */
+async function resolveSpeakers(
+  ctx: WorkerContext,
+  envelope: Envelope,
+  identity: Identity,
+  history: readonly HistoryEntry[],
+): Promise<ReadonlyMap<string, TurnSpeaker>> {
+  const speakers = new Map<string, TurnSpeaker>([[envelope.senderId, toTurnSpeaker(identity)]]);
+  const others = new Set<string>();
+  for (const entry of history) {
+    if (entry.role === "agent" || entry.senderId === envelope.senderId) continue;
+    if (entry.senderId === AGENT_SENDER_ID || entry.senderId === "") continue;
+    others.add(entry.senderId);
+  }
+
+  const groupId = envelope.isGroup ? envelope.conversationId : undefined;
+  const resolved = await Promise.all(
+    [...others].map(async (senderId) => {
+      try {
+        const other = await ctx.identity.resolve({ channel: envelope.channel, senderId, groupId });
+        return [senderId, toTurnSpeaker(other)] as const;
+      } catch (err) {
+        console.error("[worker] resolve vai người trong history lỗi:", err);
+        return null;
+      }
+    }),
+  );
+  for (const pair of resolved) {
+    if (pair !== null) speakers.set(pair[0], pair[1]);
+  }
+  return speakers;
 }
 
 /**
