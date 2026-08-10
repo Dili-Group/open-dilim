@@ -1,8 +1,12 @@
 // index.ts — type dùng chung xuyên tầng (ingest → broker → worker → broadcast).
 // KHÔNG import tầng feature nào → không tạo cycle. Đây là đáy của đồ thị phụ thuộc.
 
-/** Nguồn tin. cron KHÔNG qua gateway/ACK (scheduler dựng thẳng Envelope). */
-export type MessageSource = "channel" | "cron";
+/**
+ * Nguồn sinh Envelope. `cron` KHÔNG qua gateway/ACK (scheduler dựng thẳng Envelope).
+ * `distill` KHÔNG phải tin nhắn: worker nhận nó thì chỉ chạy chưng cất trí nhớ cho phòng rồi
+ * thoát (worker/handler.ts) — ingest dựng khi thấy đổi người nói.
+ */
+export type MessageSource = "channel" | "cron" | "distill";
 
 /**
  * Mention entity từ payload channel (vd Zalo `mentions[]`). `uid` = id người/agent được nhắc.

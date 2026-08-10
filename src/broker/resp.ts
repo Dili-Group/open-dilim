@@ -4,7 +4,7 @@
 // XREADGROUP: RESP2 trả mảng `[[stream, entries], ...]`, RESP3 trả map `{stream: entries}`.
 // Bun dùng RESP3 nhưng client có thể đổi/downgrade → nhận CẢ HAI, đừng đoán một dạng.
 
-import type { Envelope, Mention } from "../types/index.ts";
+import type { Envelope, MessageSource, Mention } from "../types/index.ts";
 
 /** 1 entry trong stream: id Redis + payload JSON ở field `data`. */
 export interface StreamEntry {
@@ -19,7 +19,7 @@ export interface PendingEntry {
 }
 
 // Khai string[] (không MessageSource[]) để `includes(unknown-narrowed-string)` không cần ép kiểu.
-const SOURCES: readonly string[] = ["channel", "cron"];
+const SOURCES: readonly string[] = ["channel", "cron", "distill"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -121,6 +121,9 @@ export function parseEnvelope(json: string): Envelope | null {
   } = raw;
   const mentions = parseMentions(raw.mentions);
   if (typeof source !== "string" || !SOURCES.includes(source)) return null;
+  // Đã lọc qua SOURCES ở trên → ép về union là an toàn, và KHÔNG được viết dạng ternary
+  // ("x === a ? a : b") vì nguồn thứ ba sẽ bị đổi thầm thành "channel".
+  const messageSource = source as MessageSource;
   if (typeof channel !== "string" || channel === "") return null;
   if (typeof msgId !== "string" || msgId === "") return null;
   if (typeof conversationId !== "string" || conversationId === "") return null;
@@ -130,7 +133,7 @@ export function parseEnvelope(json: string): Envelope | null {
   if (typeof ts !== "number" || !Number.isFinite(ts)) return null;
   if (mentions === undefined) return null;
   return {
-    source: source === "cron" ? "cron" : "channel",
+    source: messageSource,
     channel,
     msgId,
     conversationId,

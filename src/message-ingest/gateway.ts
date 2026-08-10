@@ -74,6 +74,7 @@ async function processMessage(deps: IngestDeps, msg: ParsedMessage): Promise<boo
       // MỌI tin vào history (đúng thứ tự giờ nhận); chỉ tin nhắm agent mới vào queue.
       await deps.history.append(toHistoryEntry(envelope));
       if (envelope.addressedToAgent) await deps.broker.publish(envelope);
+      await trackSpeakerTurnover(deps, envelope);
     } catch (err) {
       // Trả lại mark để retry của channel reprocess (không mất tin).
       await deps.dedupe.release(msg.channel, msg.msgId);
@@ -85,6 +86,52 @@ async function processMessage(deps: IngestDeps, msg: ParsedMessage): Promise<boo
     captureError(err, "ingest.process", { channel: msg.channel, msgId: msg.msgId });
     return false;
   }
+}
+
+/**
+ * Ghi lại người vừa nói; NGƯỜI KHÁC vừa đáp lời người trước → đẩy một envelope `distill` để worker
+ * chưng cất phòng này. Đây là chỗ duy nhất thấy được nhịp đó: tin không nhắm agent không bao giờ
+ * tới worker, mà phần lớn cuộc trao đổi trong nhóm là loại tin đó.
+ *
+ * Tin NHẮM agent thì không đẩy: cuối lượt agent đã tự chưng cất (agent trả lời cũng là một người
+ * khác vừa lên tiếng) — đẩy thêm ở đây là chạy distill hai lần cho cùng một nhịp.
+ *
+ * Best-effort: hỏng thì log rồi thôi. Đây là việc thu thập dữ liệu, không được làm rớt tin của
+ * khách (throw ở đây sẽ nhả dedupe và bắt channel gửi lại nguyên tin).
+ */
+async function trackSpeakerTurnover(deps: IngestDeps, envelope: Envelope): Promise<void> {
+  if (deps.speakers === undefined) return;
+  try {
+    const previous = await deps.speakers.swap(
+      envelope.channel,
+      envelope.conversationId,
+      envelope.senderId,
+    );
+    if (envelope.addressedToAgent) return;
+    if (previous === undefined || previous === envelope.senderId) return;
+    await deps.broker.publish(distillEnvelope(envelope));
+  } catch (err) {
+    console.error(`[ingest:${envelope.channel}] theo dõi đổi người nói lỗi:`, err);
+  }
+}
+
+/**
+ * Envelope KHÔNG mang tin nhắn: chỉ nói "phòng này vừa có nhịp trao đổi trọn, chưng cất đi".
+ * `msgId` neo vào tin kích hoạt để dedupe của broker/worker vẫn có khoá idempotent thật.
+ */
+function distillEnvelope(trigger: Envelope): Envelope {
+  return {
+    source: "distill",
+    channel: trigger.channel,
+    msgId: `distill:${trigger.msgId}`,
+    conversationId: trigger.conversationId,
+    senderId: trigger.senderId,
+    isGroup: trigger.isGroup,
+    addressedToAgent: false,
+    text: "",
+    mentions: [],
+    ts: trigger.ts,
+  };
 }
 
 function toHistoryEntry(e: Envelope): HistoryEntry {

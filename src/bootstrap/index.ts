@@ -49,6 +49,7 @@ import {
   startAnnouncementPoller,
 } from "../announcements/index.ts";
 import { SqlApproverRoomLookup } from "../announcements/store.ts";
+import { RedisSpeakerTracker } from "../state/speaker-tracker.ts";
 import {
   buildDedupe,
   buildHistoryStore,
@@ -77,7 +78,9 @@ export async function bootstrap(): Promise<Services> {
   const broker = await buildBroker();
   const history = buildHistoryStore();
   const dedupe = buildDedupe();
-  const ingestDeps: IngestDeps = { broker, history, dedupe };
+  // Vạch "ai vừa nói": ingest dùng để phát hiện đổi người nói → đẩy envelope `distill`.
+  const speakers = new RedisSpeakerTracker(commandOf(redis));
+  const ingestDeps: IngestDeps = { broker, history, dedupe, speakers };
 
   const llm = buildLlmProvider(config);
   // Memory dài hạn cần embedder Gemini (buildEmbedder throw nếu thiếu key). Không có key → chạy

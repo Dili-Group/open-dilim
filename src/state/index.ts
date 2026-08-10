@@ -9,7 +9,7 @@ import { RedisHistoryStore } from "./session.ts";
 import { RedisDedupe } from "./dedupe.ts";
 import { LlmDistiller } from "./distiller.ts";
 import { LlmCompactor, RedisSummaryStore } from "./compactor.ts";
-import { BatchedMemoryWriter, MemoryWriterRegistry, RedisDistillCounter } from "./memory-writer.ts";
+import { MemoryWriterRegistry, RedisDistillCursor, TurnoverMemoryWriter } from "./memory-writer.ts";
 import type { Distiller, DistillSpec, MemoryStore, MemoryWriter, SqlExecutor } from "./types.ts";
 
 /** Bọc Bun.sql thành SqlExecutor. `unsafe(text, params)`: text = hằng schema, params tham số hoá. */
@@ -47,11 +47,11 @@ export function buildCompactor(): { compactor: LlmCompactor; summaries: RedisSum
 }
 
 /**
- * Đường ghi dài hạn: gom lô lượt → distill → embed → pgvector. Bộ đếm lô ở Redis (nhiều worker
- * process cùng phòng vẫn đếm đúng).
+ * Đường ghi dài hạn: phần hội thoại chưa chưng cất → distill → embed → pgvector. Cursor ở Redis
+ * (nhiều worker process cùng phòng vẫn không chưng cất trùng phần đã xong).
  */
 export function buildMemoryWriter(store: MemoryStore, spec: DistillSpec): MemoryWriter {
-  return new BatchedMemoryWriter(store, buildDistiller(spec), new RedisDistillCounter(commandOf(redis)));
+  return new TurnoverMemoryWriter(store, buildDistiller(spec), new RedisDistillCursor(commandOf(redis)));
 }
 
 /**
@@ -75,11 +75,11 @@ export {
 export { RedisDedupe } from "./dedupe.ts";
 export { LlmDistiller, parseFacts, renderTranscript } from "./distiller.ts";
 export {
-  BatchedMemoryWriter,
   MemoryWriterRegistry,
-  RedisDistillCounter,
+  RedisDistillCursor,
+  TurnoverMemoryWriter,
   toDistillTurns,
-  DISTILL_EVERY_TURNS,
+  DISTILL_MIN_PENDING,
   DISTILL_WINDOW_TURNS,
 } from "./memory-writer.ts";
 export {

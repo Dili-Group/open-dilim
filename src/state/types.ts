@@ -7,9 +7,13 @@
 //   - PHÒNG đại lý (`customer`): phòng có cả nhân viên lẫn khách nói chung một mạch hội thoại,
 //     nên fact là của phòng; ai gõ chỉ là chi tiết ghi TRONG text fact.
 //   - MỘT NGƯỜI (`user`): chat 1-1 với trợ lý riêng — không phòng khách nào sở hữu.
+//   - PHÒNG CHƯA BIND (`room`): nhóm chưa `/ketnoi-daily` — chưa biết của đại lý nào, nhưng vẫn
+//     đáng thu thập đặc trưng + vấn đề của nhóm.
 //
 // Scope derive ở tầng wiring (worker), KHÔNG phải từ Identity người gõ (nhân viên không mang
 // customerId) → state/ nhận scope tường minh, không đoán.
+
+import type { HistoryEntry } from "../types/index.ts";
 
 /** Ai sở hữu fact. Hai giá trị = hai KHÔNG GIAN ĐỊNH DANH, không được trộn (xem MemoryScope). */
 export const MemoryOwnerKind = {
@@ -17,6 +21,12 @@ export const MemoryOwnerKind = {
   Customer: "customer",
   /** ownerId = senderId — fact của chính người đang chat 1-1. */
   User: "user",
+  /**
+   * ownerId = conversationId — fact của CHÍNH CÁI PHÒNG, dùng cho nhóm chưa `/ketnoi-daily`.
+   * Có để thu thập đặc trưng + vấn đề của nhóm ngay khi chưa biết nhóm thuộc đại lý nào; nhóm đã
+   * bind vẫn ghi theo `Customer` (fact thuộc về khách, không thuộc về phòng).
+   */
+  Room: "room",
 } as const;
 export type MemoryOwnerKind = (typeof MemoryOwnerKind)[keyof typeof MemoryOwnerKind];
 
@@ -132,15 +142,14 @@ export interface MemoryStore extends MemoryRecall {
 }
 
 /**
- * Đường GHI trí nhớ dài hạn, gọi sau mỗi lượt đã trả lời. Impl tự quyết định lượt này có chưng
- * cất thật hay chỉ tích luỹ (xem BatchedMemoryWriter) — worker không giữ policy đó.
- * Trả SỐ fact ghi thực (0 = chưa tới lô, hoặc không rút được fact nào).
+ * Đường GHI trí nhớ dài hạn. Nhận CẢ cửa sổ history (không phải DistillTurn) vì policy chạy hay
+ * không dựa trên `msgId` để đặt cursor — xem `TurnoverMemoryWriter`. Worker không giữ policy đó.
+ * Trả SỐ fact ghi thực (0 = chưa tới ngưỡng, hoặc không rút được fact nào).
  */
 export interface MemoryWriter {
   afterTurn(
     scope: MemoryScope,
-    turns: readonly DistillTurn[],
-    sourceMsgId: string,
+    entries: readonly HistoryEntry[],
     signal?: AbortSignal,
   ): Promise<number>;
 }

@@ -5,10 +5,9 @@ import { describe, expect, test } from "bun:test";
 import type { ChatRequest, ChatResult, LLMProvider } from "../llm/types.ts";
 import type { Identity, IdentityRepo, JobAdmin, OpsPort } from "../flash-command/types.ts";
 import { FlashRegistry, flashRegistry, ok } from "../flash-command/index.ts";
-import { AGENT_SENDER_ID, type Envelope, type HistoryEntry } from "../types/index.ts";
+import type { Envelope, HistoryEntry } from "../types/index.ts";
 import type { GroupCustomerLookup, GroupLookupInput, IdentityResolver } from "../auth/types.ts";
 import type {
-  DistillTurn,
   MemoryRecall,
   MemoryScope,
   MemoryWriter,
@@ -653,13 +652,15 @@ describe("handleEnvelope — MemoryScope", () => {
     ]);
   });
 
-  test("nhóm chưa /ketnoi-dilim → không recall (không đoán khách)", async () => {
+  test("nhóm chưa /ketnoi-dilim → recall theo PHÒNG, không đoán khách nào", async () => {
     const memory = await runWith(
       new FakeGroupCustomer(undefined),
       { role: "guest", senderId: "u1" },
       makeEnvelope({ isGroup: true, conversationId: "g2" }),
     );
-    expect(memory.scopes).toHaveLength(0);
+    expect(memory.scopes).toEqual([
+      { ownerKind: "room", ownerId: "g2", channel: "zalo", conversationId: "g2" },
+    ]);
   });
 
   test("chat 1-1 với agent KHÔNG directOnly → không nhớ gì (fact là của phòng, không của người)", async () => {
@@ -698,9 +699,9 @@ describe("handleEnvelope — MemoryScope", () => {
 
 /** Ghi lại lời gọi đường ghi dài hạn — kiểm worker có đóng lượt bằng distill hay không. */
 class RecordingMemoryWriter implements MemoryWriter {
-  readonly calls: { scope: MemoryScope; turns: DistillTurn[]; sourceMsgId: string }[] = [];
-  afterTurn(scope: MemoryScope, turns: readonly DistillTurn[], sourceMsgId: string): Promise<number> {
-    this.calls.push({ scope, turns: [...turns], sourceMsgId });
+  readonly calls: { scope: MemoryScope; entries: HistoryEntry[] }[] = [];
+  afterTurn(scope: MemoryScope, entries: readonly HistoryEntry[]): Promise<number> {
+    this.calls.push({ scope, entries: [...entries] });
     return Promise.resolve(0);
   }
 }
@@ -753,19 +754,97 @@ describe("handleEnvelope — ghi nhớ sau lượt", () => {
     expect(recent.at(-1)).toMatchObject({ role: "agent", text: "ok anh" });
   });
 
-  test("phòng đã bind → afterTurn nhận scope + transcript có cả lượt agent", async () => {
+  test("phòng đã bind → afterTurn nhận scope khách + cửa sổ có cả lượt agent", async () => {
     const envelope = makeEnvelope({ isGroup: true, conversationId: "g1", channel: "zalo" });
     const { writer } = await runTurn(new FakeGroupCustomer("cusX"), envelope);
     expect(writer.calls).toHaveLength(1);
     const call = writer.calls[0];
     expect(call?.scope).toEqual({ ownerKind: "customer", ownerId: "cusX", channel: "zalo", conversationId: "g1" });
-    expect(call?.sourceMsgId).toBe(envelope.msgId);
-    expect(call?.turns.at(-1)).toEqual({ senderId: AGENT_SENDER_ID, role: "assistant", text: "ok anh" });
+    expect(call?.entries.at(-1)).toMatchObject({ role: "agent", text: "ok anh" });
   });
 
-  test("chưa bind phòng → không ghi dài hạn (không có chỗ để ghi)", async () => {
-    const { writer } = await runTurn(new FakeGroupCustomer(undefined), makeEnvelope({ isGroup: true }));
+  test("nhóm CHƯA bind → vẫn ghi, nhưng chủ sở hữu là chính phòng", async () => {
+    const envelope = makeEnvelope({ isGroup: true, conversationId: "g9", channel: "zalo" });
+    const { writer } = await runTurn(new FakeGroupCustomer(undefined), envelope);
+    expect(writer.calls[0]?.scope).toEqual({
+      ownerKind: "room",
+      ownerId: "g9",
+      channel: "zalo",
+      conversationId: "g9",
+    });
+  });
+
+  test("chat 1-1 với agent không directOnly → không ghi (không có phòng để quy fact về)", async () => {
+    const { writer } = await runTurn(undefined, makeEnvelope({ isGroup: false }));
     expect(writer.calls).toHaveLength(0);
+  });
+
+  test("envelope distill → chỉ chưng cất: không LLM, không broadcast, không thêm history", async () => {
+    const history = new MemoryHistoryStore();
+    const writer = new RecordingMemoryWriter();
+    for (const i of [1, 2, 3]) {
+      await history.append({
+        conversationId: "g1",
+        msgId: `m${i}`,
+        senderId: i === 3 ? "u2" : "u1",
+        text: `câu ${i}`,
+        isGroup: true,
+        role: "user",
+        ts: i,
+      });
+    }
+    const broadcaster = new CapturingBroadcaster();
+    const ctx: WorkerContext = {
+      history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
+      // Provider KHÔNG có kịch bản: chạm LLM là test ném lỗi ngay.
+      identity: new FakeResolver({ role: "guest", senderId: "u2" }),
+      groupCustomer: new FakeGroupCustomer("cusX"),
+      memoryWriters: { for: () => writer },
+      agents: buildAgentRegistry({ provider: new ScriptedProvider([]), config: CFG, skills: SKILLS }),
+      broadcaster,
+      typing: TYPING,
+    };
+
+    const result = await handleEnvelope(
+      ctx,
+      makeEnvelope({
+        source: "distill",
+        msgId: "distill:m3",
+        conversationId: "g1",
+        senderId: "u2",
+        isGroup: true,
+        addressedToAgent: false,
+        text: "",
+      }),
+    );
+
+    expect(result).toEqual({ status: "ignored", reason: "distill:0" });
+    expect(writer.calls[0]?.entries).toHaveLength(3);
+    expect(broadcaster.sent).toHaveLength(0);
+    expect(await history.recent("g1", 10)).toHaveLength(3);
+  });
+
+  test("envelope distill khi chưa bật memory → ignored, không nổ", async () => {
+    const history = new MemoryHistoryStore();
+    const ctx: WorkerContext = {
+      history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
+      identity: new FakeResolver({ role: "guest", senderId: "u2" }),
+      agents: buildAgentRegistry({ provider: new ScriptedProvider([]), config: CFG, skills: SKILLS }),
+      broadcaster: new CapturingBroadcaster(),
+      typing: TYPING,
+    };
+    const result = await handleEnvelope(ctx, makeEnvelope({ source: "distill", isGroup: true }));
+    expect(result).toEqual({ status: "ignored", reason: "memory_off" });
   });
 
   test("ghi bằng writer CỦA AGENT vừa chạy (spec đóng cứng vào writer)", async () => {

@@ -9,7 +9,6 @@ import type { RootAgent } from "../agents/types.ts";
 import type { TurnSpeaker } from "../context/speaker-block.ts";
 import type { Identity } from "../flash-command/types.ts";
 import { MemoryOwnerKind, type MemoryScope } from "../state/types.ts";
-import { toDistillTurns } from "../state/memory-writer.ts";
 import { HISTORY_BUFFER_TURNS, HISTORY_WINDOW_TURNS } from "../state/session.ts";
 import { capForChannel, type TypingTarget } from "../broadcast/index.ts";
 import type { PendingNotice } from "../context/pending-block.ts";
@@ -30,6 +29,13 @@ export async function handleEnvelope(
   // Con trỏ bước: một catch duy nhất nhưng vẫn biết hỏng ở đâu.
   let step: LifecycleStep = "auth";
   try {
+    // Envelope `distill` KHÔNG phải tin nhắn: bỏ qua AUTH/flash/agent, chỉ chưng cất rồi thoát.
+    // Nằm trước AUTH vì không có ai "gõ" lượt này — resolve vai chỉ tốn I/O.
+    if (envelope.source === "distill") {
+      step = "state";
+      return await distillOnly(ctx, envelope, signal);
+    }
+
     // 6. AUTH — vai luôn resolve từ senderId server-side (group → groupId = conversationId).
     const identity = await ctx.identity.resolve({
       channel: envelope.channel,
@@ -141,14 +147,46 @@ export async function handleEnvelope(
       capForChannel(envelope.channel, result.text),
     );
 
-    // 10. GHI NHỚ — reply agent vào buffer ngắn hạn, rồi đường dài hạn (distill theo lô, tự quyết
-    // định lượt này có chạy hay không). Sau broadcast: khách đã nhận câu trả lời, hỏng ở đây chỉ
+    // 10. GHI NHỚ — reply agent vào buffer ngắn hạn, rồi đường dài hạn (agent vừa trả lời = đổi
+    // người nói, writer tự quyết phần chưa chưng cất đã đủ dài chưa). Sau broadcast: khách đã nhận câu trả lời, hỏng ở đây chỉ
     // mất trí nhớ chứ không được biến lượt thành failed.
     await rememberTurn(ctx, envelope, agent, result.text, history, memoryScope, signal);
     return result;
   } catch (err) {
     return { status: "failed", step, error: err instanceof Error ? err : new Error(String(err)) };
   }
+}
+
+/**
+ * Lượt CHỈ chưng cất (envelope `distill` do ingest đẩy khi thấy đổi người nói). Không LLM hội
+ * thoại, không broadcast, không đụng history — chỉ đọc buffer rồi gọi đường ghi dài hạn.
+ *
+ * Agent chọn theo channel (router, không tốn lượt LLM) vì writer gắn với `memorySpec` của agent:
+ * phòng đại lý chưng cất bằng prompt khác phòng nội bộ.
+ *
+ * Mọi nhánh "không có gì để làm" trả `ignored` chứ không `failed`: pool sẽ ack, không retry một
+ * việc nền không bao giờ thành công.
+ */
+async function distillOnly(
+  ctx: WorkerContext,
+  envelope: Envelope,
+  signal?: AbortSignal,
+): Promise<AgentResult> {
+  if (ctx.memoryWriters === undefined) return { status: "ignored", reason: "memory_off" };
+
+  const agent = ctx.agents.resolve(resolveAgentType(envelope.channel));
+  const writer = ctx.memoryWriters.for(agent.agentType);
+  if (writer === undefined) return { status: "ignored", reason: "no_memory_writer" };
+
+  const roomCustomerId = await resolveRoomCustomer(ctx, envelope, agent);
+  const scope = resolveMemoryScope(envelope, agent, roomCustomerId);
+  if (scope === undefined) return { status: "ignored", reason: "no_memory_scope" };
+
+  const entries = await ctx.history.recent(envelope.conversationId, HISTORY_BUFFER_TURNS);
+  if (entries.length === 0) return { status: "ignored", reason: "history_rong" };
+
+  const written = await writer.afterTurn(scope, entries, signal);
+  return { status: "ignored", reason: `distill:${written}` };
 }
 
 /**
@@ -244,7 +282,7 @@ async function rememberTurn(
   const writer = ctx.memoryWriters.for(agent.agentType);
   if (writer === undefined) return;
   try {
-    await writer.afterTurn(memoryScope, toDistillTurns(window), envelope.msgId, signal);
+    await writer.afterTurn(memoryScope, window, signal);
   } catch (err) {
     console.error("[worker] ghi trí nhớ dài hạn lỗi:", err);
   }
@@ -357,15 +395,20 @@ async function resolveRoomCustomer(
  * agent directOnly + chat 1-1   → owner = NGƯỜI GÕ (trợ lý riêng: fact là của chính họ)
  * agent directOnly + nhóm       → undefined (agent 1-1 lạc vào nhóm: không rõ fact của ai)
  * nhóm đã /ketnoi-daily         → owner = KHÁCH sở hữu phòng
- * còn lại                       → undefined
+ * nhóm CHƯA bind                → owner = CHÍNH PHÒNG (thu thập đặc trưng + vấn đề của nhóm)
+ * chat 1-1, agent không directOnly → undefined
  * ```
  *
  * Scope phòng KHÔNG lấy customerId từ Identity người gõ: nhân viên gõ trong phòng khách X thì
  * Identity không mang X, mà fact vẫn là của X.
  *
- * undefined = không đọc, không ghi. Chưa `/ketnoi-daily` thì không biết fact thuộc về khách nào,
- * và không có rổ chung để đoán vào. Chat 1-1 với agent KHÔNG directOnly cũng không nhớ: chỉ trợ
- * lý riêng mới có trí nhớ cá nhân (agent đại lý DM riêng vẫn là chuyện của phòng, không của người).
+ * Nhóm chưa bind ghi vào không gian `room` chứ KHÔNG mượn tạm một customerId: hai không gian định
+ * danh khác nhau, trộn vào là fact của phòng lạ lọt sang khách thật. Hệ quả đã biết: phòng bind
+ * SAU sẽ không recall lại được fact ghi lúc còn `room` (khác owner) — cần một bước chuyển chủ nếu
+ * muốn giữ, chưa làm.
+ *
+ * Chat 1-1 với agent KHÔNG directOnly vẫn không nhớ: chỉ trợ lý riêng mới có trí nhớ cá nhân
+ * (agent đại lý DM riêng vẫn là chuyện của phòng, không của người).
  */
 function resolveMemoryScope(
   envelope: Envelope,
@@ -382,11 +425,21 @@ function resolveMemoryScope(
     };
   }
 
-  const customerId = roomCustomerId;
-  if (customerId === undefined) return undefined;
+  if (roomCustomerId !== undefined) {
+    return {
+      ownerKind: MemoryOwnerKind.Customer,
+      ownerId: roomCustomerId,
+      channel: envelope.channel,
+      conversationId: envelope.conversationId,
+    };
+  }
+
+  // Nhóm chưa bind: vẫn nhớ, nhưng nhớ theo PHÒNG. Chat 1-1 (agent không directOnly) thì thôi —
+  // không có phòng nào để quy fact về.
+  if (!envelope.isGroup) return undefined;
   return {
-    ownerKind: MemoryOwnerKind.Customer,
-    ownerId: customerId,
+    ownerKind: MemoryOwnerKind.Room,
+    ownerId: envelope.conversationId,
     channel: envelope.channel,
     conversationId: envelope.conversationId,
   };

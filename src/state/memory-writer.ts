@@ -1,9 +1,15 @@
-// memory-writer.ts — ĐƯỜNG GHI trí nhớ dài hạn (§7). Nối ngắn hạn → dài hạn: gom N lượt trong
-// buffer Redis, chưng cất bằng con nhẹ, embed rồi ghi pgvector.
+// memory-writer.ts — ĐƯỜNG GHI trí nhớ dài hạn (§7). Nối ngắn hạn → dài hạn: chưng cất phần
+// hội thoại chưa chưng cất, embed rồi ghi pgvector.
 //
-// Vì sao THEO LÔ chứ không mỗi lượt: distill 1 lượt lẻ ra fact vụn ("ok anh"), tốn 1 call LLM +
-// 1 call embed cho mỗi tin. Gom lô vừa rẻ vừa cho model đủ ngữ cảnh để rút fact tự-đủ-nghĩa.
-// Bộ đếm nằm ở Redis (không phải biến in-mem) vì nhiều worker process cùng phục vụ một phòng.
+// KÍCH HOẠT theo ĐỔI NGƯỜI NÓI, không theo số lượt cố định: một người nói 5 câu rồi người khác
+// đáp lại một câu — chỗ đó mới là một nhịp trao đổi trọn vẹn, và fact đáng nhớ nằm ở nhịp đó.
+// Đếm cứng 6 lượt thì cắt ngang giữa lượt độc thoại, rút ra fact cụt.
+//
+// Ai phát hiện đổi người nói: ingest (nơi duy nhất thấy MỌI tin, kể cả tin không nhắm agent) —
+// xem message-ingest/gateway.ts. File này chỉ giữ CHỐT CUỐI: phần chưa chưng cất có đủ dài không.
+//
+// Cursor (msgId đã chưng cất tới) nằm ở Redis, không phải biến in-mem: nhiều worker process cùng
+// phục vụ một phòng. Cùng cơ chế với cursor của compactor, khác key.
 
 import type { HistoryEntry } from "../types/index.ts";
 import type { RedisCommand } from "../redis/types.ts";
@@ -17,86 +23,100 @@ import type {
   MemoryWriterLookup,
 } from "./types.ts";
 
-const KEY_PREFIX = "dilim:distill:";
+const KEY_PREFIX = "dilim:distill-cursor:";
 
 /**
- * Số lượt NGƯỜI DÙNG tích luỹ thì chưng cất một lần. 6 ≈ một nhịp trao đổi trọn vẹn (hỏi → làm rõ
- * → chốt) — đủ để có fact đáng nhớ, chưa đủ lâu để khách chốt xong rồi agent quên mất.
+ * Số tin CHƯA chưng cất tối thiểu thì mới chạy. Chặn trường hợp hai người đối đáp một câu một
+ * (A → B → A): mỗi tin là một lần đổi người nói, không có ngưỡng thì mỗi tin một call LLM.
+ * 3 = đủ để có một trao đổi có nội dung, chưa đủ để bỏ sót nhịp ngắn.
  */
-export const DISTILL_EVERY_TURNS = 6;
+export const DISTILL_MIN_PENDING = 3;
 
 /**
- * Số turn transcript đưa vào distiller mỗi lần. Rộng hơn ngưỡng trên (gồm cả lượt agent trả và
- * phần đuôi của lô trước) để fact rút ra không bị cụt ngữ cảnh. Phải ≤ HISTORY_WINDOW_TURNS (session.ts).
+ * Số turn transcript đưa vào distiller. Rộng hơn phần pending (gồm cả đuôi lô trước) để fact rút
+ * ra không bị cụt ngữ cảnh. Phải ≤ HISTORY_WINDOW_TURNS (session.ts).
  */
 export const DISTILL_WINDOW_TURNS = 12;
 
-/** Phòng ngừng nói thì bộ đếm dở tự hết — đếm cũ không còn ý nghĩa cho hội thoại mới. */
-const COUNTER_TTL_SEC = 24 * 60 * 60;
+/** Phòng ngừng nói thì cursor tự hết hạn — hội thoại mới coi như chưa chưng cất gì. */
+const CURSOR_TTL_SEC = 7 * 24 * 60 * 60;
 
-function counterKey(scope: MemoryScope): string {
+function cursorKey(scope: MemoryScope): string {
   return `${KEY_PREFIX}${scope.channel}:${scope.conversationId}`;
 }
 
-/** Đếm lượt chờ chưng cất mỗi phòng. Tách interface để test không cần Redis. */
-export interface DistillCounter {
-  /** +1 và trả số lượt đang tích luỹ (đã gồm lượt này). */
-  bump(scope: MemoryScope): Promise<number>;
-  reset(scope: MemoryScope): Promise<void>;
+/** Vạch "đã chưng cất tới đâu" mỗi phòng. Tách interface để test không cần Redis. */
+export interface DistillCursor {
+  /** msgId cuối đã chưng cất. undefined = chưa từng chưng cất phòng này. */
+  get(scope: MemoryScope): Promise<string | undefined>;
+  set(scope: MemoryScope, msgId: string): Promise<void>;
 }
 
-export class RedisDistillCounter implements DistillCounter {
+export class RedisDistillCursor implements DistillCursor {
   constructor(private readonly send: RedisCommand) {}
 
-  async bump(scope: MemoryScope): Promise<number> {
-    const key = counterKey(scope);
-    const reply = await this.send("INCR", [key]);
-    await this.send("EXPIRE", [key, String(COUNTER_TTL_SEC)]);
-    // INCR trả integer; client có thể đưa về string → narrow tại biên, không tin blind.
-    const value = typeof reply === "number" ? reply : Number(reply);
-    return Number.isFinite(value) ? value : 0;
+  async get(scope: MemoryScope): Promise<string | undefined> {
+    const reply = await this.send("GET", [cursorKey(scope)]);
+    return typeof reply === "string" && reply !== "" ? reply : undefined;
   }
 
-  async reset(scope: MemoryScope): Promise<void> {
-    await this.send("DEL", [counterKey(scope)]);
+  async set(scope: MemoryScope, msgId: string): Promise<void> {
+    await this.send("SET", [cursorKey(scope), msgId, "EX", String(CURSOR_TTL_SEC)]);
   }
 }
 
 /**
- * Ghi trí nhớ dài hạn theo lô. Gọi sau MỖI lượt; chỉ lượt thứ `everyTurns` mới thật sự chạy
- * distill + embed, còn lại chỉ tăng bộ đếm (2 lệnh Redis).
+ * Chưng cất phần hội thoại CHƯA chưng cất. Gọi khi ingest thấy đổi người nói, và ở cuối lượt agent
+ * (agent trả lời = một người khác vừa lên tiếng).
  *
  * KHÔNG nuốt lỗi: distill lỗi tự trả [] (best-effort trong LlmDistiller), nhưng lỗi ghi DB/embed
  * ném ra cho worker log — worker đã broadcast reply trước đó nên lượt của khách không hỏng.
  */
-export class BatchedMemoryWriter implements MemoryWriter {
+export class TurnoverMemoryWriter implements MemoryWriter {
   constructor(
     private readonly store: MemoryStore,
     private readonly distiller: Distiller,
-    private readonly counter: DistillCounter,
-    private readonly everyTurns: number = DISTILL_EVERY_TURNS,
+    private readonly cursor: DistillCursor,
+    private readonly minPending: number = DISTILL_MIN_PENDING,
     private readonly windowTurns: number = DISTILL_WINDOW_TURNS,
   ) {}
 
   async afterTurn(
     scope: MemoryScope,
-    turns: readonly DistillTurn[],
-    sourceMsgId: string,
+    entries: readonly HistoryEntry[],
     signal?: AbortSignal,
   ): Promise<number> {
-    const pending = await this.counter.bump(scope);
-    if (pending < this.everyTurns) return 0;
+    const cursorMsgId = await this.cursor.get(scope);
+    const pending = pendingSince(entries, cursorMsgId);
+    if (pending.length < this.minPending) return 0;
 
-    // Reset TRƯỚC khi chưng cất: distill hỏng thì lô sau vẫn đếm lại từ đầu, không dồn ứ để rồi
-    // lần nào cũng chạy (mỗi lượt một call LLM) khi model đang lỗi.
-    await this.counter.reset(scope);
+    const last = entries.at(-1);
+    if (last === undefined) return 0;
 
-    const window = turns.slice(-this.windowTurns);
-    if (window.length === 0) return 0;
-    const facts = await this.distiller.distill(window, signal);
+    // Đặt cursor TRƯỚC khi chưng cất: distill hỏng thì lần sau tính lại từ đây, không dồn ứ để rồi
+    // lần nào cũng chạy (mỗi tin một call LLM) trong lúc model đang lỗi.
+    await this.cursor.set(scope, last.msgId);
+
+    // Transcript rộng hơn phần pending: fact cần ngữ cảnh trước đó mới tự đứng được.
+    const turns = toDistillTurns(entries.slice(-this.windowTurns));
+    if (turns.length === 0) return 0;
+    const facts = await this.distiller.distill(turns, signal);
     if (facts.length === 0) return 0;
-    return await this.store.write(scope, facts, sourceMsgId, signal);
+    return await this.store.write(scope, facts, last.msgId, signal);
   }
+}
+
+/**
+ * Phần history nằm SAU cursor. Cursor không còn trong cửa sổ (phòng nói nhiều, tin cũ đã trôi) →
+ * coi như cả cửa sổ là pending: thà chưng cất lại phần chồng lấn còn hơn bỏ mất một nhịp.
+ */
+function pendingSince(
+  entries: readonly HistoryEntry[],
+  cursorMsgId: string | undefined,
+): readonly HistoryEntry[] {
+  if (cursorMsgId === undefined) return entries;
+  const at = entries.findIndex((entry) => entry.msgId === cursorMsgId);
+  return at === -1 ? entries : entries.slice(at + 1);
 }
 
 /** History phòng → transcript cho distiller. Entry rỗng bị bỏ (không có gì để chưng cất). */

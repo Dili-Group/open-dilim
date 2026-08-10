@@ -14,8 +14,19 @@ const AGENT_UID = "AGENT";
 const SECRET = "sekret";
 const CHANNEL_CONFIG: ZaloChannelConfig = { agentUid: AGENT_UID, webhookSecret: SECRET };
 
+/** Vạch người nói giả — trả người nói trước rồi ghi đè, đúng semantics GETSET. */
+class FakeSpeakerTracker {
+  private readonly last = new Map<string, string>();
+  swap(channel: string, conversationId: string, senderId: string): Promise<string | undefined> {
+    const key = `${channel}:${conversationId}`;
+    const previous = this.last.get(key);
+    this.last.set(key, senderId);
+    return Promise.resolve(previous);
+  }
+}
+
 /** Deps mock ghi lại call. broker.publish có thể ép fail để test release + 5xx. */
-function makeDeps(opts: { failPublish?: boolean } = {}) {
+function makeDeps(opts: { failPublish?: boolean; speakers?: FakeSpeakerTracker } = {}) {
   const published: Envelope[] = [];
   const history: HistoryEntry[] = [];
   const seen = new Set<string>();
@@ -32,6 +43,7 @@ function makeDeps(opts: { failPublish?: boolean } = {}) {
         history.push(e);
       },
     },
+    speakers: opts.speakers,
     dedupe: {
       async firstSee(channel, msgId) {
         const key = `${channel}:${msgId}`;
@@ -142,6 +154,55 @@ describe("gateway", () => {
     const gw = makeGateway(ctx.deps);
     await gw.handle(webhook(event({ senderName: "x".repeat(200) })));
     expect(ctx.history[0]?.senderName).toHaveLength(40);
+  });
+
+  test("cùng một người nói tiếp → KHÔNG đẩy envelope distill", async () => {
+    const local = makeDeps({ speakers: new FakeSpeakerTracker() });
+    const gw = makeGateway(local.deps);
+    await gw.handle(webhook(event({ msgId: "s1", uidFrom: "U1" })));
+    await gw.handle(webhook(event({ msgId: "s2", uidFrom: "U1" })));
+    expect(local.published).toHaveLength(0);
+  });
+
+  test("người KHÁC đáp lại → đẩy envelope distill (dù tin không nhắm agent)", async () => {
+    const local = makeDeps({ speakers: new FakeSpeakerTracker() });
+    const gw = makeGateway(local.deps);
+    await gw.handle(webhook(event({ msgId: "s1", uidFrom: "U1" })));
+    await gw.handle(webhook(event({ msgId: "s2", uidFrom: "U1" })));
+    await gw.handle(webhook(event({ msgId: "s3", uidFrom: "U2" })));
+
+    expect(local.published).toHaveLength(1);
+    expect(local.published[0]).toMatchObject({
+      source: "distill",
+      msgId: "distill:s3",
+      conversationId: "G1",
+      addressedToAgent: false,
+      text: "",
+    });
+    // Tin chatter vẫn KHÔNG vào queue agent: chỉ có đúng envelope distill.
+    expect(local.history).toHaveLength(3);
+  });
+
+  test("tin NHẮM agent → không đẩy distill (cuối lượt agent tự chưng cất)", async () => {
+    const local = makeDeps({ speakers: new FakeSpeakerTracker() });
+    const gw = makeGateway(local.deps);
+    await gw.handle(webhook(event({ msgId: "s1", uidFrom: "U1" })));
+    await gw.handle(
+      webhook(event({ msgId: "s2", uidFrom: "U2", mentions: [{ uid: AGENT_UID }] })),
+    );
+    expect(local.published.map((e) => e.source)).toEqual(["channel"]);
+  });
+
+  test("vạch người nói hỏng → tin vẫn xử lý bình thường (200, history đủ)", async () => {
+    const local = makeDeps({
+      speakers: {
+        swap: () => Promise.reject(new Error("redis chết")),
+      } as unknown as FakeSpeakerTracker,
+    });
+    const gw = makeGateway(local.deps);
+    const res = await gw.handle(webhook(event({ msgId: "s1", uidFrom: "U1" })));
+    expect(res.status).toBe(200);
+    expect(local.history).toHaveLength(1);
   });
 
   test("dedupe: cùng msgId 2 lần → publish 1 lần", async () => {

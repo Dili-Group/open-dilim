@@ -61,13 +61,15 @@ export const GROUP_ROLE_VALUES: readonly string[] = Object.values(GroupRole);
 // CHỦ SỞ HỮU fact có hai loại, và chúng nằm ở HAI KHÔNG GIAN ĐỊNH DANH KHÁC NHAU:
 //   owner_kind='customer' → owner_id = customer_id (từ group_map) — fact của PHÒNG đại lý
 //   owner_kind='user'     → owner_id = senderId    — fact của MỘT NGƯỜI, chat 1-1
+//   owner_kind='room'     → owner_id = conversationId — fact của NHÓM CHƯA bind (chưa biết của
+//                            đại lý nào, vẫn thu thập đặc trưng + vấn đề của nhóm)
 // Thiếu owner_kind thì một customer_id trùng chuỗi với một senderId sẽ chung phân vùng.
 // ─────────────────────────────────────────────────────────────────────────────
 export const MEMORY = {
   table: "memory",
   col: {
     id: "id",
-    ownerKind: "owner_kind",    // customer (phòng đại lý) | user (chat 1-1)
+    ownerKind: "owner_kind",    // customer (phòng đại lý) | user (chat 1-1) | room (nhóm chưa bind)
     ownerId: "owner_id",        // customer_id từ group_map, HOẶC senderId khi kind=user
     channel: "channel",         // zalo | fb | ... (conversation_id chỉ unique trong kênh)
     conversationId: "conversation_id", // phòng chat sở hữu fact này
