@@ -62,7 +62,7 @@ export function buildImageReadTool(ctx: ToolContext): Tool {
       },
       required: ["url"],
     },
-    announce: "Đang mở ảnh xem, chờ chút nhé ><",
+    announce: "Đang mở ảnh xem, chờ chút nhé!",
     run: (input: unknown, signal?: AbortSignal): Promise<ToolResult> => run(ctx, input, signal),
   };
 }
