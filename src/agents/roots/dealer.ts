@@ -9,6 +9,7 @@ import {
   DEALER_TOOLS,
   ORDER_TOOLS,
   POSCAKE_TOOLS,
+  VISION_TOOLS,
   WORKFLOW_LIST_TOOLS,
   WORKFLOW_REPLY_TOOLS,
 } from "../../tools/index.ts";
@@ -30,6 +31,9 @@ export const dealerProfile: RootAgentProfile = {
   //
   // POSCAKE_TOOLS cũng ghi, nhưng ghi thứ CỦA ĐẠI LÝ (Shop ID + API Key PosCake của họ) nên đại lý
   // tự gõ được — đi liền sau khi agent hướng dẫn lấy key (skill `huong-dan`, reference poscake.md).
+  //
+  // VISION_TOOLS vì đại lý hay gửi ẢNH thay vì gõ: phiếu chuyển khoản, ảnh màn hình PosCake báo
+  // lỗi, ảnh đơn in ra. Đọc lười — chỉ mở ảnh khi nội dung ảnh cần cho việc đang hỏi.
   tools: [
     ...COMMON_TOOLS,
     ...ORDER_TOOLS,
@@ -37,6 +41,7 @@ export const dealerProfile: RootAgentProfile = {
     ...DEALER_TIER_TOOLS,
     ...DAILY_TOOLS,
     ...POSCAKE_TOOLS,
+    ...VISION_TOOLS,
     ...WORKFLOW_REPLY_TOOLS,
     ...WORKFLOW_LIST_TOOLS,
   ],

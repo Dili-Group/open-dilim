@@ -17,6 +17,7 @@ import {
 } from "./impl/dealer/discount.ts";
 import { buildDailyDetailTool, buildDailyReportTool } from "./impl/dealer/daily.ts";
 import { buildPoscakeRegisterTool } from "./impl/dealer/poscake.ts";
+import { buildImageReadTool } from "./impl/vision/xem-anh.ts";
 import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
 import { buildWorkflowAnswerTool } from "./impl/workflow/answer.ts";
 import { buildWorkflowListTool } from "./impl/workflow/list.ts";
@@ -97,6 +98,17 @@ export const DAILY_TOOLS: readonly ToolFactory[] = [
  */
 export const POSCAKE_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildPoscakeRegisterTool(ctx),
+];
+
+/**
+ * Tool ĐỌC ẢNH đính kèm. Khai cho agent nào có người gửi ảnh vào (đại lý gửi phiếu chuyển khoản,
+ * ảnh màn hình lỗi PosCake) — không phải agent nào cũng nhận ảnh.
+ *
+ * Không có đường ghi, nhưng là tool DUY NHẤT gọi ra ngoài theo link do người dùng đưa → hàng rào
+ * (allowlist host CDN, trần dung lượng, chặn redirect) nằm trong cổng `vision`, không ở tool.
+ */
+export const VISION_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildImageReadTool(ctx),
 ];
 
 /**

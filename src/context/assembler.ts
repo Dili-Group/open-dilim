@@ -154,9 +154,21 @@ function toMessages(
     const body = entry.text.replaceAll(open, "").replaceAll(close, "");
     return {
       role: "user" as const,
-      content: [{ type: "text" as const, text: `${prefix}: ${open}${body}${close}` }],
+      content: [
+        { type: "text" as const, text: `${prefix}: ${open}${body}${close}${imageNote(entry)}` },
+      ],
     };
   });
+}
+
+/**
+ * Ghi chú ảnh đính kèm, đứng NGOÀI cặp thẻ dữ liệu: link do CHANNEL cấp, không phải chữ người gõ.
+ * Chỉ là con trỏ — nội dung ảnh chưa ai đọc; model muốn biết trong ảnh có gì thì gọi `xem_anh` với
+ * đúng url này. Ingest đã loại url chứa ký tự bẻ được ô (adapters/zalo.ts), nên nối thẳng an toàn.
+ */
+function imageNote(entry: HistoryEntry): string {
+  if (entry.imageUrl === undefined) return "";
+  return ` [ảnh đính kèm, chưa đọc nội dung — url: ${entry.imageUrl}]`;
 }
 
 /** Thẻ ranh giới của lượt: hex ngẫu nhiên, đủ ngắn để không tốn token, đủ dài để không đoán ra. */

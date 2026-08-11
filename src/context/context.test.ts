@@ -298,6 +298,26 @@ describe("assembleTurnContext — messages", () => {
     expect(text).toMatch(turn("la", "?", "?", "ai đó"));
   });
 
+  test("tin kèm ảnh → ghi chú url NGOÀI vùng dữ liệu, chỉ là con trỏ (chưa đọc nội dung)", async () => {
+    const url = "https://cdn.dili.vn/a/phieu.jpg";
+    const ctx = await assembleTurnContext(sources(), {
+      history: [entry({ text: "anh xem giúp", imageUrl: url })],
+    });
+    const text = (ctx.messages[0]?.content[0] as { text: string }).text;
+
+    expect(text).toContain(`url: ${url}`);
+    expect(text).toContain("chưa đọc nội dung");
+    // Ghi chú do hệ thống gắn → phải nằm SAU thẻ đóng, không lẫn vào chữ người dùng gõ.
+    const closeTag = text.lastIndexOf("</");
+    expect(text.indexOf(url)).toBeGreaterThan(closeTag);
+  });
+
+  test("tin không kèm ảnh → không có ghi chú ảnh nào", async () => {
+    const ctx = await assembleTurnContext(sources(), { history: [entry({ text: "chỉ chữ" })] });
+    const text = (ctx.messages[0]?.content[0] as { text: string }).text;
+    expect(text).not.toContain("ảnh đính kèm");
+  });
+
   test("lượt agent → assistant, KHÔNG stamp thời gian (tránh nhại vào câu trả lời)", async () => {
     const ctx = await assembleTurnContext(sources(), {
       history: [entry({ role: "agent", text: "dạ em trả lời" })],

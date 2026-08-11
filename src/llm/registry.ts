@@ -2,9 +2,10 @@
 // Gemini chưa xây → throw rõ ràng (seam), không im lặng trả sai provider.
 
 import { CONFIG, type Config } from "../config.ts";
-import type { Embedder, LLMProvider } from "./types.ts";
+import type { Embedder, LLMProvider, VisionReader } from "./types.ts";
 import { AnthropicProvider } from "./providers/anthropic.ts";
 import { GeminiEmbedder } from "./providers/gemini-embedder.ts";
+import { GeminiVision } from "./providers/gemini-vision.ts";
 
 export function buildLlmProvider(config: Config = CONFIG): LLMProvider {
   return buildProviderForModel(config, config.model);
@@ -41,4 +42,15 @@ export function buildEmbedder(config: Config = CONFIG): Embedder {
     throw new Error("Memory dài hạn cần GEMINI_API_KEY (embedder gemini-embedding-001).");
   }
   return new GeminiEmbedder(config.geminiApiKey);
+}
+
+/**
+ * Con đọc ảnh — cũng LUÔN Gemini, độc lập PROVIDER của agent. Cần GEMINI_API_KEY; thiếu thì
+ * bootstrap không dựng (tool `xem_anh` không được khai), chứ không chặn boot.
+ */
+export function buildVisionReader(config: Config = CONFIG): VisionReader {
+  if (config.geminiApiKey === undefined) {
+    throw new Error(`Đọc ảnh cần GEMINI_API_KEY (vision ${config.vision.model}).`);
+  }
+  return new GeminiVision(config.geminiApiKey, config.vision.model);
 }

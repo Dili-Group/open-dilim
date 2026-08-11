@@ -3,6 +3,7 @@
 // Shape thật (webhook Zalo chat): { msgId, uidFrom, idTo, msgType, content, mentions[], ts, ... }.
 //   uidFrom = người gửi.  idTo = đích (group id, hoặc = agentUid khi direct).
 //   content = string (text/command) hoặc object (chat.photo → chưa lấy text).
+//   imageUrl / fileUrl = link CDN của ảnh đính kèm (tối đa MỘT file mỗi tin).
 //   mentions[] = [{ uid, pos, len, type }] → chỉ cần uid.
 // isGroup = idTo !== agentUid: group gửi tới id nhóm; direct gửi thẳng tới agent.
 
@@ -66,12 +67,14 @@ export class ZaloIngestor implements Ingestor {
     const conversationId = isGroup ? idTo : senderId;
     const text = readText(event.content);
     const mentions = readMentions(event.mentions);
+    const imageUrl = readImageUrl(event);
 
     return {
       channel: this.channel,
       msgId,
       conversationId,
       senderId,
+      ...(imageUrl === undefined ? {} : { imageUrl }),
       // senderName = tên hiển thị Zalo. Không phải event nào cũng có → thiếu thì bỏ hẳn field.
       ...(readName(event.senderName) ?? {}),
       isGroup,
@@ -96,6 +99,54 @@ function readName(raw: unknown): { senderName: string } | undefined {
 /** content = string (text/command) → lấy thẳng; object (photo/...) → chưa trích text, "". */
 function readText(content: unknown): string {
   return typeof content === "string" ? content : "";
+}
+
+/**
+ * Đuôi file coi là ẢNH khi link đến từ `fileUrl` (field chung cho mọi loại đính kèm).
+ * Đúng bộ định dạng con đọc ảnh nhận được (vision/image-vision.ts) — nhận rộng hơn ở đây là hứa
+ * với model một thứ mà tới lúc tải mới báo không đọc được.
+ */
+const IMAGE_EXTENSION = /\.(jpe?g|png|webp|heic|heif)$/i;
+
+/** Trần độ dài URL nhận vào — link CDN thật ngắn hơn nhiều; dài hơn là rác/nhồi prompt. */
+const MAX_IMAGE_URL_CHARS = 2048;
+
+/**
+ * Ký tự URL hợp lệ KHÔNG cần tới (đã encode được), nhưng lại bẻ được prompt: link ảnh in ra NGOÀI
+ * cặp thẻ dữ liệu của lượt (context/assembler.ts) nên một dấu `]` hay `<` trong tên file là đóng
+ * được ô hệ thống rồi viết tiếp như hệ thống. Chặn tại cửa vào thay vì cắt gọt lúc render.
+ */
+const UNSAFE_URL_CHARS = /[<>[\]\s"'`\\]/;
+
+/**
+ * Ảnh đính kèm: `imageUrl` là ảnh sẵn; `fileUrl` là field chung mọi loại file nên CHỈ nhận khi đuôi
+ * là ảnh — v1 chỉ đọc được ảnh, nhận PDF vào đây là hứa suông với model.
+ *
+ * Chỉ nhận http(s) tuyệt đối: `file://`, `data:` và đường dẫn tương đối không phải link CDN. Host
+ * KHÔNG duyệt ở đây — allowlist nằm ở lúc tải (vision/image-vision.ts), chỗ duy nhất thật sự gọi ra
+ * ngoài; chặn hai nơi bằng hai danh sách là sớm muộn lệch nhau.
+ */
+function readImageUrl(event: Record<string, unknown>): string | undefined {
+  const direct = readHttpUrl(event.imageUrl);
+  if (direct !== undefined) return direct;
+
+  const file = readHttpUrl(event.fileUrl);
+  if (file === undefined) return undefined;
+  return IMAGE_EXTENSION.test(new URL(file).pathname) ? file : undefined;
+}
+
+function readHttpUrl(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const value = raw.trim();
+  if (value === "" || value.length > MAX_IMAGE_URL_CHARS) return undefined;
+  if (UNSAFE_URL_CHARS.test(value)) return undefined;
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return undefined;
+  }
+  return parsed.protocol === "https:" || parsed.protocol === "http:" ? value : undefined;
 }
 
 /** mentions[] → chỉ giữ uid (entity), bỏ pos/len/type. Bỏ entry thiếu uid. */

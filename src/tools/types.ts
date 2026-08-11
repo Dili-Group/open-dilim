@@ -14,6 +14,7 @@ import type {
   PoscakePort,
 } from "../operational/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
+import type { VisionPort } from "../vision/types.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
 import type { RoomRef } from "../workflows/types.ts";
 
@@ -81,6 +82,13 @@ export interface ToolContext {
    * undefined = chưa nối → tool trả lỗi nghiệp vụ.
    */
   readonly poscake?: PoscakePort;
+  /**
+   * Cổng ĐỌC ẢNH đính kèm (link CDN → chữ). Cổng duy nhất gọi ra một URL do người ngoài đưa vào —
+   * hàng rào (allowlist host, trần dung lượng) nằm trong cổng, không ở tool.
+   * undefined = chưa nối (thiếu GEMINI_API_KEY hoặc chưa khai CDN_ALLOWED_HOSTS) → tool trả lỗi
+   * nghiệp vụ, không throw.
+   */
+  readonly vision?: VisionPort;
   /**
    * NHÓM của lượt này (kênh + id nhóm). Việc treo liên nhóm neo vào đây: nhóm hỏi là nhóm
    * này, và nhóm được hỏi cũng phải khớp nhóm này thì mới cho trả lời.

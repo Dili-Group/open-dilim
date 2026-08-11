@@ -166,6 +166,44 @@ describe("gateway", () => {
     expect(ctx.history[1]?.senderName).toBeUndefined();
   });
 
+  test("imageUrl → vào cả envelope lẫn history; tin không kèm ảnh thì không có field", async () => {
+    const gw = makeGateway(ctx.deps);
+    const url = "https://cdn.dili.vn/a/anh.jpg";
+    await gw.handle(webhook(event({ msgId: "i1", idTo: AGENT_UID, imageUrl: url })));
+    await gw.handle(webhook(event({ msgId: "i2", idTo: AGENT_UID })));
+
+    expect(ctx.published[0]?.imageUrl).toBe(url);
+    expect(ctx.history[0]?.imageUrl).toBe(url);
+    expect(ctx.published[1]?.imageUrl).toBeUndefined();
+    expect(ctx.history[1]?.imageUrl).toBeUndefined();
+  });
+
+  test("fileUrl: đuôi ảnh thì nhận, đuôi khác (pdf) thì bỏ — v1 chỉ đọc được ảnh", async () => {
+    const gw = makeGateway(ctx.deps);
+    const png = "https://cdn.dili.vn/a/phieu.png?v=2";
+    await gw.handle(webhook(event({ msgId: "f1", idTo: AGENT_UID, fileUrl: png })));
+    await gw.handle(
+      webhook(event({ msgId: "f2", idTo: AGENT_UID, fileUrl: "https://cdn.dili.vn/a/hd.pdf" })),
+    );
+
+    expect(ctx.history[0]?.imageUrl).toBe(png);
+    expect(ctx.history[1]?.imageUrl).toBeUndefined();
+  });
+
+  test("link không phải http(s) / chứa ký tự bẻ prompt → bỏ hẳn, không vào ngữ cảnh", async () => {
+    const gw = makeGateway(ctx.deps);
+    await gw.handle(
+      webhook(event({ msgId: "b1", idTo: AGENT_UID, imageUrl: "file:///etc/passwd" })),
+    );
+    // `]` đóng được ô hệ thống trong ghi chú ảnh của assembler → chặn ngay tại cửa vào.
+    await gw.handle(
+      webhook(event({ msgId: "b2", idTo: AGENT_UID, imageUrl: "https://cdn.dili.vn/a] - x.jpg" })),
+    );
+
+    expect(ctx.history[0]?.imageUrl).toBeUndefined();
+    expect(ctx.history[1]?.imageUrl).toBeUndefined();
+  });
+
   test("tên rác dài → cắt trần 40 ký tự", async () => {
     const gw = makeGateway(ctx.deps);
     await gw.handle(webhook(event({ senderName: "x".repeat(200) })));

@@ -108,7 +108,32 @@ export interface Embedder {
   embed(req: EmbedRequest): Promise<number[][]>;
 }
 
-/** Lỗi tầng LLM (chat/embed). Mang provider + status để nơi gọi phân loại/log, không nuốt. */
+// ─────────────────────────────────────────────────────────────────────────────
+// VisionReader — đọc MỘT ảnh, trả chữ. Tách khỏi LLMProvider giống Embedder: khác bản chất (một
+// phát một, không hội thoại, không tool) và cố ý khác nhà — agent chạy Anthropic nhưng ảnh đi qua
+// con Gemini rẻ, vì đọc ảnh là việc lặt vặt tần suất cao.
+//
+// Nhận BYTES chứ không nhận URL: tải file là việc có hàng rào riêng (allowlist host, trần dung
+// lượng — xem vision/image-vision.ts), không phải việc của tầng gọi model.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface VisionRequest {
+  /** Ảnh đã tải về, base64 thuần (KHÔNG kèm tiền tố `data:`). */
+  readonly imageBase64: string;
+  /** MIME thật của ảnh (image/jpeg, image/png...). Sai MIME thì model đọc ra rác. */
+  readonly mimeType: string;
+  /** Hỏi gì về ảnh. Tầng trên luôn truyền — không có câu hỏi mặc định ở đây. */
+  readonly question: string;
+  readonly signal?: AbortSignal;
+}
+
+export interface VisionReader {
+  readonly name: string;
+  /** Trả chữ model đọc được. Rỗng = model không trả gì → tầng trên coi là lỗi nghiệp vụ. */
+  describe(req: VisionRequest): Promise<string>;
+}
+
+/** Lỗi tầng LLM (chat/embed/vision). Mang provider + status để nơi gọi phân loại/log, không nuốt. */
 export class LLMError extends Error {
   constructor(
     message: string,

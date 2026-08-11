@@ -127,6 +127,16 @@ function positiveIntEnv(name: string, fallback: number): number {
   return parsed;
 }
 
+/** Env danh sách ngăn bằng dấu phẩy → mảng đã trim, bỏ phần rỗng. Thiếu env → mảng rỗng. */
+function csvEnv(name: string): readonly string[] {
+  const raw = optional(name);
+  if (raw === undefined) return [];
+  return raw
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter((item) => item !== "");
+}
+
 /** Env tỉ lệ 0..1 optional với fallback. Sai kiểu/ngoài khoảng → throw (fail fast). */
 function rateEnv(name: string, fallback: number): number {
   const raw = optional(name);
@@ -149,6 +159,8 @@ const DEFAULT_AGENT_MAX_ITERATIONS = 8;
 const DEFAULT_TURN_TIMEOUT_MS = 20_000;
 // Nhịp quét job cron. Lịch nhỏ nhất là phút → 30s đủ để không trễ quá một phút.
 const DEFAULT_SCHEDULER_TICK_MS = 30_000;
+// Model đọc ảnh đính kèm — con rẻ nhất còn hiểu được ảnh, gọi mỗi lần đại lý gửi ảnh.
+const DEFAULT_VISION_MODEL = "gemini-3.1-flash-lite";
 
 const provider = oneOf("PROVIDER", PROVIDERS, "anthropic");
 
@@ -196,6 +208,17 @@ export const CONFIG = {
   anthropicApiKey,
   anthropicBaseUrl,
   geminiApiKey,
+
+  // ĐỌC ẢNH đính kèm (tool `xem_anh`). Luôn Gemini, độc lập PROVIDER của agent — giống embedder:
+  // đọc ảnh là việc lặt vặt tần suất cao, chạy con rẻ.
+  //
+  // `allowedHosts` = danh sách host CDN được phép TẢI. Fail-closed: rỗng = không tải ảnh nào (link
+  // ảnh đến từ webhook, tải bừa là mở đường gọi thẳng vào mạng nội bộ). Khớp đúng host hoặc
+  // subdomain của nó — vd "cdn.dili.vn" khớp cả "img.cdn.dili.vn".
+  vision: {
+    model: optional("VISION_MODEL") ?? DEFAULT_VISION_MODEL,
+    allowedHosts: csvEnv("CDN_ALLOWED_HOSTS"),
+  },
 
   // Worker pool + agent loop
   workerCount: positiveIntEnv("WORKER_COUNT", DEFAULT_WORKER_COUNT),

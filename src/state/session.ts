@@ -43,7 +43,7 @@ export function parseHistoryEntry(json: string): HistoryEntry | null {
     return null;
   }
   if (!isRecord(raw)) return null;
-  const { conversationId, msgId, senderId, senderName, text, isGroup, ts, role } = raw;
+  const { conversationId, msgId, senderId, senderName, text, imageUrl, isGroup, ts, role } = raw;
   if (typeof conversationId !== "string" || conversationId === "") return null;
   if (typeof msgId !== "string" || typeof senderId !== "string" || typeof text !== "string") {
     return null;
@@ -54,7 +54,19 @@ export function parseHistoryEntry(json: string): HistoryEntry | null {
   const historyRole: HistoryRole = role === "agent" ? "agent" : "user";
   // Back-compat: entry ghi trước khi có senderName, hoặc channel không gửi tên → bỏ field.
   const name = typeof senderName === "string" && senderName !== "" ? { senderName } : {};
-  return { conversationId, msgId, senderId, ...name, text, isGroup, role: historyRole, ts };
+  // Back-compat: entry ghi trước khi có ảnh đính kèm, hoặc tin không kèm ảnh → bỏ field.
+  const image = typeof imageUrl === "string" && imageUrl !== "" ? { imageUrl } : {};
+  return {
+    conversationId,
+    msgId,
+    senderId,
+    ...name,
+    text,
+    ...image,
+    isGroup,
+    role: historyRole,
+    ts,
+  };
 }
 
 /** History phòng trên Redis. Ingest ghi (append), worker đọc (recent) — cùng 1 key. */

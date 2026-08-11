@@ -10,7 +10,8 @@ import { flashRegistry } from "../flash-command/index.ts";
 import { closeDb } from "../db/client.ts";
 import { closeRedis, commandOf, redis } from "../redis/client.ts";
 import { buildBroker } from "../broker/index.ts";
-import { buildLlmProvider } from "../llm/index.ts";
+import { buildLlmProvider, buildVisionReader } from "../llm/index.ts";
+import { CdnImageVision, type VisionPort } from "../vision/index.ts";
 import { buildAgentRegistry, type AgentRegistry } from "../agents/index.ts";
 import {
   BroadcastRouter,
@@ -96,6 +97,18 @@ export async function bootstrap(): Promise<Services> {
     memory = buildMemoryStore();
   }
 
+  // Đọc ảnh đính kèm: cần CẢ key Gemini LẪN allowlist host CDN. Thiếu thứ nào cũng không dựng cổng
+  // — tool `xem_anh` tự báo "chưa sẵn sàng", hơn là dựng một cổng từ chối mọi link rồi để model
+  // tưởng ảnh nào cũng hỏng. Allowlist rỗng = fail-closed, không phải "cho phép tất".
+  let vision: VisionPort | undefined;
+  if (config.geminiApiKey === undefined) {
+    console.warn("[bootstrap] thiếu GEMINI_API_KEY → tắt đọc ảnh đính kèm (tool xem_anh).");
+  } else if (config.vision.allowedHosts.length === 0) {
+    console.warn("[bootstrap] thiếu CDN_ALLOWED_HOSTS → tắt đọc ảnh đính kèm (không tải link lạ).");
+  } else {
+    vision = new CdnImageVision(buildVisionReader(config), config.vision.allowedHosts);
+  }
+
   // skills đi thẳng vào agent: catalog vào system prompt + backing cho tool use_skill.
   // memory = cổng CHỈ-ĐỌC; scope (phòng nào) do worker cấp từng lượt qua groupCustomer.
   // orders = API vận hành `/agent/*`; đại lý của từng lượt đi lên header, client không giữ state.
@@ -177,6 +190,7 @@ export async function bootstrap(): Promise<Services> {
     discount,
     daily,
     poscake,
+    vision,
     workflow,
     announce,
   });

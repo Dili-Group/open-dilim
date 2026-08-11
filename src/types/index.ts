@@ -34,6 +34,15 @@ export interface Envelope {
   readonly isGroup: boolean;
   readonly addressedToAgent: boolean; // kết quả trigger gate (§5 bước 2)
   readonly text: string;
+  /**
+   * ẢNH đính kèm của tin này — link CDN do channel cấp. MỘT tin chỉ mang tối đa MỘT ảnh (webhook
+   * gửi vậy), nên là field đơn, không phải mảng. Nội dung ảnh KHÔNG được đọc ở ingest: agent tự
+   * gọi tool `xem_anh` khi cần (lazy), nên đây chỉ là con trỏ.
+   *
+   * URL đến TỪ WEBHOOK = untrusted: đã chặn ở adapter cho http(s), nhưng host chỉ được duyệt lúc
+   * tải (allowlist CDN, xem vision/image-vision.ts). undefined = tin không kèm ảnh.
+   */
+  readonly imageUrl?: string;
   readonly mentions: readonly Mention[];
   readonly ts: number;             // event time (ms epoch)
 }
@@ -58,6 +67,8 @@ export interface HistoryEntry {
   /** Tên hiển thị lúc gửi (xem `Envelope.senderName`). Lưu theo tin: người ta đổi tên được. */
   readonly senderName?: string;
   readonly text: string;
+  /** Ảnh đính kèm của tin (xem `Envelope.imageUrl`). Giữ trong history để lượt sau còn gọi lại được. */
+  readonly imageUrl?: string;
   readonly isGroup: boolean;
   /** Người dùng gõ (ingest) hay agent trả (flash reply / lượt agent). Thiếu ở entry cũ → coi là user. */
   readonly role: HistoryRole;

@@ -1,8 +1,14 @@
 // index.ts — điểm vào tầng llm. Bootstrap gọi buildLlmProvider() 1 lần, share cho worker.
 
-export { buildLlmProvider, buildMemoryLlmProvider, buildEmbedder } from "./registry.ts";
+export {
+  buildLlmProvider,
+  buildMemoryLlmProvider,
+  buildEmbedder,
+  buildVisionReader,
+} from "./registry.ts";
 export { AnthropicProvider } from "./providers/anthropic.ts";
 export { GeminiEmbedder } from "./providers/gemini-embedder.ts";
+export { GeminiVision } from "./providers/gemini-vision.ts";
 export { LLMError, singleSystem } from "./types.ts";
 export type {
   LLMProvider,
@@ -20,4 +26,6 @@ export type {
   Embedder,
   EmbedRequest,
   EmbedTaskType,
+  VisionReader,
+  VisionRequest,
 } from "./types.ts";

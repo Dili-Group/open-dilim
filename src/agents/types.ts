@@ -20,6 +20,7 @@ import type { AgentResult, HistoryEntry } from "../types/index.ts";
 import type { DistillSpec, MemoryRecall, MemoryScope } from "../state/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 import type { ToolFactory } from "../tools/types.ts";
+import type { VisionPort } from "../vision/types.ts";
 
 /**
  * Whitelist root agent. Router (router.ts) chỉ được trả giá trị trong đây — chuỗi tự do lọt vào
@@ -59,6 +60,8 @@ export interface AgentDeps {
   readonly daily?: DailyPort;
   /** Cổng nạp tài khoản PosCake của đại lý (Shop ID + API Key). undefined = chưa nối → tool trả lỗi. */
   readonly poscake?: PoscakePort;
+  /** Cổng đọc ảnh đính kèm cho tool `xem_anh`. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
+  readonly vision?: VisionPort;
   /** Cổng việc-chờ-trả-lời (§6) cho tool mở/đóng việc treo. undefined = chưa nối → tool trả lỗi. */
   readonly workflow?: WorkflowPort;
   /**
