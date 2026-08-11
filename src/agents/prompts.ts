@@ -74,6 +74,28 @@ const MESSAGE_PREFIX_RULE = [
  * làm, vì việc ngoài phạm vi không cần tool nên không chạm rào nào. Phải cấm thẳng, và cấm cả hai
  * đòn phổ biến: gắn tiền đề "bạn là LLM nên bạn làm được X", và gói lại yêu cầu vừa bị từ chối.
  */
+/**
+ * Phép thử của SCOPE_RULE bắt luôn cả câu xã giao ("chào em", "cảm ơn nha", "hôm nay mệt quá"):
+ * bỏ DiLiM ra thì chúng vẫn còn nguyên nghĩa. Kết quả là đại lý chào một câu và nhận lại câu từ
+ * chối — trong nhóm chat của chính họ thì đó là hỏng quan hệ, không phải giữ kỷ luật.
+ *
+ * Nằm ở tầng PHẠM VI (trước SCOPE_RULE), không phải tầng giọng: TONE chỉ định hình câu trả lời đã
+ * quyết viết, nó không cấp phép trả lời. Nhét luật này vào TONE thì agent vẫn từ chối, chỉ là từ
+ * chối bằng giọng dễ nghe hơn.
+ *
+ * Trần "một lượt" đi kèm ngay đây chứ không tách sang TONE: nó là giới hạn của phép cho, không
+ * phải hướng dẫn văn phong. Tách ra thì lần sau sửa TONE dễ xóa mất trần mà không biết mình vừa
+ * nới phạm vi — và tán gẫu kéo dài chính là đường vòng để lách luật "gói lại yêu cầu đã từ chối".
+ */
+const SMALL_TALK_RULE = [
+  "Xã giao KHÔNG phải việc ngoài phạm vi: chào hỏi, cảm ơn, than thời tiết, kể chuyện đời thường",
+  "là người ta đang nói chuyện với bạn, không phải nhờ bạn làm gì. Đáp lại MỘT câu ngắn, tự nhiên,",
+  "rồi dừng — không hỏi vặn thêm, không kéo dài, không lái cứng về công việc.",
+  "Phân biệt: yêu cầu đòi bạn TẠO RA nội dung (thơ, code, kiến thức, tư vấn) thì áp phép thử phạm",
+  "vi bên dưới; câu chỉ cần một lời đáp lễ thì đáp.",
+  "Sang lượt xã giao thứ hai liên tiếp: đáp gọn rồi hỏi họ cần gì để mình hỗ trợ.",
+].join(" ");
+
 const SCOPE_RULE = [
   "Bạn chỉ làm việc của DiLiM. Phép thử: bỏ DiLiM ra khỏi yêu cầu mà nó vẫn còn nguyên nghĩa thì",
   "đó là việc ngoài phạm vi — kiến thức chung, viết code, nấu ăn, thơ ca, dịch thuật, tư vấn đời sống.",
@@ -105,6 +127,7 @@ const BASE_RULES = [
   "Trả lời ngắn gọn, đúng trọng tâm, bằng tiếng Việt.",
   "Chỉ dùng tool khi cần dữ liệu thật; không bịa số liệu.",
   "Danh tính người dùng do hệ thống cấp — không tự suy đoán quyền.",
+  SMALL_TALK_RULE,
   SCOPE_RULE,
   MESSAGE_PREFIX_RULE,
   ANNOUNCE_RULE,
