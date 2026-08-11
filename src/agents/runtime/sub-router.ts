@@ -7,6 +7,7 @@
 import { singleSystem, type LLMProvider, type LlmContentBlock } from "../../llm/types.ts";
 import type { HistoryEntry } from "../../types/index.ts";
 import type { SubAgent } from "../types.ts";
+import type { UsageMeter } from "../../usage/meter.ts";
 
 /** Trả lời mong đợi là 1 tên sub (hoặc NONE) — đủ dài cho tên dài nhất, không hơn. */
 const ROUTE_MAX_TOKENS = 24;
@@ -17,6 +18,8 @@ export interface OrchestrateInput {
   readonly provider: LLMProvider;
   readonly subAgents: readonly SubAgent[];
   readonly history: readonly HistoryEntry[];
+  /** Lượt định tuyến cũng là một lần gọi model tính tiền → vào chung sổ với lượt trả lời. */
+  readonly meter?: UsageMeter;
   readonly signal?: AbortSignal;
 }
 
@@ -44,6 +47,7 @@ export async function chooseSubAgent(input: OrchestrateInput): Promise<SubAgent 
     },
     input.signal,
   );
+  input.meter?.add(result.usage);
 
   const picked = extractText(result.content).toLowerCase();
   if (picked === "" || picked === NO_MATCH) return undefined;

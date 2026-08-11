@@ -21,6 +21,9 @@ import type { DistillSpec, MemoryRecall, MemoryScope } from "../state/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 import type { ToolFactory } from "../tools/types.ts";
 import type { VisionPort } from "../vision/types.ts";
+// Nhập THẲNG từ meter.ts, không qua usage/index.ts: index kéo theo budget.ts, mà budget.ts đọc
+// AgentType từ chính file này → vòng lặp import.
+import type { UsageMeter } from "../usage/meter.ts";
 
 /**
  * Whitelist root agent. Router (router.ts) chỉ được trả giá trị trong đây — chuỗi tự do lọt vào
@@ -107,6 +110,14 @@ export interface AgentRunInput {
    * Tách khỏi `onStep`: onStep là tín hiệu typing cosmetic, đây là TIN NHẮN thật gửi vào phòng.
    */
   readonly onAnnounce?: (text: string) => Promise<void>;
+  /**
+   * Bộ cộng token của lượt — WORKER cấp, agent chỉ chuyền xuống loop/sub-router rồi worker đọc
+   * lại sau lượt. Là object khả biến (không phải giá trị trả về) để không phải đổi kiểu trả của
+   * `run` chỉ vì mang thêm một con số.
+   *
+   * undefined = không đo (chưa nối tầng usage) → lượt vẫn chạy bình thường.
+   */
+  readonly meter?: UsageMeter;
   readonly signal?: AbortSignal;
 }
 

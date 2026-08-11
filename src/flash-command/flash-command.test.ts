@@ -3,6 +3,8 @@
 import { describe, expect, test } from "bun:test";
 import { flashRegistry } from "./index.ts";
 import { parseCommand, type DispatchInput } from "./registry.ts";
+import { vndToPicoUsd } from "../usage/pricing.ts";
+import type { UsageTracking } from "../usage/types.ts";
 import {
   ActorRole,
   type Identity,
@@ -119,6 +121,8 @@ function input(over: Partial<DispatchInput>): DispatchInput {
     identity: nhanVien,
     channel: CHANNEL,
     groupId: GROUP,
+    conversationId: GROUP,
+    agentType: "dealer",
     mentions: [],
     repo: makeRepo().repo,
     ops,
@@ -384,5 +388,109 @@ describe("/lich — CRUD việc theo giờ", () => {
       (await flashRegistry.dispatch("/lich 17:00 abc", input({ jobs, groupId: undefined })))?.ok,
     ).toBe(false);
     expect(created).toHaveLength(0);
+  });
+});
+
+// ─── /muc-sudung ────────────────────────────────────────────────────────────
+
+describe("/muc-sudung", () => {
+  const RATE = 26_000;
+
+  /** Sổ chi phí giả trả sẵn số VND đã tiêu của phòng. */
+  function usageAt(spentVnd: number, enforce = true): UsageTracking {
+    return {
+      usdVndRate: RATE,
+      enforce,
+      port: {
+        spentTodayPicoUsd: () => Promise.resolve(vndToPicoUsd(spentVnd, RATE)),
+        record: () => Promise.resolve(),
+      },
+    };
+  }
+
+  test("chưa nối tầng usage → báo rõ, KHÔNG bịa số", async () => {
+    const result = await flashRegistry.dispatch("/muc-sudung", input({}));
+    expect(result?.ok).toBe(false);
+    expect(result?.reply).toContain("Chưa bật đo");
+  });
+
+  test("dùng 3.700đ trên trần 10.000đ → 37%", async () => {
+    const result = await flashRegistry.dispatch(
+      "/muc-sudung",
+      input({ usage: usageAt(3_700), agentType: "dealer" }),
+    );
+    expect(result?.ok).toBe(true);
+    expect(result?.reply).toContain("37%");
+  });
+
+  test("nhân viên thấy số tiền", async () => {
+    const result = await flashRegistry.dispatch(
+      "/muc-sudung",
+      input({ usage: usageAt(3_700), agentType: "dealer" }),
+    );
+    expect(result?.reply).toContain("3.700đ / 10.000đ");
+  });
+
+  test("đại lý/khách CHỈ thấy phần trăm, không thấy chi phí vận hành", async () => {
+    const result = await flashRegistry.dispatch(
+      "/muc-sudung",
+      input({ usage: usageAt(3_700), agentType: "dealer", identity: guest }),
+    );
+    expect(result?.reply).toContain("37%");
+    expect(result?.reply).not.toContain("đ / ");
+  });
+
+  test("agent khai không giới hạn → nói thẳng, không bịa 0%", async () => {
+    const result = await flashRegistry.dispatch(
+      "/muc-sudung",
+      input({ usage: usageAt(50_000), agentType: "boss" }),
+    );
+    expect(result?.ok).toBe(true);
+    expect(result?.reply).toContain("không giới hạn");
+    expect(result?.reply).not.toContain("%");
+  });
+
+  test("vượt trần → hiện >100%, KHÔNG kẹp về 100", async () => {
+    const result = await flashRegistry.dispatch(
+      "/muc-sudung",
+      input({ usage: usageAt(25_000), agentType: "dealer" }),
+    );
+    expect(result?.reply).toContain("250%");
+  });
+
+  test("hết hạn mức + đang chặn → báo agent tạm dừng", async () => {
+    const result = await flashRegistry.dispatch(
+      "/muc-sudung",
+      input({ usage: usageAt(12_000, true), agentType: "dealer" }),
+    );
+    expect(result?.reply).toContain("tạm dừng");
+  });
+
+  test("vượt trần nhưng shadow mode → nói rõ là chưa chặn", async () => {
+    const result = await flashRegistry.dispatch(
+      "/muc-sudung",
+      input({ usage: usageAt(12_000, false), agentType: "dealer" }),
+    );
+    expect(result?.reply).toContain("chưa chặn");
+  });
+
+  test("tra ĐÚNG phòng của lượt, không suy từ groupId", async () => {
+    const asked: string[] = [];
+    const usage: UsageTracking = {
+      usdVndRate: RATE,
+      enforce: true,
+      port: {
+        spentTodayPicoUsd: (conversationId) => {
+          asked.push(conversationId);
+          return Promise.resolve(0);
+        },
+        record: () => Promise.resolve(),
+      },
+    };
+    await flashRegistry.dispatch(
+      "/muc-sudung",
+      input({ usage, agentType: "dealer", groupId: undefined, conversationId: "c-direct" }),
+    );
+    expect(asked).toEqual(["c-direct"]);
   });
 });

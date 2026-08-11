@@ -2,7 +2,7 @@
 // Provider/identity/broadcaster đều giả — không network, không DB, không config runtime.
 
 import { describe, expect, test } from "bun:test";
-import type { ChatRequest, ChatResult, LLMProvider } from "../llm/types.ts";
+import { EMPTY_USAGE, type ChatRequest, type ChatResult, type LLMProvider } from "../llm/types.ts";
 import type { Identity, IdentityRepo, JobAdmin, OpsPort } from "../flash-command/types.ts";
 import { FlashRegistry, flashRegistry, ok } from "../flash-command/index.ts";
 import type { Envelope, HistoryEntry } from "../types/index.ts";
@@ -26,7 +26,9 @@ import { ConversationLock } from "./lock.ts";
 import { handleEnvelope } from "./handler.ts";
 import { isSuperseded } from "./burst.ts";
 import { startWorkers } from "./pool.ts";
-import type { LatestTurnReader, WorkerContext } from "./types.ts";
+import type { LatestTurnReader, UsageTracking, WorkerContext } from "./types.ts";
+import { vndToPicoUsd } from "../usage/pricing.ts";
+import type { UsageEntry } from "../usage/types.ts";
 
 const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -79,15 +81,18 @@ function makeEnvelope(over: Partial<Envelope> = {}): Envelope {
   };
 }
 
+/** Kịch bản test không quan tâm token — provider tự điền usage rỗng. */
+type ScriptedTurn = Omit<ChatResult, "usage">;
+
 class ScriptedProvider implements LLMProvider {
   readonly name = "scripted";
   private index = 0;
-  constructor(private readonly script: readonly ChatResult[]) {}
+  constructor(private readonly script: readonly ScriptedTurn[]) {}
   chat(_req: ChatRequest): Promise<ChatResult> {
     const result = this.script[this.index];
     this.index += 1;
     if (result === undefined) throw new Error("hết kịch bản");
-    return Promise.resolve(result);
+    return Promise.resolve({ ...result, usage: EMPTY_USAGE });
   }
 }
 
@@ -106,6 +111,7 @@ class HangsOnceProvider implements LLMProvider {
       return Promise.resolve({
         stopReason: "end_turn",
         content: [{ type: "text", text: LATE_REPLY }],
+        usage: EMPTY_USAGE,
       });
     }
     return new Promise((_resolve, reject) => {
@@ -397,7 +403,7 @@ describe("startWorkers — gom tin gửi liên tiếp", () => {
     turns.mark("zalo", "c1", 100);
     turns.mark("zalo", "c1", 200);
 
-    const reply: ChatResult = { stopReason: "end_turn", content: [{ type: "text", text: "còn 12" }] };
+    const reply: ScriptedTurn = { stopReason: "end_turn", content: [{ type: "text", text: "còn 12" }] };
     // Hai bản trong kịch bản: nếu lượt của m1 cũng chạy thì sẽ thấy 2 tin gửi ra, không phải lỗi
     // "hết kịch bản" — test phân biệt được "gom đúng" với "gom hụt rồi hỏng".
     const provider = new ScriptedProvider([reply, reply]);
@@ -475,6 +481,121 @@ describe("handleEnvelope", () => {
     expect(broadcaster.sent).toHaveLength(1);
     expect(broadcaster.sent[0]!.text).toBe("xin chào bạn");
     expect(broadcaster.sent[0]!.target.conversationId).toBe("c1");
+  });
+
+  // ─── ngân sách theo phòng (usage/) ───────────────────────────────────────
+  //
+  // Kênh "zalo" → agent dealer → trần 10.000đ/ngày (usage/budget.ts).
+
+  /** Sổ chi phí giả: trả sẵn số đã tiêu, ghi lại mọi lần `record`. */
+  function fakeUsage(spentPico: number, enforce: boolean): {
+    tracking: UsageTracking;
+    recorded: UsageEntry[];
+  } {
+    const recorded: UsageEntry[] = [];
+    return {
+      recorded,
+      tracking: {
+        usdVndRate: 26_000,
+        enforce,
+        port: {
+          spentTodayPicoUsd: () => Promise.resolve(spentPico),
+          record: (entry) => {
+            recorded.push(entry);
+            return Promise.resolve();
+          },
+        },
+      },
+    };
+  }
+
+  async function historyWithOneMessage(): Promise<MemoryHistoryStore> {
+    const history = new MemoryHistoryStore();
+    await history.append({
+      conversationId: "c1",
+      msgId: "m1",
+      senderId: "u1",
+      text: "chào",
+      isGroup: false,
+      role: "user",
+      ts: 1,
+    });
+    return history;
+  }
+
+  test("phòng vượt trần ngày → bỏ lượt, KHÔNG gọi LLM, KHÔNG gửi gì", async () => {
+    const history = await historyWithOneMessage();
+    // Kịch bản RỖNG: provider mà bị gọi sẽ throw "hết kịch bản" → lượt thành failed.
+    // Kết quả `ignored` chứng minh gate chặn TRƯỚC khi chạm model.
+    const provider = new ScriptedProvider([]);
+    const { ctx, broadcaster } = makeCtx(provider, { role: "guest", senderId: "u1" }, history);
+    const { tracking } = fakeUsage(vndToPicoUsd(10_000, 26_000), true);
+
+    const result = await handleEnvelope({ ...ctx, usage: tracking }, makeEnvelope());
+
+    expect(result).toEqual({ status: "ignored", reason: "budget_exceeded" });
+    expect(broadcaster.sent).toHaveLength(0);
+  });
+
+  test("vượt trần nhưng enforce=false (shadow mode) → vẫn trả lời", async () => {
+    const history = await historyWithOneMessage();
+    const provider = new ScriptedProvider([
+      { stopReason: "end_turn", content: [{ type: "text", text: "vẫn chạy" }] },
+    ]);
+    const { ctx, broadcaster } = makeCtx(provider, { role: "guest", senderId: "u1" }, history);
+    const { tracking } = fakeUsage(vndToPicoUsd(999_000, 26_000), false);
+
+    const result = await handleEnvelope({ ...ctx, usage: tracking }, makeEnvelope());
+
+    expect(result).toEqual({ status: "reply", text: "vẫn chạy" });
+    expect(broadcaster.sent).toHaveLength(1);
+  });
+
+  test("chạy xong → ghi sổ token của lượt, gắn đúng phòng/agent/msgId", async () => {
+    const history = await historyWithOneMessage();
+    const provider = new ScriptedProvider([
+      { stopReason: "end_turn", content: [{ type: "text", text: "ok" }] },
+    ]);
+    const { ctx } = makeCtx(provider, { role: "guest", senderId: "u1" }, history);
+    const { tracking, recorded } = fakeUsage(0, true);
+
+    await handleEnvelope({ ...ctx, usage: tracking }, makeEnvelope());
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]!.conversationId).toBe("c1");
+    expect(recorded[0]!.agentType).toBe("dealer");
+    expect(recorded[0]!.msgId).toBe("m1");
+  });
+
+  test("lượt KHÔNG chạm LLM (bị chặn) → không ghi sổ rỗng", async () => {
+    const history = await historyWithOneMessage();
+    const provider = new ScriptedProvider([]);
+    const { ctx } = makeCtx(provider, { role: "guest", senderId: "u1" }, history);
+    const { tracking, recorded } = fakeUsage(vndToPicoUsd(10_000, 26_000), true);
+
+    await handleEnvelope({ ...ctx, usage: tracking }, makeEnvelope());
+
+    expect(recorded).toHaveLength(0);
+  });
+
+  test("ghi sổ hỏng → lượt VẪN thành công (tiền là việc nền, trả lời là việc chính)", async () => {
+    const history = await historyWithOneMessage();
+    const provider = new ScriptedProvider([
+      { stopReason: "end_turn", content: [{ type: "text", text: "ok" }] },
+    ]);
+    const { ctx } = makeCtx(provider, { role: "guest", senderId: "u1" }, history);
+    const tracking: UsageTracking = {
+      usdVndRate: 26_000,
+      enforce: true,
+      port: {
+        spentTodayPicoUsd: () => Promise.resolve(0),
+        record: () => Promise.reject(new Error("Postgres chết")),
+      },
+    };
+
+    const result = await handleEnvelope({ ...ctx, usage: tracking }, makeEnvelope());
+
+    expect(result).toEqual({ status: "reply", text: "ok" });
   });
 
   test("nén hội thoại nhận CẢ BUFFER, không chỉ cửa sổ agent đọc", async () => {

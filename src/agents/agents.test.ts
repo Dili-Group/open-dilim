@@ -2,7 +2,14 @@
 // KHÔNG import config.ts runtime (fail-fast env) — chỉ type + prompt tách rời.
 
 import { describe, expect, test } from "bun:test";
-import { singleSystem, type ChatRequest, type ChatResult, type LLMProvider, type LlmMessage } from "../llm/types.ts";
+import {
+  EMPTY_USAGE,
+  singleSystem,
+  type ChatRequest,
+  type ChatResult,
+  type LLMProvider,
+  type LlmMessage,
+} from "../llm/types.ts";
 import type { Identity } from "../flash-command/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import { SkillRegistry } from "../skills/registry.ts";
@@ -16,17 +23,20 @@ import { resolveAgentType } from "./router.ts";
 import { AgentType, type RootAgentProfile, type SubAgent } from "./types.ts";
 import type { AgentConfig, AgentDeps } from "./types.ts";
 
+/** Kịch bản test không quan tâm token — provider tự điền usage rỗng. */
+type ScriptedTurn = Omit<ChatResult, "usage">;
+
 class ScriptedProvider implements LLMProvider {
   readonly name = "scripted";
   readonly seen: ChatRequest[] = [];
   private index = 0;
-  constructor(private readonly script: readonly ChatResult[]) {}
+  constructor(private readonly script: readonly ScriptedTurn[]) {}
   chat(req: ChatRequest): Promise<ChatResult> {
     this.seen.push(req);
     const result = this.script[this.index];
     this.index += 1;
     if (result === undefined) throw new Error("scripted provider hết kịch bản");
-    return Promise.resolve(result);
+    return Promise.resolve({ ...result, usage: EMPTY_USAGE });
   }
 }
 
@@ -106,7 +116,7 @@ describe("runAgentLoop", () => {
   });
 
   test("model gọi tool mãi → chặn ở maxIterations", async () => {
-    const toolTurn: ChatResult = {
+    const toolTurn: ScriptedTurn = {
       stopReason: "tool_use",
       content: [{ type: "tool_use", id: "t", name: "whoami", input: {} }],
     };
@@ -125,14 +135,14 @@ describe("announce giữa lượt", () => {
     announce: "Dạ để em kiểm tra ạ.",
     run: () => Promise.resolve({ content: "xong" }),
   });
-  const toolTurn: ChatResult = {
+  const toolTurn: ScriptedTurn = {
     stopReason: "tool_use",
     content: [{ type: "tool_use", id: "t1", name: "cham", input: {} }],
   };
 
   function loopWith(
     factories: readonly ToolFactory[],
-    script: readonly ChatResult[],
+    script: readonly ScriptedTurn[],
     onAnnounce: (text: string) => Promise<void>,
   ): Promise<string> {
     return runAgentLoop({
@@ -270,11 +280,11 @@ const ROOT_WITH_SUB: RootAgentProfile = {
 };
 
 /** Lượt LLM của orchestrator: chỉ trả về một tên. */
-function routeTo(name: string): ChatResult {
+function routeTo(name: string): ScriptedTurn {
   return { stopReason: "end_turn", content: [{ type: "text", text: name }] };
 }
 
-const FINAL_TURN: ChatResult = {
+const FINAL_TURN: ScriptedTurn = {
   stopReason: "end_turn",
   content: [{ type: "text", text: "xong" }],
 };

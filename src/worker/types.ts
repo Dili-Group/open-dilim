@@ -13,6 +13,9 @@ import type { AnnounceApprovalPort } from "../announcements/types.ts";
 import type { IdentityRepo, OpsPort } from "../flash-command/types.ts";
 import type { JobAdmin } from "../scheduler/types.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
+// Định nghĩa nằm ở usage/ vì cả worker lẫn flash command đều dùng; re-export cho caller cũ.
+export type { UsageTracking } from "../usage/types.ts";
+import type { UsageTracking } from "../usage/types.ts";
 
 /**
  * 1 message đã giao cho worker, kèm quyền định đoạt: `ack` = xong, gỡ khỏi queue; `retryLater` =
@@ -98,6 +101,11 @@ export interface WorkerContext {
    * undefined = chưa nối tầng workflows → lượt chạy không có khối đó, không phải lỗi.
    */
   readonly workflow?: WorkflowPort;
+  /**
+   * Đo chi phí LLM mỗi lượt + chặn phòng vượt trần ngày. undefined = không đo, không chặn (lượt
+   * chạy y như trước) — chưa nối tầng usage KHÔNG được làm chết lượt trả lời.
+   */
+  readonly usage?: UsageTracking;
 }
 
 /** Bó đầy đủ để start pool: context + nguồn queue + số worker. */

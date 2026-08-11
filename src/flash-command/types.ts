@@ -43,6 +43,7 @@ export type Identity =
 
 // Mention chuyển lên types/ chung (Envelope dùng chung). Import để dùng trong file + re-export
 // giữ nguyên API flash-command.
+import type { UsageTracking } from "../usage/types.ts";
 import type { Mention } from "../types/index.ts";
 export type { Mention };
 
@@ -148,6 +149,11 @@ export interface FlashContext {
   readonly channel: string;
   /** undefined khi direct (không group). Lệnh cần group tự kiểm và trả lỗi rõ. */
   readonly groupId: string | undefined;
+  /**
+   * Khoá PHÒNG của lượt — chính `Envelope.conversationId`. KHÔNG suy từ groupId/senderId: chat
+   * 1-1 có conversationId riêng, suy sai là tra nhầm phòng khác.
+   */
+  readonly conversationId: string;
   /** Token sau tên lệnh, tách theo khoảng trắng. `noUncheckedIndexedAccess` → check trước khi dùng. */
   readonly args: readonly string[];
   readonly mentions: readonly Mention[];
@@ -160,6 +166,16 @@ export interface FlashContext {
    * KHÔNG mặc định cho qua.
    */
   readonly announce?: AnnounceApprovalPort;
+  /**
+   * Root agent phục vụ phòng này (worker đã resolve theo channel) — `/muc-sudung` tra trần theo
+   * agent. Lệnh không cần thì bỏ qua.
+   */
+  readonly agentType: string;
+  /**
+   * Đo chi phí LLM của phòng. undefined = chưa nối tầng usage → lệnh tra mức dùng trả lỗi rõ,
+   * KHÔNG bịa số.
+   */
+  readonly usage?: UsageTracking;
 }
 
 /**

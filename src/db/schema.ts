@@ -315,6 +315,38 @@ export const GROUP_BLOCK = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// llm_usage_log — SỔ CÁI chi phí LLM, mỗi lượt agent một row.
+//
+// Là nguồn sự thật của rate limit theo phòng: bộ đếm Redis chỉ là cache, mất Redis thì hạn mức
+// trong ngày dựng lại bằng SUM trên bảng này. Không có nó, Redis rụng là mọi phòng về 0.
+//
+// Lưu CẢ token thô LẪN thành tiền: token là sự thật bất biến, tiền suy ra từ bảng giá lúc ghi
+// (usage/pricing.ts). Đổi giá sau này vẫn tính lại được lịch sử và đối soát với hoá đơn gateway.
+// ─────────────────────────────────────────────────────────────────────────────
+export const LLM_USAGE_LOG = {
+  table: "llm_usage_log",
+  col: {
+    id: "id",
+    conversationId: "conversation_id", // PHÒNG — đơn vị gom hạn mức, không phải người gõ
+    agentType: "agent_type",           // tra trần theo agent (usage/budget.ts)
+    msgId: "msg_id",                   // envelope thật sự chạy LLM — chống ghi trùng khi retry
+    usageDay: "usage_day",             // ngày GIỜ VN, app tính rồi bind (xem DDL)
+    inputTokens: "input_tokens",       // cache miss
+    outputTokens: "output_tokens",
+    cacheReadTokens: "cache_read_tokens",   // cache hit
+    cacheWriteTokens: "cache_write_tokens",
+    costPicoUsd: "cost_pico_usd",      // pico-USD (1e-12) — bigint, integer tràn ngay
+    createdAt: "created_at",
+  },
+  idx: {
+    /** Idempotency: một msgId chỉ vào sổ một lần. */
+    msgId: "llm_usage_log_msg_id_key",
+    /** Query nóng duy nhất: SUM chi phí phòng trong ngày. */
+    roomDay: "llm_usage_log_room_day_idx",
+  },
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // DDL builder — generate init migration từ constants trên.
 // Idempotent (IF NOT EXISTS), bọc BEGIN/COMMIT. Chạy lại an toàn.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -328,6 +360,7 @@ export function buildInitSql(): string {
   const gb = GROUP_BLOCK;
   const an = ANNOUNCEMENTS;
   const ad = ANNOUNCEMENT_DELIVERIES;
+  const lu = LLM_USAGE_LOG;
   const statusList = PENDING_STATUS_VALUES.join(", ");
   const deliveryStatusList = DELIVERY_STATUS_VALUES.join(", ");
   const announcementStatusList = ANNOUNCEMENT_STATUS_VALUES.join(", ");
@@ -524,6 +557,33 @@ CREATE TABLE IF NOT EXISTS ${gb.table} (
   ${gb.col.blockedAt}   timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (${gb.col.channel}, ${gb.col.groupId})
 );
+
+-- llm_usage_log — sổ cái chi phí LLM, mỗi lượt agent một row. Nguồn sự thật của rate limit theo
+-- phòng: bộ đếm Redis là cache, mất nó thì hạn mức trong ngày dựng lại bằng SUM trên bảng này.
+CREATE TABLE IF NOT EXISTS ${lu.table} (
+  ${lu.col.id}                bigserial   PRIMARY KEY,
+  ${lu.col.conversationId}    text        NOT NULL,   -- PHÒNG: đơn vị gom hạn mức
+  ${lu.col.agentType}         text        NOT NULL,   -- dealer | warehouse | ... → tra trần
+  ${lu.col.msgId}             text        NOT NULL,   -- envelope chạy LLM; chống ghi trùng
+  -- NGÀY GIỜ VN, app tính rồi bind. KHÔNG dùng CURRENT_DATE: server chạy UTC thì mốc nửa đêm
+  -- lệch 7 tiếng → hạn mức reset lúc 7h sáng, đúng giờ nhóm đại lý bắt đầu làm việc.
+  ${lu.col.usageDay}          date        NOT NULL,
+  ${lu.col.inputTokens}       integer     NOT NULL,   -- cache miss
+  ${lu.col.outputTokens}      integer     NOT NULL,
+  ${lu.col.cacheReadTokens}   integer     NOT NULL,   -- cache hit
+  ${lu.col.cacheWriteTokens}  integer     NOT NULL,
+  -- pico-USD (1e-12 USD) theo bảng giá lúc ghi. bigint: một phòng một ngày ~4e11, integer tràn.
+  ${lu.col.costPicoUsd}       bigint      NOT NULL,
+  ${lu.col.createdAt}         timestamptz NOT NULL DEFAULT now()
+);
+
+-- một msgId chỉ vào sổ một lần dù broker giao lại lượt bao nhiêu lần.
+CREATE UNIQUE INDEX IF NOT EXISTS ${lu.idx.msgId}
+  ON ${lu.table} (${lu.col.msgId});
+
+-- query nóng duy nhất: SUM chi phí phòng trong ngày (dựng lại bộ đếm Redis).
+CREATE INDEX IF NOT EXISTS ${lu.idx.roomDay}
+  ON ${lu.table} (${lu.col.conversationId}, ${lu.col.usageDay});
 
 COMMIT;
 `;

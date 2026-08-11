@@ -20,6 +20,8 @@ import {
   type HistoryEntry,
   type LifecycleStep,
 } from "../types/index.ts";
+import { checkDailyBudget } from "../usage/gate.ts";
+import { UsageMeter } from "../usage/meter.ts";
 import type { WorkerContext } from "./types.ts";
 
 export async function handleEnvelope(
@@ -30,6 +32,11 @@ export async function handleEnvelope(
   // Con trỏ bước: một catch duy nhất nhưng vẫn biết hỏng ở đâu.
   let step: LifecycleStep = "auth";
   const timer = startTurnTimer();
+  // Khai NGOÀI try để `finally` ghi được sổ kể cả khi lượt hỏng giữa chừng: model đã sinh token
+  // ở những vòng chạy xong thì tiền vẫn mất, không ghi là hụt đúng vào lúc hệ đang trục trặc.
+  const meter = new UsageMeter();
+  // Cũng khai ngoài try: `finally` cần agentType để ghi sổ. Chỉ là tra Map, không I/O, không throw.
+  const agent = ctx.agents.resolve(resolveAgentType(envelope.channel));
   try {
     // Envelope `distill` KHÔNG phải tin nhắn: bỏ qua AUTH/flash/agent, chỉ chưng cất rồi thoát.
     // Nằm trước AUTH vì không có ai "gõ" lượt này — resolve vai chỉ tốn I/O.
@@ -60,6 +67,10 @@ export async function handleEnvelope(
       ops: ctx.ops,
       jobs: ctx.jobs,
       announce: ctx.announceApprovals,
+      // `/muc-sudung` tra sổ chi phí của CHÍNH phòng này, theo trần của agent phục vụ nó.
+      conversationId: envelope.conversationId,
+      agentType: agent.agentType,
+      usage: ctx.usage,
     });
     timer.lap("flash");
     if (flash !== null) {
@@ -96,6 +107,29 @@ export async function handleEnvelope(
       if (blocked) return { status: "ignored", reason: "group_blocked" };
     }
 
+    // 6d. NGÂN SÁCH — phòng đã tiêu quá trần ngày thì im lặng, KHÔNG chạy LLM. Đặt trước bước
+    // STATE để một phòng bị chặn không còn tốn I/O nào nữa.
+    //
+    // Trần khai theo agent — nhóm đại lý và nhóm kho không chung mức (usage/budget.ts).
+    if (ctx.usage !== undefined) {
+      const decision = await checkDailyBudget({
+        usage: ctx.usage.port,
+        conversationId: envelope.conversationId,
+        agentType: agent.agentType,
+        usdVndRate: ctx.usage.usdVndRate,
+        enforce: ctx.usage.enforce,
+      });
+      timer.lap("budget");
+      if (!decision.allowed) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[usage] phòng ${envelope.conversationId} (${agent.agentType}) vượt ngưỡng: ` +
+            `${Math.round(decision.spentVnd)}đ / ${decision.limitVnd}đ — bỏ lượt`,
+        );
+        return { status: "ignored", reason: "budget_exceeded" };
+      }
+    }
+
     // 7. STATE — nạp history phòng (đã gồm chính message này do ingest append trước khi publish).
     step = "state";
     const history = await ctx.history.recent(envelope.conversationId, HISTORY_WINDOW_TURNS);
@@ -111,8 +145,8 @@ export async function handleEnvelope(
 
     // 8. AGENT — mỗi channel là một cửa vào riêng → một root agent riêng (agents/router.ts).
     // Channel chưa map → resolveAgentType trả undefined → registry rơi về default agent.
+    // (`agent` đã resolve ở bước 6d để tra trần ngân sách.)
     step = "agent";
-    const agent = ctx.agents.resolve(resolveAgentType(envelope.channel));
     // Tra chủ phòng MỘT LẦN: vừa là chủ sở hữu trí nhớ, vừa là phạm vi dữ liệu của tool nghiệp vụ.
     const roomCustomerId = await resolveRoomCustomer(ctx, envelope, agent);
     const memoryScope = resolveMemoryScope(envelope, agent, roomCustomerId);
@@ -139,6 +173,7 @@ export async function handleEnvelope(
       pending,
       onStep,
       onAnnounce,
+      meter,
       signal,
     });
     timer.lap("agent");
@@ -168,10 +203,38 @@ export async function handleEnvelope(
   } catch (err) {
     return { status: "failed", step, error: err instanceof Error ? err : new Error(String(err)) };
   } finally {
+    await recordUsage(ctx, envelope, agent.agentType, meter);
     // Vết THỜI GIAN của lượt (chỉ số, không nội dung). In cả khi lượt hỏng/bị bỏ: một lượt chết ở
     // giây thứ 60 mà không có dòng này thì không biết nó chết vì LLM lặng hay vì Postgres treo.
     // eslint-disable-next-line no-console
     console.log(`[worker] lượt ${envelope.msgId} phòng ${envelope.conversationId} ${timer.summary()}`);
+  }
+}
+
+/**
+ * Ghi token đã tiêu của lượt vào sổ cái. Chạy trong `finally` → phải đúng ba tính chất:
+ *
+ *  1. KHÔNG throw. Lượt đã trả lời xong (hoặc đã hỏng vì lý do khác); ném thêm lỗi ở đây chỉ
+ *     nuốt mất kết quả/lỗi thật của lượt.
+ *  2. Bỏ qua khi meter rỗng — flash command, nhóm bị block, lượt vượt trần đều không chạm LLM.
+ *  3. Idempotent theo msgId (store lo) vì broker giao lại lượt là chuyện bình thường.
+ */
+async function recordUsage(
+  ctx: WorkerContext,
+  envelope: Envelope,
+  agentType: string,
+  meter: UsageMeter,
+): Promise<void> {
+  if (ctx.usage === undefined || meter.isEmpty()) return;
+  try {
+    await ctx.usage.port.record({
+      conversationId: envelope.conversationId,
+      agentType,
+      msgId: envelope.msgId,
+      usage: meter.total(),
+    });
+  } catch (err) {
+    console.error("[usage] ghi sổ chi phí lỗi (bỏ qua):", err);
   }
 }
 

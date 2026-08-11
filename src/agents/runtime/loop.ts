@@ -11,6 +11,7 @@ import type {
   LlmToolUseBlock,
 } from "../../llm/types.ts";
 import { runToolCall, type ToolRegistry } from "../../tools/index.ts";
+import type { UsageMeter } from "../../usage/meter.ts";
 
 export interface AgentLoopInput {
   readonly provider: LLMProvider;
@@ -29,6 +30,11 @@ export interface AgentLoopInput {
    * tool dài mà lần nào cũng "dạ để em kiểm tra" thì thành spam. Best-effort — xem `announce`.
    */
   readonly onAnnounce?: (text: string) => Promise<void>;
+  /**
+   * Bộ cộng token của lượt. MỖI VÒNG một lần gọi model, đều bị tính tiền → cộng hết, không chỉ
+   * vòng cuối. undefined = không đo (test, hoặc chưa nối tầng usage) — không phải lỗi.
+   */
+  readonly meter?: UsageMeter;
   readonly signal?: AbortSignal;
 }
 
@@ -58,6 +64,9 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
       signal,
     );
     const llmMs = Date.now() - llmAt;
+    // Cộng NGAY sau khi có kết quả: vòng sau có thể throw (timeout/abort) và thoát loop, nhưng
+    // token của vòng này thì đã bị tính tiền rồi.
+    input.meter?.add(result.usage);
 
     if (result.stopReason === "tool_use") {
       const toolUses = result.content.filter(isToolUse);

@@ -13,4 +13,5 @@ export type {
   HistoryReader,
   HistoryWriter,
   LatestTurnReader,
+  UsageTracking,
 } from "./types.ts";

@@ -137,6 +137,14 @@ function csvEnv(name: string): readonly string[] {
     .filter((item) => item !== "");
 }
 
+/** Env cờ bật/tắt optional. Chỉ "true"/"1" là bật — mọi giá trị khác coi như tắt (fail-closed). */
+function boolEnv(name: string, fallback: boolean): boolean {
+  const raw = optional(name);
+  if (raw === undefined) return fallback;
+  const normalized = raw.trim().toLowerCase();
+  return normalized === "true" || normalized === "1";
+}
+
 /** Env tỉ lệ 0..1 optional với fallback. Sai kiểu/ngoài khoảng → throw (fail fast). */
 function rateEnv(name: string, fallback: number): number {
   const raw = optional(name);
@@ -161,6 +169,9 @@ const DEFAULT_TURN_TIMEOUT_MS = 20_000;
 const DEFAULT_SCHEDULER_TICK_MS = 30_000;
 // Model đọc ảnh đính kèm — con rẻ nhất còn hiểu được ảnh, gọi mỗi lần đại lý gửi ảnh.
 const DEFAULT_VISION_MODEL = "gemini-3.1-flash-lite";
+// Tỉ giá quy trần VND → USD (giá gateway tính bằng USD). Xấp xỉ là đủ: nó chỉ dịch trần vài %,
+// không phải con số kế toán. Chỉnh khi tỉ giá lệch nhiều.
+const DEFAULT_USD_VND_RATE = 26_000;
 
 const provider = oneOf("PROVIDER", PROVIDERS, "anthropic");
 
@@ -219,6 +230,17 @@ export const CONFIG = {
     model: optional("VISION_MODEL") ?? DEFAULT_VISION_MODEL,
     allowedHosts: csvEnv("CDN_ALLOWED_HOSTS"),
   },
+
+  // Hạn mức chi phí LLM theo phòng/ngày (usage/). Trần khai bằng VND theo agent ở
+  // usage/budget.ts (policy, không phải env); ở đây chỉ hai thứ thật sự thay đổi theo môi trường:
+  //
+  //  - `usdVndRate`: giá gateway tính bằng USD, trần khai bằng VND → cần tỉ giá để quy đổi. Chỉ
+  //    dùng ĐÚNG MỘT LẦN lúc so trần, không quy đổi lại mỗi request.
+  //  - `enforceBudget`: false = chỉ ĐO và ghi sổ, KHÔNG chặn (shadow mode). Mặc định tắt có chủ
+  //    đích — bật chặn bằng số đoán rồi khoá nhầm nhóm đại lý đang đặt hàng thì đắt hơn nhiều so
+  //    với tiền LLM tiết kiệm được. Chạy đo vài ngày, lấy số thật rồi mới bật.
+  usdVndRate: positiveIntEnv("USD_VND_RATE", DEFAULT_USD_VND_RATE),
+  enforceBudget: boolEnv("ENFORCE_BUDGET", false),
 
   // Worker pool + agent loop
   workerCount: positiveIntEnv("WORKER_COUNT", DEFAULT_WORKER_COUNT),

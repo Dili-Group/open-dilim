@@ -19,6 +19,7 @@ import type {
   HistoryReader,
   HistoryWriter,
   LatestTurnReader,
+  UsageTracking,
 } from "../worker/index.ts";
 import type { ConversationCompactor, MemoryWriterLookup, SummaryReader } from "../state/index.ts";
 import type { WorkflowDeps } from "../workflows/types.ts";
@@ -95,6 +96,8 @@ export interface Services {
   /** Nén hội thoại ngắn hạn theo phòng + cổng đọc bản tóm cho bước STATE. */
   readonly compactor: ConversationCompactor;
   readonly summaries: SummaryReader;
+  /** Đo chi phí LLM theo phòng + chặn phòng vượt trần ngày (usage/). */
+  readonly usage: UsageTracking;
 }
 
 /** Hệ thống ĐANG CHẠY: service + HTTP server + hook shutdown sạch. */

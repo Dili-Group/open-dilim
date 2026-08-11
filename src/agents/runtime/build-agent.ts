@@ -77,6 +77,7 @@ class ProfileRootAgent implements RootAgent {
         maxIterations: this.deps.config.agentMaxIterations,
         onStep: input.onStep,
         onAnnounce: input.onAnnounce,
+        meter: input.meter,
         signal: input.signal,
       });
       return { status: "reply", text };
@@ -102,6 +103,7 @@ class ProfileRootAgent implements RootAgent {
       provider: this.deps.provider,
       subAgents,
       history: input.history,
+      meter: input.meter,
       signal: input.signal,
     });
     return sub ?? this.profile;

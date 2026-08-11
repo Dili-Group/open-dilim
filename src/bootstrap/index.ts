@@ -7,7 +7,8 @@
 import { startGateway, type IngestDeps } from "../message-ingest/index.ts";
 import { buildSkillRegistry, type SkillRegistry } from "../skills/index.ts";
 import { flashRegistry } from "../flash-command/index.ts";
-import { closeDb } from "../db/client.ts";
+import { closeDb, sql } from "../db/client.ts";
+import { SqlUsageStore } from "../usage/index.ts";
 import { closeRedis, commandOf, redis } from "../redis/client.ts";
 import { buildBroker } from "../broker/index.ts";
 import { buildLlmProvider, buildVisionReader } from "../llm/index.ts";
@@ -241,6 +242,13 @@ export async function bootstrap(): Promise<Services> {
     memoryWriters,
     compactor,
     summaries,
+    // Sổ cái ở Postgres (nguồn sự thật), bộ đếm ở Redis (cache) — mất Redis thì hạn mức trong
+    // ngày dựng lại từ sổ, không reset về 0.
+    usage: {
+      port: new SqlUsageStore(sql, commandOf(redis)),
+      usdVndRate: config.usdVndRate,
+      enforce: config.enforceBudget,
+    },
   };
 }
 
@@ -268,6 +276,7 @@ export async function start(): Promise<RunningSystem> {
     broadcaster: services.broadcaster,
     typing: services.typing,
     workflow: services.workflow,
+    usage: services.usage,
     announceApprovals: services.announce,
     workerCount: services.config.workerCount,
     turnTimeoutMs: services.config.turnTimeoutMs,

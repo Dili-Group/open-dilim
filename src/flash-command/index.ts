@@ -8,6 +8,7 @@ import huyKetnoi from "./commands/huy-ketnoi.ts";
 import ketnoiDaily from "./commands/ketnoi-daily.ts";
 import ketnoiHethong from "./commands/ketnoi-hethong.ts";
 import lich from "./commands/lich.ts";
+import mucSudung from "./commands/muc-sudung.ts";
 import unlock from "./commands/unlock.ts";
 import { FlashRegistry } from "./registry.ts";
 
@@ -17,6 +18,7 @@ export const flashRegistry = new FlashRegistry()
   .register(ketnoiDaily)
   .register(huyKetnoi)
   .register(lich)
+  .register(mucSudung)
   .register(block)
   .register(unlock)
   .register(duyetThongbao)

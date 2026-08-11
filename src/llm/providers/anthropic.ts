@@ -10,6 +10,7 @@ import type {
   LlmContentBlock,
   LlmMessage,
   LlmSystemBlock,
+  LlmUsage,
   StopReason,
 } from "../types.ts";
 
@@ -40,10 +41,12 @@ export class AnthropicProvider implements LLMProvider {
       { signal },
     );
 
-    logCacheUsage(message.usage);
+    const usage = fromApiUsage(message.usage);
+    logCacheUsage(usage);
     return {
       content: fromApiContent(message.content),
       stopReason: mapStopReason(message.stop_reason),
+      usage,
     };
   }
 }
@@ -71,13 +74,27 @@ export function toApiSystem(blocks: readonly LlmSystemBlock[]): Anthropic.TextBl
  * cache có trúng hay không: `read` mãi bằng 0 giữa các lượt cùng phòng = prefix đang bị phá
  * (prompt lệch byte, đổi bộ tool giữa chừng) hoặc prefix chưa đủ dài để cache.
  */
-function logCacheUsage(usage: Anthropic.Usage): void {
+function logCacheUsage(usage: LlmUsage): void {
   // Dòng SỐ LIỆU, không phải log debug: không có nó thì không biết prompt cache trúng hay trượt.
   // eslint-disable-next-line no-console
   console.log(
-    `[llm] tokens in=${usage.input_tokens} out=${usage.output_tokens} ` +
-      `cache_read=${usage.cache_read_input_tokens ?? 0} cache_write=${usage.cache_creation_input_tokens ?? 0}`,
+    `[llm] tokens in=${usage.input} out=${usage.output} ` +
+      `cache_read=${usage.cacheRead} cache_write=${usage.cacheWrite}`,
   );
+}
+
+/**
+ * `usage` của API → type trung lập. BỐN field rời, không gộp:
+ *  - `input_tokens` là phần CHƯA cache, KHÔNG phải cỡ prompt (prompt thật = cả ba field input).
+ *  - hai field cache là optional trong SDK (null khi request không bật cache) → `?? 0`.
+ */
+function fromApiUsage(usage: Anthropic.Usage): LlmUsage {
+  return {
+    input: usage.input_tokens,
+    output: usage.output_tokens,
+    cacheRead: usage.cache_read_input_tokens ?? 0,
+    cacheWrite: usage.cache_creation_input_tokens ?? 0,
+  };
 }
 
 function toApiMessage(msg: LlmMessage): Anthropic.MessageParam {

@@ -69,10 +69,31 @@ export interface ChatRequest {
 /** Lý do model dừng. "other" gộp các giá trị không quan tâm ở loop tối thiểu. */
 export type StopReason = "end_turn" | "tool_use" | "max_tokens" | "refusal" | "other";
 
+/**
+ * Token BỊ TÍNH TIỀN của MỘT lần gọi. Bốn loại tách rời vì đơn giá khác nhau tới 100 lần
+ * (xem usage/pricing.ts) — gộp lại thành "tổng token" là mất luôn thông tin để tính tiền.
+ *
+ * Đây là số nhà cung cấp báo về, KHÔNG phải ước lượng: chỉ có nó mới khớp hoá đơn.
+ */
+export interface LlmUsage {
+  /** Input KHÔNG trúng cache (cache miss). */
+  readonly input: number;
+  readonly output: number;
+  /** Input đọc lại từ prompt cache (cache hit) — rẻ nhất. */
+  readonly cacheRead: number;
+  /** Input ghi vào prompt cache lần đầu. */
+  readonly cacheWrite: number;
+}
+
+/** Usage rỗng — provider giả (test) hoặc nhánh không gọi model thật. */
+export const EMPTY_USAGE: LlmUsage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+
 export interface ChatResult {
   /** Block assistant sinh ra (text + tool_use). Dùng để append vào history + chạy tool. */
   readonly content: readonly LlmContentBlock[];
   readonly stopReason: StopReason;
+  /** Bắt buộc: bỏ sót một lần gọi là hụt tiền âm thầm, không có cách nào phát hiện sau. */
+  readonly usage: LlmUsage;
 }
 
 /** Provider LLM. Loop chỉ gọi chat(); stream để sau. */

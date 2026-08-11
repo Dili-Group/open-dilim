@@ -3,7 +3,14 @@
 // Import THẲNG từng module, KHÔNG qua index.ts (index → db/client → config.ts fail-fast env).
 
 import { describe, expect, test } from "bun:test";
-import type { ChatRequest, ChatResult, Embedder, EmbedRequest, LLMProvider } from "../llm/types.ts";
+import {
+  EMPTY_USAGE,
+  type ChatRequest,
+  type ChatResult,
+  type Embedder,
+  type EmbedRequest,
+  type LLMProvider,
+} from "../llm/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import type { RedisCommand } from "../redis/types.ts";
 import { LlmDistiller, parseFacts, renderTranscript } from "./distiller.ts";
@@ -71,7 +78,7 @@ class ScriptedProvider implements LLMProvider {
 }
 
 function textResult(text: string): ChatResult {
-  return { content: [{ type: "text", text }], stopReason: "end_turn" };
+  return { content: [{ type: "text", text }], stopReason: "end_turn", usage: EMPTY_USAGE };
 }
 
 // ─── parseFacts ─────────────────────────────────────────────────────────────

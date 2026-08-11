@@ -16,6 +16,7 @@ import {
   type OpsPort,
   type IdentityRepo,
 } from "./types.ts";
+import type { UsageTracking } from "../usage/types.ts";
 
 const COMMAND_PREFIX = "/";
 
@@ -50,11 +51,16 @@ export type DispatchInput = {
   readonly identity: Identity;
   readonly channel: string;
   readonly groupId: string | undefined;
+  /** Khoá phòng của lượt (`Envelope.conversationId`) — lệnh tra mức dùng gom theo đây. */
+  readonly conversationId: string;
   readonly mentions: readonly Mention[];
   readonly repo: IdentityRepo;
   readonly ops: OpsPort;
   readonly jobs: JobAdmin;
   readonly announce?: AnnounceApprovalPort;
+  /** Root agent của phòng — worker resolve theo channel, lệnh tra trần chi phí dùng tới. */
+  readonly agentType: string;
+  readonly usage?: UsageTracking;
 };
 
 export class FlashRegistry {
@@ -107,12 +113,15 @@ export class FlashRegistry {
       identity: input.identity,
       channel: input.channel,
       groupId: input.groupId,
+      conversationId: input.conversationId,
       args: parsed.args,
       mentions: input.mentions,
       repo: input.repo,
       ops: input.ops,
       jobs: input.jobs,
       announce: input.announce,
+      agentType: input.agentType,
+      usage: input.usage,
     };
 
     try {
