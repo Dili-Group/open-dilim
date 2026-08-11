@@ -14,6 +14,8 @@ import {
 
 const CHANNEL = "zalo";
 const GROUP = "G1";
+/** Tên đại lý hệ vận hành trả về — reply của /ketnoi-daily phải gọi đúng tên này. */
+const DEALER_NAME = "Gioi dz";
 
 /** Repo mock ghi lại call để assert side-effect. */
 function makeRepo() {
@@ -59,7 +61,8 @@ const ops: OpsPort = {
       : null;
   },
   async fetchDealerInfo(p) {
-    return p.groupId === GROUP ? { customerId: "CUS_9" } : null; // đại lý gắn với nhóm G1
+    // Nhóm G1 có đại lý gắn ở hệ vận hành; nhóm khác → null.
+    return p.groupId === GROUP ? { customerId: "CUS_9", name: DEALER_NAME } : null;
   },
 };
 
@@ -172,6 +175,14 @@ describe("/ketnoi-daily", () => {
     expect(r?.ok).toBe(true);
     // group_map ghi TRƯỚC assign (resolve vai đại lý cần cả hai).
     expect(calls).toEqual(["map:G1=CUS_9", "assign:U_A@G1 by=NV_042"]);
+  });
+
+  test("reply gọi TÊN đại lý hệ vận hành trả về, không phải customerId", async () => {
+    const { repo } = makeRepo();
+    const r = await flashRegistry.dispatch("/ketnoi-daily @A", input({ repo, mentions: [{ uid: "U_A" }] }));
+    expect(r?.reply).toContain(DEALER_NAME);
+    // customerId là khoá nội bộ — lọt vào tin nhắn nhóm là rò dữ liệu hệ vận hành.
+    expect(r?.reply).not.toContain("CUS_9");
   });
   test("nhân viên chưa bind op token → fail, không map/assign", async () => {
     const { repo, calls } = makeRepo();

@@ -81,7 +81,7 @@ export interface OpsPort {
     token: string;
     channel: string;
     groupId: string;
-  }): Promise<{ customerId: string } | null>;
+  }): Promise<{ customerId: string; name: string } | null>;
 }
 
 /** Cổng ghi định danh vào Postgres (user_binding / group_member / group_map). Idempotent. */

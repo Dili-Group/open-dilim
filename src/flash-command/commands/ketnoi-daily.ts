@@ -44,7 +44,7 @@ const ketnoiDaily: FlashCommand = {
       groupId,
     });
     if (dealer === null) {
-      return fail("Hệ vận hành chưa gắn đại lý nào với nhóm này.");
+      return fail("Chưa thể kết nối đại lý với nhóm này, vui lòng liên hệ bộ phận kỹ thuật.");
     }
 
     // Ghi group_map TRƯỚC assignDealer: resolve vai đại lý cần cả group_member lẫn group_map.
@@ -61,7 +61,8 @@ const ketnoiDaily: FlashCommand = {
       assignedBy: actorUserId,
     });
 
-    return ok("Đã gán đại lý trong nhóm.");
+    // `dealer` đã narrow non-null ở trên → `dealer?.name` in ra "undefined" khi ai đó gỡ chốt null.
+    return ok(`Kết nối đại lý ${dealer.name} thành công.`);
   },
 };
 

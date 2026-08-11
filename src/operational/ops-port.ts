@@ -10,6 +10,7 @@
 
 import type { OpsPort } from "../flash-command/types.ts";
 import { OperationalError, opPost } from "./client.ts";
+import { asRecord, readString } from "./read.ts";
 
 const VERIFY_PATH = "/agent-session/verify";
 const DEALER_BINDING_PATH = "/agent-session/dealer-binding";
@@ -67,7 +68,7 @@ export class OperationalOpsPort implements OpsPort {
     token: string;
     channel: string;
     groupId: string;
-  }): Promise<{ customerId: string } | null> {
+  }): Promise<{ customerId: string; name: string } | null> {
     let body: unknown;
     try {
       body = await opPost(DEALER_BINDING_PATH, {
@@ -87,9 +88,12 @@ export class OperationalOpsPort implements OpsPort {
         "",
       );
     }
-    return { customerId };
+    return { customerId, name: readDealerName(body) ?? UNKNOWN_DEALER_NAME };
   }
 }
+
+/** Reply cần một cái tên để gọi; thiếu tên KHÔNG chặn việc kết nối (chỉ `dealer_id` là bắt buộc). */
+const UNKNOWN_DEALER_NAME = "chưa rõ tên";
 
 /**
  * verify OK: `{ user_id, role, full_name, role_slug }`. user_id bắt buộc; còn lại optional.
@@ -109,6 +113,16 @@ function readOptionalString(body: unknown, key: string): string | undefined {
   if (typeof body !== "object" || body === null) return undefined;
   const value = (body as Record<string, unknown>)[key];
   return typeof value === "string" && value !== "" ? value : undefined;
+}
+
+/**
+ * Tên đại lý nằm CÙNG CHỖ với dealer_id (`data.name`), không phải ở gốc response — đọc ở gốc thì
+ * luôn ra rỗng. Khoá là `name`, KHÔNG phải `dealer_name` như order-api/owner-api: endpoint này trả
+ * trong ngữ cảnh một đại lý nên không có tiền tố. Thiếu / sai kiểu → undefined, không bịa.
+ */
+function readDealerName(body: unknown): string | undefined {
+  const data = asRecord(asRecord(body)?.["data"]);
+  return data === undefined ? undefined : readString(data, "name");
 }
 
 /**
