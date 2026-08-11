@@ -25,6 +25,7 @@ import {
   DAILY_TOOLS,
   DEALER_TIER_TOOLS,
   DEALER_TOOLS,
+  OPS_ANNOUNCE_TOOLS,
   ORDER_TOOLS,
   POSCAKE_TOOLS,
   WAREHOUSE_ANNOUNCE_TOOLS,
@@ -519,6 +520,7 @@ describe("buildToolRegistry", () => {
       ...POSCAKE_TOOLS,
       ...WORKFLOW_ASK_TOOLS,
       ...WAREHOUSE_ANNOUNCE_TOOLS,
+      ...OPS_ANNOUNCE_TOOLS,
     ];
     const registry = buildToolRegistry(all, { skills, identity: STAFF });
     for (const schema of registry.schemas()) {

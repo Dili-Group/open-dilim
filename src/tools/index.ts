@@ -21,10 +21,11 @@ import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
 import { buildWorkflowAnswerTool } from "./impl/workflow/answer.ts";
 import { buildWorkflowListTool } from "./impl/workflow/list.ts";
 import {
-  buildStockNoticeDraftTool,
-  buildStockNoticeSendTool,
-  buildStockNoticeStatusTool,
-} from "./impl/warehouse/het-hang.ts";
+  buildNoticeDraftTool,
+  buildNoticeSendTool,
+  buildNoticeStatusTool,
+} from "./impl/announce/notice.ts";
+import { HET_HANG_FLOW, VAN_HANH_FLOW } from "./impl/announce/flows.ts";
 
 /** Bộ tool ai cũng có: biết mình là ai + đọc skill/reference. Không chạm dữ liệu nghiệp vụ. */
 export const COMMON_TOOLS: readonly ToolFactory[] = [
@@ -133,9 +134,24 @@ export const WORKFLOW_LIST_TOOLS: readonly ToolFactory[] = [
  * đúng một câu. `soat_thong_bao` là đường để quản lý kho biết đợt phát đã tới đâu.
  */
 export const WAREHOUSE_ANNOUNCE_TOOLS: readonly ToolFactory[] = [
-  (ctx: ToolContext): Tool => buildStockNoticeDraftTool(ctx),
-  (ctx: ToolContext): Tool => buildStockNoticeSendTool(ctx),
-  (ctx: ToolContext): Tool => buildStockNoticeStatusTool(ctx),
+  (ctx: ToolContext): Tool => buildNoticeDraftTool(ctx, HET_HANG_FLOW),
+  (ctx: ToolContext): Tool => buildNoticeSendTool(ctx, HET_HANG_FLOW),
+  (ctx: ToolContext): Tool => buildNoticeStatusTool(ctx, HET_HANG_FLOW),
+];
+
+/**
+ * Tool PHÁT TIN CHUNG của VẬN HÀNH — cùng hạ tầng, cùng người kiểm duyệt như bộ trên, khác ở CỬA
+ * QUYỀN: soạn thì mọi nhân viên vận hành đều được, CHỐT thì chỉ `role_slug ∈ {ceo, swe}`.
+ *
+ * Hai quyền tách rời nhưng KHÔNG bắc cầu cho nhau: nháp chỉ chính người soạn mới chốt được
+ * (announcements/service.ts), nên nháp của nhân viên thường là bản đọc thử — muốn phát thật thì
+ * CEO/swe tự soạn bản của mình rồi chốt. Cố tình giữ vậy: chốt hộ nháp người khác là đúng cái
+ * cửa mà một câu lái trong nhóm sẽ đi qua.
+ */
+export const OPS_ANNOUNCE_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildNoticeDraftTool(ctx, VAN_HANH_FLOW),
+  (ctx: ToolContext): Tool => buildNoticeSendTool(ctx, VAN_HANH_FLOW),
+  (ctx: ToolContext): Tool => buildNoticeStatusTool(ctx, VAN_HANH_FLOW),
 ];
 
 /**

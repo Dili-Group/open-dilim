@@ -2,7 +2,7 @@
 // agents/runtime/build-agent.ts. Thêm sub-agent (đơn hàng / kho / công nợ) = thêm phần tử `subAgents`.
 
 import { internalOpsSpec } from "../../state/specs.ts";
-import { COMMON_TOOLS } from "../../tools/index.ts";
+import { COMMON_TOOLS, OPS_ANNOUNCE_TOOLS } from "../../tools/index.ts";
 import { OPERATIONS_PROMPT } from "../prompts.ts";
 import { AgentType, type RootAgentProfile } from "../types.ts";
 
@@ -12,5 +12,10 @@ export const operationsProfile: RootAgentProfile = {
   directOnly: false,
   prompt: OPERATIONS_PROMPT,
   memorySpec: internalOpsSpec,
-  tools: COMMON_TOOLS,
+  tools: [
+    ...COMMON_TOOLS,
+    // Xin phát tin chung cho toàn bộ đại lý. Tool tự gate: soạn = mọi nhân viên, chốt = ceo/swe.
+    // Đường phát còn một cửa nữa: người kiểm duyệt đích danh gõ /duyet-thongbao.
+    ...OPS_ANNOUNCE_TOOLS,
+  ],
 };

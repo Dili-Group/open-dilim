@@ -12,6 +12,7 @@
 // cũng không mất nhóm nào.
 
 import { limitForChannel } from "../broadcast/limits.ts";
+import { AnnouncementKind as Kind } from "./types.ts";
 import type {
   AnnouncePort,
   AnnounceApprovalPort,
@@ -34,6 +35,15 @@ const DRAFT_ID_LENGTH = 8;
 
 /** Trần đợt liệt kê cho người duyệt. Chờ nhiều hơn ngần này là quy trình đang tắc, không phải UI. */
 const AWAITING_LIMIT = 10;
+
+/**
+ * Bên XIN phát, hiện trên tin gửi người duyệt. Người duyệt cần biết tin đến từ đâu để cân nội
+ * dung — "kho báo hết hàng" và "vận hành báo tin chung" không duyệt bằng cùng một thước.
+ */
+const ASKER_LABEL: Readonly<Record<AnnouncementKind, string>> = {
+  [Kind.HetHang]: "Kho",
+  [Kind.VanHanh]: "Vận hành",
+};
 
 export class AnnouncementService implements AnnouncePort, AnnounceApprovalPort {
   constructor(private readonly deps: AnnouncementDeps) {}
@@ -104,7 +114,7 @@ export class AnnouncementService implements AnnouncePort, AnnounceApprovalPort {
     // `/thongbao-cho` là thấy. Nên chỉ log, không ném: ném ra thì thủ kho tưởng chưa chốt được
     // và chốt lại, đẻ đợt thứ hai cùng nội dung.
     try {
-      await this.notifyApprover(approver.room, announcementId, draft.text, rooms.length);
+      await this.notifyApprover(approver.room, announcementId, draft.text, rooms.length, input.kind);
     } catch (err) {
       console.error(`[announcements] gửi yêu cầu duyệt ${announcementId} lỗi:`, err);
     }
@@ -203,11 +213,12 @@ export class AnnouncementService implements AnnouncePort, AnnounceApprovalPort {
     announcementId: string,
     text: string,
     roomCount: number,
+    kind: AnnouncementKind,
   ): Promise<void> {
     await this.deps.broadcaster.send(
       { channel: room.channel, conversationId: room.conversationId, isGroup: false, replyToSenderId: room.conversationId },
       [
-        `[DUYỆT PHÁT TIN] Kho xin gửi thông báo tới ${roomCount} nhóm đại lý.`,
+        `[DUYỆT PHÁT TIN] ${ASKER_LABEL[kind]} xin gửi thông báo tới ${roomCount} nhóm đại lý.`,
         "",
         "Nội dung:",
         "---",

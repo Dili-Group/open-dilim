@@ -28,6 +28,7 @@ import type { HistoryEntry } from "../types/index.ts";
 /** Loại tin phát chung. Không đổi cách gửi — chỉ để soát và thống kê. */
 export const AnnouncementKind = {
   HetHang: "het_hang",
+  VanHanh: "van_hanh",
 } as const;
 export type AnnouncementKind = (typeof AnnouncementKind)[keyof typeof AnnouncementKind];
 
