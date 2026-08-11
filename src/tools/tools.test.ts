@@ -78,11 +78,15 @@ describe("readIntegerField", () => {
 describe("use_skill", () => {
   const tool = buildUseSkillTool(skills);
 
-  test("skill có thật → trả body + liệt kê reference", async () => {
+  test("skill có thật → trả body + KÈM nội dung reference (không phải chỉ tên)", async () => {
     const result = await tool.run({ name: "chiet-khau" });
     expect(result.isError).toBeFalsy();
     expect(result.content).toContain("# Skill: chiet-khau");
-    expect(result.content).toContain("use_reference");
+    expect(result.content).toContain("## Tài liệu: bang-muc.md");
+    // Nội dung thật của reference, tức model không cần thêm một hop use_reference nữa.
+    expect(result.content).toContain("500 triệu");
+    // Cả ba reference của chiet-khau đều dưới trần → không còn gì phải đào.
+    expect(result.content).not.toContain("use_reference");
   });
 
   test("agent ngoài scope skill → isError y như tên lạ", async () => {

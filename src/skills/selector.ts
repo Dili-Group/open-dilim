@@ -3,9 +3,15 @@
 // 2 nửa của progressive disclosure phía model:
 //   1. renderSkillCatalog: đưa CHỈ name+description mọi skill vào system prompt (tầng 1). Model
 //      đọc menu này, tự quyết skill nào hợp task.
-//   2. useSkill / useReference: model gọi (qua tool) với tên nó chọn → load body/reference (tầng
-//      2,3). Tên = model sinh = untrusted → không tồn tại thì trả STRUCTURED (ok:false) để model
-//      tự sửa, KHÔNG throw ra loop (lỗi I/O thật mới propagate cho tool-runner cô lập).
+//   2. useSkill: model gọi (qua tool) với tên nó chọn → load body + reference (tầng 2 VÀ 3 gộp).
+//      Tên = model sinh = untrusted → không tồn tại thì trả STRUCTURED (ok:false) để model tự sửa,
+//      KHÔNG throw ra loop (lỗi I/O thật mới propagate cho tool-runner cô lập).
+//
+// TẠI SAO tầng 3 gộp vào tầng 2: tách ra thì mỗi tài liệu tốn một HOP LLM (model phải dừng lượt để
+// gọi tool rồi soạn lại). Đo trên prod: một lượt 6 vòng có 4 vòng chỉ để lấy doc = 23.5s/38.7s, và
+// vòng nặng nhất viết 2022 token nháp rồi bỏ vì phát hiện thiếu doc. Tiết kiệm token bằng cách bắt
+// model đi thêm hop là lỗ: token input gần như không tính vào latency, hop thì tính đủ.
+// `useReference` giữ lại cho tài liệu vượt ngân sách (xem REFERENCE_BUDGET_CHARS).
 
 import { readBody, listReferences, readReference } from "./loader.ts";
 import type { SkillRegistry } from "./registry.ts";
@@ -13,7 +19,8 @@ import type { Skill, SkillMeta } from "./types.ts";
 
 /** Câu dẫn đứng trên catalog trong system prompt — bảo model cách kích hoạt skill. */
 const CATALOG_HEADER =
-  "Skill có sẵn (gọi tool use_skill với `name` khi task hợp mô tả để nạp hướng dẫn đầy đủ):";
+  "Skill có sẵn (gọi tool use_skill với `name` khi task hợp mô tả để nạp hướng dẫn đầy đủ, " +
+  "kèm luôn tài liệu chi tiết của skill đó):";
 
 /**
  * Skill có hiện với agent này không. `meta.agents` vắng = mọi agent. `agentType` undefined = KHÔNG
@@ -38,14 +45,44 @@ export function renderSkillCatalog(registry: SkillRegistry, agentType?: string):
   return `${CATALOG_HEADER}\n${lines.join("\n")}`;
 }
 
+/** 1 reference đã kèm sẵn nội dung (tầng 3 gộp vào tầng 2). */
+export interface LoadedReference {
+  readonly name: string;
+  readonly content: string;
+}
+
 /** Kết quả model gọi useSkill — structured, ok:false cho tên lạ (input model, model tự sửa). */
 export type UseSkillResult =
-  | { ok: true; name: string; body: string; references: readonly string[] }
+  | {
+      ok: true;
+      name: string;
+      body: string;
+      /** Reference kèm luôn nội dung — model KHÔNG cần gọi use_reference cho mấy cái này. */
+      loaded: readonly LoadedReference[];
+      /** Reference vượt ngân sách, vẫn phải gọi use_reference. Thường rỗng. */
+      remaining: readonly string[];
+    }
   | { ok: false; error: string };
 
 /**
- * Model chọn skill theo `name` → nạp body + danh sách reference (tầng 2). Tên không có trong
- * registry → ok:false (không throw). Lỗi đọc file thật → propagate cho tool-runner cô lập.
+ * Trần ký tự cho phần reference kèm sẵn trong MỘT lượt use_skill.
+ *
+ * Vì sao có trần chứ không kèm hết: skill do non-dev soạn, một hôm ai thêm reference 200KB là nổ
+ * cửa sổ context. Trần này là cái phanh, không phải cái van tiết kiệm.
+ *
+ * Vì sao trần RỘNG (24k ký tự ≈ 8k token): đo trên prod thì `llm_ms ≈ 800 + out_tokens × 6.3` —
+ * token INPUT gần như không tính vào latency, còn mỗi lượt use_reference tiết kiệm được là bớt một
+ * hop 2-13s (model phải dừng lượt, gọi tool, rồi soạn lại từ đầu). Đổi token vào lấy hop ra.
+ *
+ * Mốc chọn theo skill dày nhất hiện có (`huong-dan`: 9 tài liệu ≈ 21k ký tự) — cộng chỗ thở. Vượt
+ * trần thì suy giảm mềm: tài liệu TO nhất rụng xuống use_reference, phần còn lại vẫn kèm đủ.
+ */
+const REFERENCE_BUDGET_CHARS = 24_000;
+
+/**
+ * Model chọn skill theo `name` → nạp body + KÈM LUÔN nội dung reference (tầng 2 + 3 trong một lượt).
+ * Tên không có trong registry → ok:false (không throw). Lỗi đọc file thật → propagate cho
+ * tool-runner cô lập.
  */
 export async function useSkill(
   registry: SkillRegistry,
@@ -56,8 +93,40 @@ export async function useSkill(
   if (skill === undefined) {
     return { ok: false, error: `Skill không tồn tại: ${name}` };
   }
-  const [body, references] = await Promise.all([readBody(skill), listReferences(skill)]);
-  return { ok: true, name: skill.meta.name, body, references };
+  const [body, names] = await Promise.all([readBody(skill), listReferences(skill)]);
+  const { loaded, remaining } = await bundleReferences(skill, names);
+  return { ok: true, name: skill.meta.name, body, loaded, remaining };
+}
+
+/**
+ * Đọc reference kèm vào ngay lượt use_skill: NHỎ TRƯỚC cho tới khi cạn `REFERENCE_BUDGET_CHARS`,
+ * phần còn lại chỉ trả tên. Nhỏ trước vì với một trần cố định thì thứ tự đó nhồi được nhiều tài
+ * liệu nhất — cơ hội model đã có sẵn thứ nó cần là cao nhất.
+ *
+ * Đọc HẾT rồi mới bỏ phần quá khổ: file reference cỡ vài KB, cả lượt đọc đĩa mất 1-4ms (đo trong
+ * log prod: `tool xong=1-4ms`) — không đáng dựng thêm một đường stat riêng để né.
+ */
+async function bundleReferences(
+  skill: Skill,
+  names: readonly string[],
+): Promise<{ loaded: LoadedReference[]; remaining: string[] }> {
+  const docs = await Promise.all(
+    names.map(async (name) => ({ name, content: await readReference(skill, name) })),
+  );
+  docs.sort((a, b) => a.content.length - b.content.length);
+
+  const loaded: LoadedReference[] = [];
+  const remaining: string[] = [];
+  let used = 0;
+  for (const doc of docs) {
+    if (used + doc.content.length <= REFERENCE_BUDGET_CHARS) {
+      loaded.push(doc);
+      used += doc.content.length;
+    } else {
+      remaining.push(doc.name);
+    }
+  }
+  return { loaded, remaining };
 }
 
 /** Kết quả model gọi useReference — structured như useSkill. */

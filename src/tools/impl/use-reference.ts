@@ -1,4 +1,6 @@
-// use-reference.ts — tầng 3 progressive disclosure: model đào sâu 1 reference của skill đã nạp.
+// use-reference.ts — đường phụ cho tài liệu VƯỢT ngân sách kèm sẵn của use_skill (phần lớn skill
+// không cần tới tool này nữa — xem skills/selector.ts). Giữ lại vì trần kèm sẵn là cái phanh chống
+// context nổ, không phải lời hứa "luôn kèm đủ".
 // Tên reference do model sinh → traversal (`../`) bị chặn ở selector (không nằm trong danh sách
 // available) → trả isError structured, KHÔNG throw ra loop.
 
@@ -10,7 +12,9 @@ import type { Tool, ToolResult } from "../types.ts";
 export function buildUseReferenceTool(skills: SkillRegistry, agentType?: string): Tool {
   return {
     name: "use_reference",
-    description: "Đọc một tài liệu reference của skill đã nạp (chi tiết sâu hơn body skill).",
+    description:
+      "Đọc một tài liệu của skill mà use_skill báo là CHƯA kèm (quá dài). use_skill đã trả sẵn " +
+      "phần lớn tài liệu — chỉ gọi tool này khi tài liệu cần đọc nằm trong danh sách chưa kèm đó.",
     inputSchema: {
       type: "object",
       properties: {

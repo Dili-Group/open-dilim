@@ -164,14 +164,37 @@ describe("selector — model tự chọn skill", () => {
     expect(renderSkillCatalog(new SkillRegistry())).toBe("");
   });
 
-  test("useSkill nạp body + references khi model chọn đúng tên", async () => {
+  test("useSkill nạp body + KÈM nội dung mọi reference khi model chọn đúng tên", async () => {
     const registry = await buildSkillRegistry();
     const result = await useSkill(registry, "chiet-khau");
     expect(result).toMatchObject({ ok: true, name: "chiet-khau" });
     if (result.ok) {
       expect(result.body).toContain("NHÂN VIÊN gõ xác nhận");
-      expect([...result.references].sort()).toEqual(["bang-muc.md", "nang-muc.md", "xac-nhan-nang.md"]);
+      expect(result.loaded.map((r) => r.name).sort()).toEqual([
+        "bang-muc.md",
+        "nang-muc.md",
+        "xac-nhan-nang.md",
+      ]);
+      // Kèm NỘI DUNG, không phải chỉ tên — đó là điểm bỏ được hop use_reference.
+      const bangMuc = result.loaded.find((r) => r.name === "bang-muc.md");
+      expect(bangMuc?.content).toContain("500 triệu");
+      // Cả ba dưới trần → không còn gì phải đào thêm.
+      expect(result.remaining).toEqual([]);
     }
+  });
+
+  test("mọi skill trong defs: reference kèm đủ, không sót cái nào phải đào thêm", async () => {
+    const registry = await buildSkillRegistry();
+    const stillPaged: string[] = [];
+    for (const meta of registry.catalog()) {
+      const result = await useSkill(registry, meta.name);
+      if (result.ok && result.remaining.length > 0) {
+        stillPaged.push(`${meta.name}: ${result.remaining.join(", ")}`);
+      }
+    }
+    // Không phải luật cấm — chỉ là mốc: skill nào vượt trần thì biết ngay mà tách file, chứ không
+    // âm thầm quay lại tốn thêm một hop LLM.
+    expect(stillPaged).toEqual([]);
   });
 
   test("useSkill tên lạ → ok:false structured (không throw)", async () => {
