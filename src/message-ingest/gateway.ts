@@ -9,7 +9,7 @@ import { captureError } from "../observability/sentry.ts";
 import type { Envelope, HistoryEntry } from "../types/index.ts";
 import type { IngestDeps } from "./deps.ts";
 import type { ChannelFactory } from "./factory.ts";
-import type { ParsedMessage } from "./ingestor.ts";
+import { isSupersedable, type ParsedMessage } from "./ingestor.ts";
 
 const WEBHOOK_PREFIX = "/webhook/";
 
@@ -73,7 +73,10 @@ async function processMessage(deps: IngestDeps, msg: ParsedMessage): Promise<boo
     try {
       // MỌI tin vào history (đúng thứ tự giờ nhận); chỉ tin nhắm agent mới vào queue.
       await deps.history.append(toHistoryEntry(envelope));
-      if (envelope.addressedToAgent) await deps.broker.publish(envelope);
+      if (envelope.addressedToAgent) {
+        await deps.broker.publish(envelope);
+        await markLatestTurn(deps, envelope);
+      }
       await trackSpeakerTurnover(deps, envelope);
     } catch (err) {
       // Trả lại mark để retry của channel reprocess (không mất tin).
@@ -85,6 +88,23 @@ async function processMessage(deps: IngestDeps, msg: ParsedMessage): Promise<boo
     console.error(`[ingest:${msg.channel}] xử lý msg ${msg.msgId} lỗi:`, err);
     captureError(err, "ingest.process", { channel: msg.channel, msgId: msg.msgId });
     return false;
+  }
+}
+
+/**
+ * Nâng vạch "tin mới nhất của phòng" để worker gom được tin gửi liên tiếp (worker/burst.ts).
+ * Chỉ tin ĐÃ vào queue và được phép gom: tin không nhắm agent không có lượt nào để đè, còn `/lệnh`
+ * đè lên tin thường là nuốt câu hỏi của khách.
+ *
+ * Best-effort: hỏng thì log rồi thôi. Vạch không nâng được = không ai bị bỏ = mỗi tin một lượt như
+ * cũ. Throw ở đây sẽ nhả dedupe và bắt kênh gửi lại nguyên tin — trả giá quá đắt cho một tối ưu.
+ */
+async function markLatestTurn(deps: IngestDeps, envelope: Envelope): Promise<void> {
+  if (deps.turns === undefined || !isSupersedable(envelope)) return;
+  try {
+    await deps.turns.mark(envelope.channel, envelope.conversationId, envelope.ts);
+  } catch (err) {
+    console.error(`[ingest:${envelope.channel}] nâng vạch tin mới nhất lỗi:`, err);
   }
 }
 

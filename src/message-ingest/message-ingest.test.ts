@@ -25,13 +25,29 @@ class FakeSpeakerTracker {
   }
 }
 
+/** Vạch tin mới nhất giả — ghi lại từng lần nâng để kiểm tin NÀO được phép đè tin khác. */
+class FakeTurnMarker {
+  readonly marks: Array<{ room: string; ts: number }> = [];
+  mark(channel: string, conversationId: string, ts: number): Promise<void> {
+    this.marks.push({ room: `${channel}:${conversationId}`, ts });
+    return Promise.resolve();
+  }
+}
+
 /** Deps mock ghi lại call. broker.publish có thể ép fail để test release + 5xx. */
-function makeDeps(opts: { failPublish?: boolean; speakers?: FakeSpeakerTracker } = {}) {
+function makeDeps(
+  opts: {
+    failPublish?: boolean;
+    speakers?: FakeSpeakerTracker;
+    turns?: IngestDeps["turns"];
+  } = {},
+) {
   const published: Envelope[] = [];
   const history: HistoryEntry[] = [];
   const seen = new Set<string>();
   const released: string[] = [];
   const deps: IngestDeps = {
+    turns: opts.turns,
     broker: {
       async publish(e) {
         if (opts.failPublish) throw new Error("broker down");
@@ -203,6 +219,42 @@ describe("gateway", () => {
     const res = await gw.handle(webhook(event({ msgId: "s1", uidFrom: "U1" })));
     expect(res.status).toBe(200);
     expect(local.history).toHaveLength(1);
+  });
+
+  test("tin thường nhắm agent → nâng vạch tin mới nhất phòng", async () => {
+    const turns = new FakeTurnMarker();
+    const local = makeDeps({ turns });
+    const gw = makeGateway(local.deps);
+    await gw.handle(webhook(event({ mentions: [{ uid: AGENT_UID }], ts: "1700000000123" })));
+    expect(turns.marks).toEqual([{ room: "zalo:G1", ts: 1700000000123 }]);
+  });
+
+  test("tin không nhắm agent → KHÔNG nâng vạch (không có lượt nào để đè)", async () => {
+    const turns = new FakeTurnMarker();
+    const local = makeDeps({ turns });
+    const gw = makeGateway(local.deps);
+    await gw.handle(webhook(event({ mentions: [] })));
+    expect(turns.marks).toHaveLength(0);
+  });
+
+  test("/lệnh → KHÔNG nâng vạch (lệnh không được đè câu hỏi của khách)", async () => {
+    const turns = new FakeTurnMarker();
+    const local = makeDeps({ turns });
+    const gw = makeGateway(local.deps);
+    await gw.handle(webhook(event({ content: "/ketnoi-hethong TOKEN" })));
+    expect(local.published).toHaveLength(1);
+    expect(turns.marks).toHaveLength(0);
+  });
+
+  test("nâng vạch hỏng → tin vẫn xử lý bình thường (200, không nhả dedupe)", async () => {
+    const local = makeDeps({
+      turns: { mark: () => Promise.reject(new Error("redis chết")) },
+    });
+    const gw = makeGateway(local.deps);
+    const res = await gw.handle(webhook(event({ mentions: [{ uid: AGENT_UID }] })));
+    expect(res.status).toBe(200);
+    expect(local.published).toHaveLength(1);
+    expect(local.released).toHaveLength(0);
   });
 
   test("dedupe: cùng msgId 2 lần → publish 1 lần", async () => {

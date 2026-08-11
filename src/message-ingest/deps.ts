@@ -38,11 +38,27 @@ export interface SpeakerTracker {
   swap(channel: string, conversationId: string, senderId: string): Promise<string | undefined>;
 }
 
+/**
+ * Vạch "tin hội thoại mới nhất của phòng" (EVENT TIME, ms). Ingest nâng vạch mỗi tin nhắm agent;
+ * worker soi lại để bỏ lượt đã lỗi thời khi người dùng gõ liền mấy tin — xem `worker/burst.ts`.
+ *
+ * Chỉ nâng cho tin `isSupersedable` (xem `ingestor.ts`): một `/lệnh` đè lên tin thường là nuốt câu
+ * hỏi của khách.
+ */
+export interface TurnMarker {
+  mark(channel: string, conversationId: string, ts: number): Promise<void>;
+}
+
 /** Bó port cấp cho gateway. */
 export interface IngestDeps {
   readonly broker: Broker;
   readonly history: HistoryStore;
   readonly dedupe: Dedupe;
+  /**
+   * undefined = không gom tin gửi liên tiếp → mỗi tin một lượt agent (hành vi cũ).
+   * Không chặn boot: thiếu cổng này agent vẫn trả lời đủ, chỉ trả lời rời từng tin.
+   */
+  readonly turns?: TurnMarker;
   /**
    * undefined = không theo dõi đổi người nói → chỉ chưng cất ở cuối lượt agent (hành vi cũ).
    * Không chặn boot: thiếu cổng này agent vẫn chạy, chỉ kém dữ liệu về nhóm chưa bind.

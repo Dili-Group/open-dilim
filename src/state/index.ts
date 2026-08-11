@@ -7,6 +7,7 @@ import { buildEmbedder, buildMemoryLlmProvider } from "../llm/index.ts";
 import { PgMemoryStore } from "./memory.ts";
 import { RedisHistoryStore } from "./session.ts";
 import { RedisDedupe } from "./dedupe.ts";
+import { RedisTurnMarker } from "./turn-marker.ts";
 import { LlmDistiller } from "./distiller.ts";
 import { LlmCompactor, RedisSummaryStore } from "./compactor.ts";
 import { MemoryWriterRegistry, RedisDistillCursor, TurnoverMemoryWriter } from "./memory-writer.ts";
@@ -30,6 +31,11 @@ export function buildHistoryStore(): RedisHistoryStore {
 /** Dedupe msgId trên Redis (SET NX) — atomic kể cả khi chạy nhiều process. */
 export function buildDedupe(): RedisDedupe {
   return new RedisDedupe(commandOf(redis));
+}
+
+/** Vạch tin mới nhất phòng: ingest nâng, worker soi để gom tin gửi liên tiếp (worker/burst.ts). */
+export function buildTurnMarker(): RedisTurnMarker {
+  return new RedisTurnMarker(commandOf(redis));
 }
 
 /** Distiller chạy trên con nhẹ (CONFIG.memoryModel), theo policy `spec` của agent gọi. */
@@ -73,6 +79,7 @@ export {
   HISTORY_BUFFER_TURNS,
 } from "./session.ts";
 export { RedisDedupe } from "./dedupe.ts";
+export { RedisTurnMarker } from "./turn-marker.ts";
 export { LlmDistiller, parseFacts, renderTranscript } from "./distiller.ts";
 export {
   MemoryWriterRegistry,

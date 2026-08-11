@@ -3,7 +3,9 @@
 
 import { ConversationLock } from "./lock.ts";
 import { handleEnvelope } from "./handler.ts";
+import { isSuperseded } from "./burst.ts";
 import { captureError } from "../observability/sentry.ts";
+import type { AgentResult } from "../types/index.ts";
 import type { WorkerPoolDeps } from "./types.ts";
 
 export interface RunningWorkers {
@@ -43,13 +45,20 @@ async function workerLoop(
     // thẳng `signal` (chỉ tắt khi shutdown) vì một lượt treo giữ luôn lock phòng — cả phòng đứng.
     // Đặt TRONG lock: đồng hồ chỉ tính lúc thật sự xử lý, không tính lúc xếp hàng sau lượt trước —
     // nếu không, một phòng dồn tin là cả hàng chờ hết hạn oan rồi đi DLQ.
-    const result = await lock.run(envelope.conversationId, () =>
-      handleEnvelope(
-        deps,
-        envelope,
-        AbortSignal.any([signal, AbortSignal.timeout(deps.turnTimeoutMs)]),
-      ),
-    );
+    const result = await lock.run(envelope.conversationId, async (): Promise<AgentResult> => {
+      const turnSignal = AbortSignal.any([signal, AbortSignal.timeout(deps.turnTimeoutMs)]);
+      // Gom tin gửi liên tiếp (burst.ts): chờ một nhịp rồi soi vạch — có tin mới hơn thì lượt này
+      // thôi, tin đó trả lời thay và đã đọc được tin này trong history. Đặt TRONG lock để cửa sổ
+      // chờ chỉ tính lúc thật tới lượt phòng, và lượt bị bỏ nhả lock ngay cho tin kế.
+      if (await isSuperseded(deps.turns, envelope, turnSignal, deps.burstWindowMs)) {
+        // Lượt bị bỏ KHÔNG đi qua handler nên không có dòng thời gian nào — nếu không log ở đây thì
+        // tin biến mất khỏi log mà không ai biết vì sao.
+        // eslint-disable-next-line no-console
+        console.log(`[worker] bỏ lượt ${envelope.msgId} phòng ${envelope.conversationId}: có tin mới hơn`);
+        return { status: "ignored", reason: "superseded" };
+      }
+      return handleEnvelope(deps, envelope, turnSignal);
+    });
     // failed = hỏng hạ tầng/LLM (DB chết, kênh chết) → KHÔNG ack, để broker giao lại; lặp hoài
     // thì broker tự đẩy DLQ. reply/suspended = lượt đã xong đúng nghĩa vụ → ack.
     if (result.status === "failed") {

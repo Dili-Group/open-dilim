@@ -52,6 +52,7 @@ import { SqlApproverRoomLookup } from "../announcements/store.ts";
 import { RedisSpeakerTracker } from "../state/speaker-tracker.ts";
 import {
   buildDedupe,
+  buildTurnMarker,
   buildHistoryStore,
   buildMemoryStore,
   buildMemoryWriters,
@@ -81,7 +82,9 @@ export async function bootstrap(): Promise<Services> {
   const dedupe = buildDedupe();
   // Vạch "ai vừa nói": ingest dùng để phát hiện đổi người nói → đẩy envelope `distill`.
   const speakers = new RedisSpeakerTracker(commandOf(redis));
-  const ingestDeps: IngestDeps = { broker, history, dedupe, speakers };
+  // Vạch "tin mới nhất phòng": ingest nâng, pool soi để gom tin gửi liên tiếp thành một lượt.
+  const turns = buildTurnMarker();
+  const ingestDeps: IngestDeps = { broker, history, dedupe, speakers, turns };
 
   const llm = buildLlmProvider(config);
   // Memory dài hạn cần embedder Gemini (buildEmbedder throw nếu thiếu key). Không có key → chạy
@@ -220,6 +223,7 @@ export async function bootstrap(): Promise<Services> {
     announceDeps,
     historyReader: history,
     historyWriter: history,
+    turns,
     memoryWriters,
     compactor,
     summaries,
@@ -253,6 +257,8 @@ export async function start(): Promise<RunningSystem> {
     announceApprovals: services.announce,
     workerCount: services.config.workerCount,
     turnTimeoutMs: services.config.turnTimeoutMs,
+    // Gom tin gửi liên tiếp: CÙNG vạch mà ingest nâng (services.ingestDeps.turns).
+    turns: services.turns,
   });
 
   // Nguồn trigger theo THỜI GIAN (§8). Dùng lại đúng broker/history/dedupe của ingest → lượt cron

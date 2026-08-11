@@ -21,10 +21,12 @@ import type { ConversationCompactor } from "../state/compactor.ts";
 import { SkillRegistry } from "../skills/registry.ts";
 import { buildAgentRegistry } from "../agents/registry.ts";
 import type { AgentConfig } from "../agents/types.ts";
+import { startTurnTimer } from "../observability/timing.ts";
 import { ConversationLock } from "./lock.ts";
 import { handleEnvelope } from "./handler.ts";
+import { isSuperseded } from "./burst.ts";
 import { startWorkers } from "./pool.ts";
-import type { WorkerContext } from "./types.ts";
+import type { LatestTurnReader, WorkerContext } from "./types.ts";
 
 const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -274,6 +276,159 @@ describe("startWorkers — deadline mỗi lượt", () => {
     await workers.stop();
 
     expect(broadcaster.sent[0]?.text).toBe(LATE_REPLY);
+  });
+});
+
+/** Vạch tin mới nhất giả — Map trong bộ nhớ, đúng semantics SET/GET của RedisTurnMarker. */
+class FakeTurnMarker implements LatestTurnReader {
+  readonly reads: string[] = [];
+  private readonly latest = new Map<string, number>();
+  mark(channel: string, conversationId: string, ts: number): void {
+    this.latest.set(`${channel}:${conversationId}`, ts);
+  }
+  latestTs(channel: string, conversationId: string): Promise<number | undefined> {
+    const room = `${channel}:${conversationId}`;
+    this.reads.push(room);
+    return Promise.resolve(this.latest.get(room));
+  }
+}
+
+describe("startTurnTimer", () => {
+  /** Đồng hồ giả: mỗi lần đọc nhảy theo kịch bản → test không phụ thuộc tốc độ máy. */
+  function fakeClock(ticks: readonly number[]): () => number {
+    let i = 0;
+    return () => {
+      const at = ticks[i] ?? ticks[ticks.length - 1] ?? 0;
+      i += 1;
+      return at;
+    };
+  }
+
+  test("mỗi lap đo từ lap trước, tổng đo từ lúc bắt đầu", () => {
+    // đọc: start=0, lap(auth)=40, lap(agent)=6540, summary=6600
+    const timer = startTurnTimer(fakeClock([0, 40, 6540, 6600]));
+    timer.lap("auth");
+    timer.lap("agent");
+    expect(timer.summary()).toBe("auth=40ms agent=6500ms tổng=6600ms");
+  });
+
+  test("chưa lap nào → chỉ có tổng", () => {
+    expect(startTurnTimer(fakeClock([0, 12])).summary()).toBe("tổng=12ms");
+  });
+});
+
+describe("isSuperseded — gom tin gửi liên tiếp", () => {
+  /** Cửa sổ ngắn: test kiểm logic vạch, không kiểm đồng hồ. */
+  const WINDOW = 5;
+
+  test("phòng có tin mới hơn → bỏ lượt này", async () => {
+    const turns = new FakeTurnMarker();
+    turns.mark("zalo", "c1", 200);
+    expect(await isSuperseded(turns, makeEnvelope({ ts: 100 }), undefined, WINDOW)).toBe(true);
+  });
+
+  test("vạch bằng tuổi tin này (chính nó là tin mới nhất) → chạy", async () => {
+    const turns = new FakeTurnMarker();
+    turns.mark("zalo", "c1", 100);
+    expect(await isSuperseded(turns, makeEnvelope({ ts: 100 }), undefined, WINDOW)).toBe(false);
+  });
+
+  test("tin mới ở phòng KHÁC → không đè", async () => {
+    const turns = new FakeTurnMarker();
+    turns.mark("zalo", "c2", 999);
+    expect(await isSuperseded(turns, makeEnvelope({ ts: 100 }), undefined, WINDOW)).toBe(false);
+  });
+
+  test("/lệnh không bao giờ bị đè, và không tốn một lượt đọc vạch", async () => {
+    const turns = new FakeTurnMarker();
+    turns.mark("zalo", "c1", 999);
+    const command = makeEnvelope({ ts: 1, text: "/lich" });
+    expect(await isSuperseded(turns, command, undefined, WINDOW)).toBe(false);
+    expect(turns.reads).toEqual([]);
+  });
+
+  test("envelope distill (không do người gõ) → không gom", async () => {
+    const turns = new FakeTurnMarker();
+    turns.mark("zalo", "c1", 999);
+    const distill = makeEnvelope({ source: "distill", ts: 1, text: "" });
+    expect(await isSuperseded(turns, distill, undefined, WINDOW)).toBe(false);
+  });
+
+  test("chưa nối cổng vạch → chạy như cũ", async () => {
+    expect(await isSuperseded(undefined, makeEnvelope(), undefined, WINDOW)).toBe(false);
+  });
+
+  test("đọc vạch lỗi → chạy (thà trả lời hai lần hơn im lặng)", async () => {
+    const broken: LatestTurnReader = {
+      latestTs: () => Promise.reject(new Error("redis chết")),
+    };
+    expect(await isSuperseded(broken, makeEnvelope(), undefined, WINDOW)).toBe(false);
+  });
+
+  test("abort giữa cửa sổ → KHÔNG bỏ lượt (để lượt hỏng đúng chỗ, không ack mất tin)", async () => {
+    const turns = new FakeTurnMarker();
+    turns.mark("zalo", "c1", 999);
+    const ac = new AbortController();
+    const pending = isSuperseded(turns, makeEnvelope({ ts: 1 }), ac.signal, 10_000);
+    ac.abort();
+    expect(await pending).toBe(false);
+  });
+});
+
+describe("startWorkers — gom tin gửi liên tiếp", () => {
+  test("tin sau đè tin trước → 1 lượt LLM, 1 reply, tin trước vẫn nằm trong ngữ cảnh", async () => {
+    const history = new MemoryHistoryStore();
+    for (const [msgId, text, ts] of [
+      ["m1", "tồn kho mã X còn nhiêu", 100],
+      ["m2", "gấp nhé", 200],
+    ] as const) {
+      await history.append({
+        conversationId: "c1",
+        msgId,
+        senderId: "u1",
+        text,
+        isGroup: false,
+        role: "user",
+        ts,
+      });
+    }
+    // Vạch = tin CUỐI, đúng như ingest đã nâng cho cả hai tin.
+    const turns = new FakeTurnMarker();
+    turns.mark("zalo", "c1", 100);
+    turns.mark("zalo", "c1", 200);
+
+    const reply: ChatResult = { stopReason: "end_turn", content: [{ type: "text", text: "còn 12" }] };
+    // Hai bản trong kịch bản: nếu lượt của m1 cũng chạy thì sẽ thấy 2 tin gửi ra, không phải lỗi
+    // "hết kịch bản" — test phân biệt được "gom đúng" với "gom hụt rồi hỏng".
+    const provider = new ScriptedProvider([reply, reply]);
+    const broadcaster = new CapturingBroadcaster();
+    const broker = new MemoryBroker();
+    const workers = startWorkers({
+      history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
+      identity: new FakeResolver({ role: "guest", senderId: "u1" }),
+      agents: buildAgentRegistry({ provider, config: CFG, skills: SKILLS }),
+      broadcaster,
+      typing: TYPING,
+      broker,
+      workerCount: 1,
+      turnTimeoutMs: 1_000,
+      turns,
+      burstWindowMs: 5,
+    });
+
+    await broker.publish(makeEnvelope({ msgId: "m1", text: "tồn kho mã X còn nhiêu", ts: 100 }));
+    await broker.publish(makeEnvelope({ msgId: "m2", text: "gấp nhé", ts: 200 }));
+    await waitFor(() => broadcaster.sent.length === 1);
+    // Nhường thêm nhịp: nếu lượt m1 không bị bỏ thì tin thứ hai sẽ kịp gửi ở đây.
+    await delay(60);
+    await workers.stop();
+
+    expect(broadcaster.sent).toHaveLength(1);
   });
 });
 

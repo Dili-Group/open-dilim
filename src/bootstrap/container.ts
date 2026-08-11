@@ -14,7 +14,12 @@ import type { LLMProvider } from "../llm/index.ts";
 import type { AgentRegistry } from "../agents/index.ts";
 import type { Broadcaster, TypingFactory } from "../broadcast/index.ts";
 import type { GroupCustomerLookup, IdentityResolver } from "../auth/index.ts";
-import type { BrokerConsumer, HistoryReader, HistoryWriter } from "../worker/index.ts";
+import type {
+  BrokerConsumer,
+  HistoryReader,
+  HistoryWriter,
+  LatestTurnReader,
+} from "../worker/index.ts";
 import type { ConversationCompactor, MemoryWriterLookup, SummaryReader } from "../state/index.ts";
 import type { WorkflowDeps } from "../workflows/types.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
@@ -76,6 +81,11 @@ export interface Services {
   readonly historyReader: HistoryReader;
   /** Ghi history (flash reply) — CÙNG instance với historyReader/ingestDeps.history. */
   readonly historyWriter: HistoryWriter;
+  /**
+   * Đầu ĐỌC vạch tin mới nhất phòng — CÙNG instance với `ingestDeps.turns` (ingest nâng vạch,
+   * pool soi vạch để gom tin gửi liên tiếp).
+   */
+  readonly turns: LatestTurnReader;
   /**
    * Đường ghi trí nhớ dài hạn THEO AGENT (distill theo lô → embed → pgvector) — mỗi agent chưng
    * cất bằng `memorySpec` của nó. undefined khi thiếu GEMINI_API_KEY → hệ chạy bằng ngắn hạn,

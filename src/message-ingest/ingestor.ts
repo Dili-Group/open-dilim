@@ -8,6 +8,21 @@
 import { parseCommand } from "../flash-command/registry.ts";
 import type { Envelope, Mention } from "../types/index.ts";
 
+/**
+ * Tin có được phép GOM vào lượt sau (bị tin mới hơn cùng phòng đè), hay phải chạy đủ lượt riêng.
+ * Cơ chế gom nằm ở `worker/burst.ts`.
+ *
+ * `/lệnh` KHÔNG bao giờ bị đè và cũng không đè ai: người dùng gõ tay một side-effect (bind/duyệt/
+ * lịch), nuốt lệnh là mất đúng việc họ yêu cầu. Envelope không do người gõ (`cron`, `distill`)
+ * cũng không có burst nào để gom.
+ *
+ * HAI đầu phải dùng đúng một hàm này — ingest đặt vạch, worker soi vạch. Lệch nhau là hoặc bỏ tin
+ * (bị một `/lệnh` đè), hoặc gom hụt.
+ */
+export function isSupersedable(envelope: Envelope): boolean {
+  return envelope.source === "channel" && parseCommand(envelope.text) === null;
+}
+
 /** Phần adapter parse ra. Chỉ `source` (=channel) do gateway gắn khi dựng Envelope. */
 export type ParsedMessage = Omit<Envelope, "source">;
 

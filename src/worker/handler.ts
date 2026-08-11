@@ -4,6 +4,7 @@
 // hệt nhau). Dedupe (bước 4) đã làm ở ingest (biến thể "ingest dày") nên worker không lặp lại.
 
 import { resolveAgentType } from "../agents/router.ts";
+import { startTurnTimer, type TurnTimer } from "../observability/timing.ts";
 import { toTurnSpeaker } from "../agents/runtime/build-agent.ts";
 import type { RootAgent } from "../agents/types.ts";
 import type { TurnSpeaker } from "../context/speaker-block.ts";
@@ -28,12 +29,15 @@ export async function handleEnvelope(
 ): Promise<AgentResult> {
   // Con trỏ bước: một catch duy nhất nhưng vẫn biết hỏng ở đâu.
   let step: LifecycleStep = "auth";
+  const timer = startTurnTimer();
   try {
     // Envelope `distill` KHÔNG phải tin nhắn: bỏ qua AUTH/flash/agent, chỉ chưng cất rồi thoát.
     // Nằm trước AUTH vì không có ai "gõ" lượt này — resolve vai chỉ tốn I/O.
     if (envelope.source === "distill") {
       step = "state";
-      return await distillOnly(ctx, envelope, signal);
+      const distilled = await distillOnly(ctx, envelope, signal);
+      timer.lap("distill-only");
+      return distilled;
     }
 
     // 6. AUTH — vai luôn resolve từ senderId server-side (group → groupId = conversationId).
@@ -42,6 +46,7 @@ export async function handleEnvelope(
       senderId: envelope.senderId,
       groupId: envelope.isGroup ? envelope.conversationId : undefined,
     });
+    timer.lap("auth");
 
     // 6b. FLASH — tin `/lệnh` chạy side-effect (bind/gán/gỡ), KHÔNG qua LLM. dispatch trả null nếu
     // không phải lệnh → rơi xuống agent. Có kết quả (kể cả lỗi tên/quyền/handler — luôn có reply):
@@ -56,6 +61,7 @@ export async function handleEnvelope(
       jobs: ctx.jobs,
       announce: ctx.announceApprovals,
     });
+    timer.lap("flash");
     if (flash !== null) {
       step = "broadcast";
       await ctx.historyWriter.append({
@@ -76,6 +82,7 @@ export async function handleEnvelope(
         },
         capForChannel(envelope.channel, flash.reply),
       );
+      timer.lap("broadcast");
       return { status: "reply", text: flash.reply };
     }
 
@@ -92,6 +99,7 @@ export async function handleEnvelope(
     // 7. STATE — nạp history phòng (đã gồm chính message này do ingest append trước khi publish).
     step = "state";
     const history = await ctx.history.recent(envelope.conversationId, HISTORY_WINDOW_TURNS);
+    timer.lap("history");
     if (history.length === 0) {
       // Rỗng = bất thường (ingest append TRƯỚC publish) → thành kết quả có vết, không im lặng.
       return {
@@ -114,6 +122,9 @@ export async function handleEnvelope(
     const onStep = buildTypingPulse(ctx, envelope);
     const onAnnounce = buildAnnouncer(ctx, envelope);
     const speakers = await resolveSpeakers(ctx, envelope, identity, history);
+    // Bốn lượt I/O trên còn chạy NỐI TIẾP (chủ phòng → bản tóm → việc treo → vai người nói). Con số
+    // `ctx=` là cái để quyết có đáng gộp Promise.all hay không — đo trước, tối ưu sau.
+    timer.lap("ctx");
     const result = await agent.run({
       identity,
       speakers,
@@ -130,6 +141,7 @@ export async function handleEnvelope(
       onAnnounce,
       signal,
     });
+    timer.lap("agent");
     // suspended (§6): gate đã lưu pending + tự phát yêu cầu duyệt tới NGƯỜI DUYỆT (có thể ở phòng
     // khác) → worker thoát, không broadcast gì thêm. failed: không có text hợp lệ để gửi.
     if (result.status !== "reply" || result.text === "") return result;
@@ -146,14 +158,20 @@ export async function handleEnvelope(
       },
       capForChannel(envelope.channel, result.text),
     );
+    timer.lap("broadcast");
 
     // 10. GHI NHỚ — reply agent vào buffer ngắn hạn, rồi đường dài hạn (agent vừa trả lời = đổi
     // người nói, writer tự quyết phần chưa chưng cất đã đủ dài chưa). Sau broadcast: khách đã nhận câu trả lời, hỏng ở đây chỉ
     // mất trí nhớ chứ không được biến lượt thành failed.
-    await rememberTurn(ctx, envelope, agent, result.text, history, memoryScope, signal);
+    await rememberTurn(ctx, envelope, agent, result.text, history, memoryScope, timer, signal);
     return result;
   } catch (err) {
     return { status: "failed", step, error: err instanceof Error ? err : new Error(String(err)) };
+  } finally {
+    // Vết THỜI GIAN của lượt (chỉ số, không nội dung). In cả khi lượt hỏng/bị bỏ: một lượt chết ở
+    // giây thứ 60 mà không có dòng này thì không biết nó chết vì LLM lặng hay vì Postgres treo.
+    // eslint-disable-next-line no-console
+    console.log(`[worker] lượt ${envelope.msgId} phòng ${envelope.conversationId} ${timer.summary()}`);
   }
 }
 
@@ -242,6 +260,7 @@ async function rememberTurn(
   replyText: string,
   history: readonly HistoryEntry[],
   memoryScope: MemoryScope | undefined,
+  timer: TurnTimer,
   signal?: AbortSignal,
 ): Promise<void> {
   const reply: HistoryEntry = {
@@ -273,6 +292,9 @@ async function rememberTurn(
     } catch (err) {
       console.error("[worker] nén hội thoại lỗi:", err);
     }
+    // Cả nén và chưng cất đều là lượt LLM, chạy SAU broadcast nhưng vẫn trong khoá phòng → tin kế
+    // của phòng phải chờ. Đo tách hai khâu để biết cái nào đáng đẩy ra ngoài lượt.
+    timer.lap("compact");
   }
 
   // Chưa bind phòng (không có scope) hoặc chưa bật memory dài hạn → không có chỗ ghi, bỏ qua.
@@ -286,6 +308,7 @@ async function rememberTurn(
   } catch (err) {
     console.error("[worker] ghi trí nhớ dài hạn lỗi:", err);
   }
+  timer.lap("distill");
 }
 
 /**

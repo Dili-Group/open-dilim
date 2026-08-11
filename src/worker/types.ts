@@ -32,6 +32,15 @@ export interface BrokerConsumer {
   take(signal?: AbortSignal): Promise<Delivery | null>;
 }
 
+/**
+ * Đầu ĐỌC của vạch "tin hội thoại mới nhất phòng" (đầu ghi = `TurnMarker` của message-ingest, cùng
+ * một instance). Pool soi vạch để bỏ lượt đã lỗi thời — xem `burst.ts`.
+ */
+export interface LatestTurnReader {
+  /** Event time (ms) của tin mới nhất. undefined = chưa có vạch (hoặc đã hết hạn). */
+  latestTs(channel: string, conversationId: string): Promise<number | undefined>;
+}
+
 /** Đọc history phòng (STATE bước 7). */
 export interface HistoryReader {
   recent(conversationId: string, limit: number): Promise<HistoryEntry[]>;
@@ -97,4 +106,11 @@ export interface WorkerPoolDeps extends WorkerContext {
   readonly workerCount: number;
   /** Deadline một lượt (ms). Quá hạn → abort signal của lượt → handleEnvelope trả `failed`. */
   readonly turnTimeoutMs: number;
+  /**
+   * Vạch tin mới nhất phòng — pool soi để gom tin gửi liên tiếp thành một lượt (`burst.ts`).
+   * undefined = mỗi tin một lượt agent (hành vi cũ), không chặn boot.
+   */
+  readonly turns?: LatestTurnReader;
+  /** Cửa sổ chờ tin kế (ms). undefined = `BURST_WINDOW_MS`. */
+  readonly burstWindowMs?: number;
 }
