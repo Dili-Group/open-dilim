@@ -11,6 +11,7 @@
 import { internalOpsSpec } from "../../state/specs.ts";
 import {
   COMMON_TOOLS,
+  VISION_TOOLS,
   WAREHOUSE_ANNOUNCE_TOOLS,
   WORKFLOW_ASK_TOOLS,
   WORKFLOW_LIST_TOOLS,
@@ -28,6 +29,9 @@ export const warehouseProfile: RootAgentProfile = {
     ...COMMON_TOOLS,
     ...WORKFLOW_ASK_TOOLS,
     ...WORKFLOW_LIST_TOOLS,
+    // Kho chụp ảnh nhiều hơn gõ: tem mã vận đơn trên kiện hoàn, ảnh hàng vỡ/thiếu, phiếu giao
+    // hàng. Đọc lười — chỉ mở ảnh khi nội dung ảnh cần cho việc đang xử lý.
+    ...VISION_TOOLS,
     // Xin phát tin hết hàng cho toàn bộ đại lý. Tool tự gate theo `role_slug = warehouse`, và
     // đường phát còn một cửa nữa: người duyệt đích danh gõ /duyet-thongbao. Agent chỉ soạn và xin.
     ...WAREHOUSE_ANNOUNCE_TOOLS,
