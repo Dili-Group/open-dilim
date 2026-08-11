@@ -45,9 +45,17 @@ const DAY_FORMAT = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
-/** Ngày sổ sách dạng `YYYY-MM-DD` theo giờ VN. en-CA cho ra đúng định dạng ISO này. */
+/**
+ * Ngày sổ sách dạng `YYYY-MM-DD` theo giờ VN.
+ *
+ * Ghép từ `formatToParts` chứ KHÔNG lấy nguyên chuỗi `format()`: máy thiếu locale data thì Intl
+ * lặng lẽ rơi về locale khác và trả `08/11/2026` — không lỗi, chỉ là khoá ngày sai, và sổ cái
+ * sẽ gom nhầm ngày mà không có gì báo. Đọc theo `type` thì locale nào cũng ra đúng.
+ */
 export function usageDay(now: Date = new Date()): string {
-  return DAY_FORMAT.format(now);
+  const parts = DAY_FORMAT.formatToParts(now);
+  const at = (type: string): string => parts.find((p) => p.type === type)?.value ?? "";
+  return `${at("year")}-${at("month")}-${at("day")}`;
 }
 
 const SECONDS_PER_DAY = 86_400;

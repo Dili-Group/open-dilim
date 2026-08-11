@@ -17,16 +17,22 @@ function bar(percent: number): string {
   return "█".repeat(filled) + "░".repeat(BAR_SLOTS - filled);
 }
 
-/** 3.700 → "3.700" (dấu chấm phân nhóm, kiểu VN). */
+/**
+ * 3700 → "3.700" (dấu chấm phân nhóm, kiểu VN).
+ *
+ * Tự chèn dấu thay vì `toLocaleString("vi-VN")`: máy CI thiếu locale data thì Intl lặng lẽ rơi
+ * về locale khác và trả "3,700" — không lỗi, chỉ sai dấu. Đây là chữ hiển thị cho người dùng
+ * Việt nên phải cố định, không phụ thuộc môi trường chạy.
+ */
 function formatVnd(value: number): string {
-  return Math.round(value).toLocaleString("vi-VN");
+  return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 const mucSudung: FlashCommand = {
   name: "muc-sudung",
   description: "Xem mức dùng hạn mức hôm nay của phòng: /muc-sudung",
   // Mọi vai gõ được: đây là số liệu của CHÍNH phòng đang gõ, và người bị chặn cần biết vì sao.
-  // Chi tiết tiền chỉ hiện cho nhân viên (xem dưới).
+  // Chỉ trả PHẦN TRĂM: đại lý cần biết còn dùng được bao nhiêu, không cần biết chi phí vận hành.
 
   async handler(ctx: FlashContext) {
     if (ctx.usage === undefined) {

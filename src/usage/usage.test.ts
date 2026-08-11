@@ -97,6 +97,12 @@ describe("usageDay", () => {
     expect(usageDay(new Date("2026-08-11T18:00:00Z"))).toBe("2026-08-12");
   });
 
+  test("luôn ra dạng YYYY-MM-DD, không phụ thuộc locale data của máy chạy", () => {
+    // Máy thiếu locale data mà lấy nguyên chuỗi format() sẽ ra "08/11/2026" → khoá ngày sai,
+    // sổ cái gom nhầm ngày mà không có gì báo lỗi.
+    expect(usageDay(new Date("2026-08-11T18:00:00Z"))).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
   test("ngay trước nửa đêm VN vẫn là ngày cũ", () => {
     // 2026-08-11T16:59Z = 23:59 ngày 11/08 giờ VN.
     expect(usageDay(new Date("2026-08-11T16:59:00Z"))).toBe("2026-08-11");

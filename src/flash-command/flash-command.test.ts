@@ -423,21 +423,15 @@ describe("/muc-sudung", () => {
     expect(result?.reply).toContain("37%");
   });
 
-  test("nhân viên thấy số tiền", async () => {
-    const result = await flashRegistry.dispatch(
-      "/muc-sudung",
-      input({ usage: usageAt(3_700), agentType: "dealer" }),
-    );
-    expect(result?.reply).toContain("3.700đ / 10.000đ");
-  });
-
-  test("đại lý/khách CHỈ thấy phần trăm, không thấy chi phí vận hành", async () => {
-    const result = await flashRegistry.dispatch(
-      "/muc-sudung",
-      input({ usage: usageAt(3_700), agentType: "dealer", identity: guest }),
-    );
-    expect(result?.reply).toContain("37%");
-    expect(result?.reply).not.toContain("đ / ");
+  test("CHỈ thấy phần trăm — không lộ chi phí vận hành cho bất kỳ vai nào", async () => {
+    for (const identity of [nhanVien, guest]) {
+      const result = await flashRegistry.dispatch(
+        "/muc-sudung",
+        input({ usage: usageAt(3_700), agentType: "dealer", identity }),
+      );
+      expect(result?.reply).toContain("37%");
+      expect(result?.reply).not.toContain("đ");
+    }
   });
 
   test("agent khai không giới hạn → nói thẳng, không bịa 0%", async () => {
