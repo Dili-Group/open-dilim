@@ -15,6 +15,11 @@ Bốn loại tình huống, xử lý khác nhau:
 | Đại lý: "Em đủ điều kiện rồi, cho em lên" | Thu minh chứng theo đúng nhánh → chờ nhân viên | `references/nang-muc.md` |
 | **Nhân viên**: "Ok duyệt cho chị ấy lên bậc X" | `tra_bac_chiet_khau` → `nang_bac_chiet_khau` | `references/xac-nhan-nang.md` |
 
+**Mốc 26/08/2026:** skill này là bảng chiết khấu cũ (hiệu lực 01/07/2026), áp tới hết 25/08/2026.
+Từ 26/08/2026, chiết khấu bán lẻ theo Chính sách 001/CS-DLS.KT — skill `chinh-sach-hoa-hong`. Hỏi
+về hoa hồng lãnh đạo, tầng F1/F2/F3, đối soát, thanh toán → luôn là `chinh-sach-hoa-hong`, không
+phải skill này.
+
 ## Luật 1 — Đọc bậc bằng tool, nhưng bậc KHÔNG phải phần trăm
 
 `tra_ho_so_dai_ly` trả hồ sơ đại lý của phòng này: **tên bậc** chiết khấu (vd `F2 · Đại lý cấp 2`),

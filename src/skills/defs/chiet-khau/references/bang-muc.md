@@ -3,7 +3,13 @@
 Nguồn: "Chính sách chiết khấu đại lý mới", Công ty Cổ phần DiLiM Supplement, áp dụng từ 01/07/2026.
 Trích đúng văn bản. Mức nào không có trong đây thì **không tồn tại** — đừng nội suy mức trung gian.
 
-## Bảng A — theo doanh thu kỳ đối soát
+> **Mốc 26/08/2026 — bảng này chỉ áp tới hết 25/08/2026.**
+> Chính sách 001/CS-DLS.KT (hiệu lực **26/08/2026**) thay Bảng A bằng bảng **tích lũy 06 tháng**
+> (20tr→30%, 50→35%, 100→40%, 200→45%, 500→50%) kèm điều kiện duy trì 180 triệu/06 tháng. Từ mốc
+> đó dùng skill `chinh-sach-hoa-hong`, reference `chiet-khau-001.md`.
+> Đại lý **đã hợp tác trước 26/08/2026 giữ nguyên mức đã ký** — không tự kéo họ về bảng nào.
+
+## Bảng A — theo doanh thu kỳ đối soát (tới hết 25/08/2026)
 
 | Doanh thu kỳ đối soát | Chiết khấu |
 |---|---|
