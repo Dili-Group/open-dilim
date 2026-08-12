@@ -19,8 +19,8 @@ import { AgentType } from "../agents/types.ts";
  * thêm một lý do nữa để không đặt trần ở đó bằng số liệu thiếu.
  */
 export const DAILY_BUDGET_VND: Readonly<Record<string, number | null>> = {
-  [AgentType.Dealer]: 10_000,
-  [AgentType.Personal]: 10_000,
+  [AgentType.Dealer]: 2_000,
+  [AgentType.Personal]: 2_000,
   [AgentType.Warehouse]: null,
   [AgentType.Operations]: null,
   [AgentType.Boss]: null,

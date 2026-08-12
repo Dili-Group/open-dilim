@@ -20,9 +20,9 @@ export const PICO_PER_USD = 1_000_000_000_000;
  *
  * $0,0048 / 1M token = 4,8e-9 USD/token = 4800 pico.
  */
-const PICO_PER_CACHE_READ = 4_800; // $0,0048 / 1M — cache hit
-const PICO_PER_INPUT = 280_000; // $0,28   / 1M — cache miss
-const PICO_PER_OUTPUT = 480_000; // $0,48   / 1M
+const PICO_PER_CACHE_READ = 2_800; // $0,0048 / 1M — cache hit
+const PICO_PER_INPUT = 130_000; // $0,28   / 1M — cache miss
+const PICO_PER_OUTPUT = 240_000; // $0,48   / 1M
 
 /**
  * Gateway chưa công bố giá ghi cache riêng. Tạm tính BẰNG giá cache miss: tính dư thì chặn sớm,
