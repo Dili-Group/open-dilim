@@ -22,18 +22,21 @@ function usage(partial: Partial<LlmUsage>): LlmUsage {
 
 describe("costPicoUsd", () => {
   test("mỗi loại token tính theo đơn giá riêng", () => {
-    expect(costPicoUsd(usage({ input: 1 }))).toBe(280_000);
-    expect(costPicoUsd(usage({ output: 1 }))).toBe(480_000);
-    expect(costPicoUsd(usage({ cacheRead: 1 }))).toBe(4_800);
+    expect(costPicoUsd(usage({ input: 1 }))).toBe(130_000);
+    expect(costPicoUsd(usage({ output: 1 }))).toBe(240_000);
+    expect(costPicoUsd(usage({ cacheRead: 1 }))).toBe(2_800);
   });
 
-  test("token output đắt gấp 100 lần token cache hit — LÝ DO không đếm token trần", () => {
-    expect(costPicoUsd(usage({ output: 1 }))).toBe(costPicoUsd(usage({ cacheRead: 100 })));
+  test("token output đắt hơn token cache hit hàng CHỤC lần — LÝ DO không đếm token trần", () => {
+    // Không chốt đúng một con số: giá gateway đổi theo thời kỳ. Cái phải đúng là bậc chênh lệch —
+    // còn chênh vài chục lần thì đếm token trần vẫn là cách đo sai.
+    const ratio = costPicoUsd(usage({ output: 1 })) / costPicoUsd(usage({ cacheRead: 1 }));
+    expect(ratio).toBeGreaterThan(50);
   });
 
   test("cộng đủ bốn loại", () => {
     const cost = costPicoUsd(usage({ input: 3_000, output: 2_000, cacheRead: 40_000 }));
-    expect(cost).toBe(3_000 * 280_000 + 2_000 * 480_000 + 40_000 * 4_800);
+    expect(cost).toBe(3_000 * 130_000 + 2_000 * 240_000 + 40_000 * 2_800);
   });
 
   test("luôn ra số nguyên (INCRBY của Redis chỉ nhận số nguyên)", () => {
@@ -128,7 +131,7 @@ describe("secondsUntilNextDay", () => {
 
 describe("dailyBudgetVnd", () => {
   test("nhóm ngoài (đại lý) có trần", () => {
-    expect(dailyBudgetVnd(AgentType.Dealer)).toBe(10_000);
+    expect(dailyBudgetVnd(AgentType.Dealer)).toBe(2_000);
   });
 
   test("nhóm nội bộ khai null = không chặn", () => {
@@ -159,10 +162,10 @@ describe("checkDailyBudget", () => {
   };
 
   test("dưới trần → cho chạy", async () => {
-    const decision = await checkDailyBudget({ ...base, usage: fakeUsagePort(vndToPicoUsd(3_000, RATE)) });
+    const decision = await checkDailyBudget({ ...base, usage: fakeUsagePort(vndToPicoUsd(1_000, RATE)) });
     expect(decision.allowed).toBe(true);
-    expect(decision.spentVnd).toBeCloseTo(3_000, 0);
-    expect(decision.limitVnd).toBe(10_000);
+    expect(decision.spentVnd).toBeCloseTo(1_000, 0);
+    expect(decision.limitVnd).toBe(2_000);
   });
 
   test("chạm trần → chặn", async () => {

@@ -414,10 +414,10 @@ describe("/muc-sudung", () => {
     expect(result?.reply).toContain("Chưa bật đo");
   });
 
-  test("dùng 3.700đ trên trần 10.000đ → 37%", async () => {
+  test("dùng 740đ trên trần 2.000đ → 37%", async () => {
     const result = await flashRegistry.dispatch(
       "/muc-sudung",
-      input({ usage: usageAt(3_700), agentType: "dealer" }),
+      input({ usage: usageAt(740), agentType: "dealer" }),
     );
     expect(result?.ok).toBe(true);
     expect(result?.reply).toContain("37%");
@@ -427,7 +427,7 @@ describe("/muc-sudung", () => {
     for (const identity of [nhanVien, guest]) {
       const result = await flashRegistry.dispatch(
         "/muc-sudung",
-        input({ usage: usageAt(3_700), agentType: "dealer", identity }),
+        input({ usage: usageAt(740), agentType: "dealer", identity }),
       );
       expect(result?.reply).toContain("37%");
       expect(result?.reply).not.toContain("đ");
