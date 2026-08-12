@@ -126,7 +126,8 @@ export async function handleEnvelope(
           `[usage] phòng ${envelope.conversationId} (${agent.agentType}) vượt ngưỡng: ` +
             `${Math.round(decision.spentVnd)}đ / ${decision.limitVnd}đ — bỏ lượt`,
         );
-        return { status: "ignored", reason: "budget_exceeded" };
+        step = "broadcast";
+        return await noticeBudgetExceeded(ctx, envelope, timer);
       }
     }
 
@@ -209,6 +210,45 @@ export async function handleEnvelope(
     // eslint-disable-next-line no-console
     console.log(`[worker] lượt ${envelope.msgId} phòng ${envelope.conversationId} ${timer.summary()}`);
   }
+}
+
+/** Câu báo hết hạn mức. Không nêu số tiền: đó là chi phí vận hành, không phải việc của phòng. */
+const BUDGET_NOTICE =
+  "Hôm nay phòng mình đã dùng hết hạn mức trò chuyện với trợ lý rồi ạ. " +
+  "Hạn mức mở lại lúc 00:00, cần thêm thì nhắn người quản trị giúp em nhé.";
+
+/**
+ * Phòng vượt trần: nói thẳng là hết hạn mức thay vì im lặng. Im lặng trông như agent hỏng, người
+ * ta gõ lại mãi mà không hiểu vì sao.
+ *
+ * Báo ở MỌI tin bị chặn (không chống lặp): tin nào cũng đáng được trả lời, kể cả trả lời "hôm nay
+ * hết rồi". Vẫn rẻ — nhánh này không chạm LLM.
+ */
+async function noticeBudgetExceeded(
+  ctx: WorkerContext,
+  envelope: Envelope,
+  timer: TurnTimer,
+): Promise<AgentResult> {
+  await ctx.historyWriter.append({
+    conversationId: envelope.conversationId,
+    msgId: `${envelope.msgId}#budget`,
+    senderId: AGENT_SENDER_ID,
+    text: BUDGET_NOTICE,
+    isGroup: envelope.isGroup,
+    role: "agent",
+    ts: Date.now(),
+  });
+  await ctx.broadcaster.send(
+    {
+      channel: envelope.channel,
+      conversationId: envelope.conversationId,
+      isGroup: envelope.isGroup,
+      replyToSenderId: envelope.senderId,
+    },
+    capForChannel(envelope.channel, BUDGET_NOTICE),
+  );
+  timer.lap("broadcast");
+  return { status: "reply", text: BUDGET_NOTICE };
 }
 
 /**

@@ -523,18 +523,33 @@ describe("handleEnvelope", () => {
     return history;
   }
 
-  test("phòng vượt trần ngày → bỏ lượt, KHÔNG gọi LLM, KHÔNG gửi gì", async () => {
+  test("phòng vượt trần ngày → báo hết hạn mức, KHÔNG gọi LLM", async () => {
     const history = await historyWithOneMessage();
     // Kịch bản RỖNG: provider mà bị gọi sẽ throw "hết kịch bản" → lượt thành failed.
-    // Kết quả `ignored` chứng minh gate chặn TRƯỚC khi chạm model.
+    // Lượt vẫn `reply` chứng minh câu báo dựng sẵn, gate chặn TRƯỚC khi chạm model.
     const provider = new ScriptedProvider([]);
     const { ctx, broadcaster } = makeCtx(provider, { role: "guest", senderId: "u1" }, history);
     const { tracking } = fakeUsage(vndToPicoUsd(10_000, 26_000), true);
 
     const result = await handleEnvelope({ ...ctx, usage: tracking }, makeEnvelope());
 
-    expect(result).toEqual({ status: "ignored", reason: "budget_exceeded" });
-    expect(broadcaster.sent).toHaveLength(0);
+    expect(result.status).toBe("reply");
+    expect(broadcaster.sent).toHaveLength(1);
+    expect(broadcaster.sent[0]!.text).toContain("hết hạn mức");
+  });
+
+  test("báo hết hạn mức vào history (lượt agent) để phòng có vết", async () => {
+    const history = await historyWithOneMessage();
+    const provider = new ScriptedProvider([]);
+    const { ctx } = makeCtx(provider, { role: "guest", senderId: "u1" }, history);
+    const { tracking } = fakeUsage(vndToPicoUsd(10_000, 26_000), true);
+
+    await handleEnvelope({ ...ctx, usage: tracking }, makeEnvelope());
+
+    const entries = await history.recent("c1", 10);
+    const last = entries[entries.length - 1]!;
+    expect(last.role).toBe("agent");
+    expect(last.text).toContain("hết hạn mức");
   });
 
   test("vượt trần nhưng enforce=false (shadow mode) → vẫn trả lời", async () => {
