@@ -10,6 +10,7 @@ import type {
   DailyPort,
   DealerPort,
   DiscountPort,
+  InternalOrdersPort,
   OrderPort,
   PoscakePort,
 } from "../operational/types.ts";
@@ -76,6 +77,12 @@ export interface ToolContext {
   readonly discount?: DiscountPort;
   /** Cổng đọc sổ ngày (xuất kho/hoàn/tiền phải trả/tiền hoàn). undefined = chưa nối → tool trả lỗi. */
   readonly daily?: DailyPort;
+  /**
+   * Cổng đọc sổ xuất kho / hoá đơn MISA của TOÀN HỆ THỐNG (`/agent/internal/*`). Cổng DUY NHẤT
+   * không gắn phạm vi đại lý — chỉ agent nội bộ được khai, và tool của nó tự chặn theo người gõ
+   * (phải là nhân viên). undefined = chưa nối → tool trả lỗi nghiệp vụ.
+   */
+  readonly internal?: InternalOrdersPort;
   /**
    * Cổng NẠP tài khoản PosCake của đại lý (Shop ID + API Key). Cổng duy nhất chạm CREDENTIAL của
    * đại lý — chỉ agent nào thật sự hướng dẫn PosCake mới được khai (POSCAKE_TOOLS ở tools/index.ts).

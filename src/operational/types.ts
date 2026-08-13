@@ -404,6 +404,74 @@ export interface DailyPort {
   refunds(q: DailyQuery): Promise<DailyPage<DailyRefundLine>>;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sổ ngày NỘI BỘ (`/agent/internal/*`) — TOÀN HỆ THỐNG, không gắn đại lý nào.
+//
+// Khác `DailyPort` ở đúng một điều quan trọng: KHÔNG có `x-dealer-id`, nên dữ liệu trả về là đơn
+// của MỌI đại lý. Vì vậy principal chỉ có `staffId` và nó BẮT BUỘC — backend đòi header đó, và
+// phía này cũng phải biết ai đang xem cả hệ thống.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Một đơn trong sổ ngày nội bộ. Trường nào backend không trả → undefined, KHÔNG bịa. */
+export interface InternalOrderLine {
+  readonly trackingNumber: string;
+  readonly dealerCode?: string;
+  readonly dealerName?: string;
+  /** Mốc xuất kho (`orders.shipped_out_at`). */
+  readonly shippedAt?: string;
+  /** Mã phiếu xuất kho NỘI BỘ — có ngay khi bàn giao, chưa chắc đã lên MISA. */
+  readonly voucherCode?: string;
+  /** ID chứng từ bên MISA. Có = đã tạo hoá đơn. */
+  readonly misaVoucherId?: string;
+  readonly misaSyncAt?: string;
+  /** `misa_voucher_id IS NOT NULL` — chính là điều kiện lọc của hai endpoint kia. */
+  readonly invoiced?: boolean;
+}
+
+/** Khối `meta_data` của sổ ngày nội bộ. `totalItems` là tổng CẢ NGÀY, không phải số dòng trang này. */
+export interface InternalDailyMeta {
+  /** Ngày đã chuẩn hoá `YYYY-MM-DD` (gửi `08-08-2026` cũng trả `2026-08-08`). */
+  readonly date?: string;
+  /** Bộ lọc đang áp: undefined = mọi đơn xuất kho, true = đã hoá đơn, false = chưa hoá đơn. */
+  readonly invoiced?: boolean;
+  readonly page?: number;
+  readonly pageSize?: number;
+  readonly totalItems?: number;
+  readonly totalPages?: number;
+}
+
+export interface InternalDailyPage {
+  readonly meta: InternalDailyMeta;
+  readonly lines: readonly InternalOrderLine[];
+}
+
+/** Tham số chung của mọi lời gọi sổ ngày nội bộ. `date` do tool validate trước, không để LLM tự do. */
+export interface InternalDailyQuery {
+  /** `accounts.id` dạng chuỗi số. BẮT BUỘC — thiếu là backend trả 400. */
+  readonly staffId: string;
+  /** `DD-MM-YYYY` hoặc `YYYY-MM-DD`. Backend nhận cả hai, trả về đã chuẩn hoá ISO. */
+  readonly date: string;
+  readonly page?: number;
+  readonly pageSize?: number;
+  readonly signal?: AbortSignal;
+}
+
+/**
+ * Cổng ĐỌC sổ xuất kho / hoá đơn MISA của TOÀN HỆ THỐNG. CHỈ ĐỌC.
+ *
+ * Ba tập khớp nhau: `invoicedOrders` + `uninvoicedOrders` = `shippedOrders`, hai tập con bù nhau,
+ * không chồng lấn. Mốc thời gian là `orders.shipped_out_at` giờ ICT — cùng cửa sổ với file đối
+ * soát, nên số đơn khớp tuyệt đối.
+ */
+export interface InternalOrdersPort {
+  /** Đơn xuất kho trong ngày, mỗi đơn kèm cờ `invoiced`. */
+  shippedOrders(q: InternalDailyQuery): Promise<InternalDailyPage>;
+  /** Đơn đã tạo hoá đơn MISA (`misa_voucher_id IS NOT NULL`). */
+  invoicedOrders(q: InternalDailyQuery): Promise<InternalDailyPage>;
+  /** Đơn CHƯA tạo hoá đơn — hàng đợi cần xử lý (gồm cả đơn chưa có phiếu xuất kho). */
+  uninvoicedOrders(q: InternalDailyQuery): Promise<InternalDailyPage>;
+}
+
 /**
  * Cổng ĐỌC đơn hàng. CHỈ ĐỌC: huỷ/sửa đơn là WRITE, đi qua nhân viên vận hành cho tới khi có
  * approval gate (§6).

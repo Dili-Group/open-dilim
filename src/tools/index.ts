@@ -18,6 +18,11 @@ import {
   buildDiscountTierUpgradeTool,
 } from "./impl/dealer/discount.ts";
 import { buildDailyDetailTool, buildDailyReportTool } from "./impl/dealer/daily.ts";
+import {
+  buildInternalInvoicedOrdersTool,
+  buildInternalShippedOrdersTool,
+  buildInternalUninvoicedOrdersTool,
+} from "./impl/internal/daily-orders.ts";
 import { buildPoscakeRegisterTool } from "./impl/dealer/poscake.ts";
 import { buildImageReadTool } from "./impl/vision/xem-anh.ts";
 import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
@@ -87,6 +92,22 @@ export const DEALER_TIER_TOOLS: readonly ToolFactory[] = [
 export const DAILY_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildDailyReportTool(ctx),
   (ctx: ToolContext): Tool => buildDailyDetailTool(ctx),
+];
+
+/**
+ * Tool SỔ NỘI BỘ: đơn xuất kho trong ngày của TOÀN HỆ THỐNG, và hai lát cắt theo hoá đơn MISA
+ * (đã tạo / chưa tạo). Ba tập khớp nhau: đã + chưa = xuất kho.
+ *
+ * Bộ DUY NHẤT đọc dữ liệu KHÔNG gắn đại lý nào — khai cho agent NỘI BỘ thôi. Hàng rào nằm trong
+ * chính tool: cả ba từ chối nếu người gõ không phải nhân viên đã `/ketnoi-hethong` (staffId lấy
+ * server-side từ identity, LLM không truyền vào được).
+ *
+ * Mốc ngày là NGÀY XUẤT KHO, cùng cửa sổ với file kỳ đối soát. CHỈ ĐỌC: không có đường tạo hoá đơn.
+ */
+export const INTERNAL_DAILY_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildInternalShippedOrdersTool(ctx),
+  (ctx: ToolContext): Tool => buildInternalInvoicedOrdersTool(ctx),
+  (ctx: ToolContext): Tool => buildInternalUninvoicedOrdersTool(ctx),
 ];
 
 /**

@@ -76,6 +76,7 @@ class ProfileRootAgent implements RootAgent {
           dealer: this.deps.dealer,
           discount: this.deps.discount,
           daily: this.deps.daily,
+          internal: this.deps.internal,
           poscake: this.deps.poscake,
           vision: this.deps.vision,
           workflow: this.deps.workflow,

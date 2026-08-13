@@ -10,6 +10,7 @@ import type {
   DailyPort,
   DealerPort,
   DiscountPort,
+  InternalOrdersPort,
   OrderPort,
   PoscakePort,
 } from "../operational/types.ts";
@@ -62,6 +63,11 @@ export interface AgentDeps {
   readonly discount?: DiscountPort;
   /** Cổng đọc sổ ngày cho tool báo cáo cuối ngày. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
   readonly daily?: DailyPort;
+  /**
+   * Cổng đọc sổ xuất kho / hoá đơn MISA TOÀN HỆ THỐNG (không gắn đại lý) cho agent nội bộ.
+   * undefined = chưa nối → tool trả lỗi nghiệp vụ.
+   */
+  readonly internal?: InternalOrdersPort;
   /** Cổng nạp tài khoản PosCake của đại lý (Shop ID + API Key). undefined = chưa nối → tool trả lỗi. */
   readonly poscake?: PoscakePort;
   /** Cổng đọc ảnh đính kèm cho tool `xem_anh`. undefined = chưa nối → tool trả lỗi nghiệp vụ. */

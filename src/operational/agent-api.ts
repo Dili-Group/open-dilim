@@ -170,6 +170,25 @@ export class AgentApiClient {
     });
   }
 
+  /**
+   * GET một endpoint `/agent/internal/*`: KHÔNG gắn đại lý, nhưng BẮT BUỘC có nhân viên.
+   *
+   * Khác `getUnscoped` (chỉ có service token) ở chỗ endpoint nhóm này trả dữ liệu TOÀN HỆ THỐNG,
+   * nên backend đòi biết ai đang xem — `x-staff-id` là header bắt buộc, thiếu là 400.
+   * `staffId` phải là chuỗi số (`accounts.id` bigint); nơi gọi chặn trước, ở đây không tự bịa.
+   */
+  async getAsStaff(
+    path: string,
+    request: Omit<AgentApiRequest, "principal"> & { readonly staffId: string },
+  ): Promise<unknown> {
+    return this.send(
+      path,
+      { [SERVICE_TOKEN_HEADER]: this.serviceToken, [STAFF_HEADER]: request.staffId },
+      request,
+      { method: "GET" },
+    );
+  }
+
   private async send(
     path: string,
     headers: Record<string, string>,
