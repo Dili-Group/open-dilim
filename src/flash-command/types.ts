@@ -56,6 +56,10 @@ export type { JobAdmin, JobSummary };
 import type { AnnounceApprovalPort } from "../announcements/types.ts";
 export type { AnnounceApprovalPort };
 
+// Cổng SOÁT tình trạng MCP — định nghĩa ở tầng mcp/ (chủ sở hữu khái niệm), flash-command chỉ đọc.
+import type { McpStatusPort } from "../mcp/types.ts";
+export type { McpStatusPort };
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Ports — seam I/O. Implementation cấp lúc khởi động, không nằm ở đây.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -176,6 +180,12 @@ export interface FlashContext {
    * KHÔNG bịa số.
    */
   readonly usage?: UsageTracking;
+  /**
+   * Soát server MCP (tool ngoài) đang nối — `/mcp`. CHỈ ĐỌC tình trạng, không gọi được tool nào:
+   * quyền gọi tool ngoài thuộc về agent, không thuộc về người gõ lệnh.
+   * undefined = chưa nối tầng MCP → lệnh trả lỗi rõ.
+   */
+  readonly mcp?: McpStatusPort;
 }
 
 /**

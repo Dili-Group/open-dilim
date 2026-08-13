@@ -17,6 +17,7 @@ import {
   type IdentityRepo,
 } from "./types.ts";
 import type { UsageTracking } from "../usage/types.ts";
+import type { McpStatusPort } from "../mcp/types.ts";
 
 const COMMAND_PREFIX = "/";
 
@@ -61,6 +62,8 @@ export type DispatchInput = {
   /** Root agent của phòng — worker resolve theo channel, lệnh tra trần chi phí dùng tới. */
   readonly agentType: string;
   readonly usage?: UsageTracking;
+  /** Soát server MCP đang nối (`/mcp`). undefined = chưa nối tầng MCP. */
+  readonly mcp?: McpStatusPort;
 };
 
 export class FlashRegistry {
@@ -122,6 +125,7 @@ export class FlashRegistry {
       announce: input.announce,
       agentType: input.agentType,
       usage: input.usage,
+      mcp: input.mcp,
     };
 
     try {

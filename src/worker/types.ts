@@ -16,6 +16,7 @@ import type { WorkflowPort } from "../workflows/service.ts";
 // Định nghĩa nằm ở usage/ vì cả worker lẫn flash command đều dùng; re-export cho caller cũ.
 export type { UsageTracking } from "../usage/types.ts";
 import type { UsageTracking } from "../usage/types.ts";
+import type { McpStatusPort } from "../mcp/types.ts";
 
 /**
  * 1 message đã giao cho worker, kèm quyền định đoạt: `ack` = xong, gỡ khỏi queue; `retryLater` =
@@ -106,6 +107,11 @@ export interface WorkerContext {
    * chạy y như trước) — chưa nối tầng usage KHÔNG được làm chết lượt trả lời.
    */
   readonly usage?: UsageTracking;
+  /**
+   * Soát server MCP đang nối — CHỈ để flash command `/mcp` báo tình trạng. Đường agent gọi tool
+   * ngoài đi lối khác (AgentDeps.mcp), không qua đây. undefined = chưa nối tầng MCP.
+   */
+  readonly mcp?: McpStatusPort;
 }
 
 /** Bó đầy đủ để start pool: context + nguồn queue + số worker. */

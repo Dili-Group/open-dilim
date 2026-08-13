@@ -71,6 +71,8 @@ export async function handleEnvelope(
       conversationId: envelope.conversationId,
       agentType: agent.agentType,
       usage: ctx.usage,
+      // `/mcp` soát tool ngoài — chỉ đọc tình trạng, không phải đường gọi tool.
+      mcp: ctx.mcp,
     });
     timer.lap("flash");
     if (flash !== null) {

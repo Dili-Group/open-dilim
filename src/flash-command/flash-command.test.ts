@@ -5,6 +5,7 @@ import { flashRegistry } from "./index.ts";
 import { parseCommand, type DispatchInput } from "./registry.ts";
 import { vndToPicoUsd } from "../usage/pricing.ts";
 import type { UsageTracking } from "../usage/types.ts";
+import type { McpServerStatus, McpStatusPort } from "../mcp/types.ts";
 import {
   ActorRole,
   type Identity,
@@ -486,5 +487,79 @@ describe("/muc-sudung", () => {
       input({ usage, agentType: "dealer", groupId: undefined, conversationId: "c-direct" }),
     );
     expect(asked).toEqual(["c-direct"]);
+  });
+});
+
+// ─── /mcp ───────────────────────────────────────────────────────────────────
+
+describe("/mcp", () => {
+  const daiLy: Identity = { role: ActorRole.DaiLy, senderId: "DL_A", customerId: "CUS_9" };
+
+  /** Cổng soát MCP giả — trả sẵn tình trạng đã chốt lúc boot. */
+  function statusPort(servers: McpServerStatus[]): McpStatusPort {
+    return { status: () => servers };
+  }
+
+  test("chưa nối tầng MCP → báo rõ", async () => {
+    const result = await flashRegistry.dispatch("/mcp", input({}));
+    expect(result?.ok).toBe(false);
+    expect(result?.reply).toContain("Chưa nối");
+  });
+
+  test("chưa khai server nào → nói thẳng là chỉ có tool nội bộ", async () => {
+    const result = await flashRegistry.dispatch("/mcp", input({ mcp: statusPort([]) }));
+    expect(result?.ok).toBe(true);
+    expect(result?.reply).toContain("MCP_SERVERS");
+  });
+
+  test("liệt kê server nối được + tool đang bật", async () => {
+    const result = await flashRegistry.dispatch(
+      "/mcp",
+      input({
+        mcp: statusPort([
+          { name: "kho", connected: true, tools: ["dat_hang", "ton_kho"], missing: [] },
+          { name: "bi", connected: false, tools: [], missing: ["bao_cao"] },
+        ]),
+      }),
+    );
+
+    expect(result?.ok).toBe(true);
+    expect(result?.reply).toContain("1/2 server");
+    expect(result?.reply).toContain("kho — 2 tool: dat_hang, ton_kho");
+    expect(result?.reply).toContain("bi — KHÔNG dùng được");
+  });
+
+  test("tool bật trong config mà server không có → nêu ra, không im lặng", async () => {
+    const result = await flashRegistry.dispatch(
+      "/mcp",
+      input({
+        mcp: statusPort([
+          { name: "kho", connected: true, tools: ["ton_kho"], missing: ["xoa_kho"] },
+        ]),
+      }),
+    );
+    expect(result?.reply).toContain("xoa_kho");
+  });
+
+  test("KHÔNG in url/token — chỉ tên server", async () => {
+    const result = await flashRegistry.dispatch(
+      "/mcp",
+      input({
+        mcp: statusPort([{ name: "kho", connected: true, tools: ["ton_kho"], missing: [] }]),
+      }),
+    );
+    expect(result?.reply).not.toContain("http");
+  });
+
+  test("đại lý gõ → chặn (thông tin hạ tầng, không phải việc của đại lý)", async () => {
+    const result = await flashRegistry.dispatch(
+      "/mcp",
+      input({
+        identity: daiLy,
+        mcp: statusPort([{ name: "kho", connected: true, tools: ["ton_kho"], missing: [] }]),
+      }),
+    );
+    expect(result?.ok).toBe(false);
+    expect(result?.reply).toContain("Không đủ quyền");
   });
 });
