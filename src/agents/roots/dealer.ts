@@ -45,4 +45,15 @@ export const dealerProfile: RootAgentProfile = {
     ...WORKFLOW_REPLY_TOOLS,
     ...WORKFLOW_LIST_TOOLS,
   ],
+  // ⚠️ THỬ NGHIỆM (dev) — tool ngoài qua MCP, xem docs/architecture/10-mcp.md.
+  //
+  // KHÁC MỌI TOOL Ở TRÊN: tool MCP KHÔNG bind danh tính server-side. `tra_don_hang` ép
+  // `roomCustomerId` qua closure nên chỉ tra được đơn của đại lý CHÍNH PHÒNG NÀY; tool MCP thì
+  // nhận đúng tham số model sinh ra, phạm vi rộng bằng service token khai trong MCP_SERVERS.
+  // Với server `kho` hiện tại nghĩa là: một đại lý gõ số điện thoại bất kỳ sẽ tra được đơn — và
+  // link camera — của đại lý KHÁC.
+  //
+  // Giữ dòng này ở dev để thử. TRƯỚC KHI LÊN PROD phải chọn một trong hai: bỏ dòng này, hoặc
+  // dựng cơ chế ép tham số đại lý server-side cho tool MCP (phương án B trong 10-mcp.md).
+  mcpServers: ["kho"],
 };
