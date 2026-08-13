@@ -4,6 +4,7 @@
 import type { AnnouncePort } from "../announcements/types.ts";
 import type { Effort } from "../config.ts";
 import type { LLMProvider } from "../llm/types.ts";
+import type { McpPort } from "../mcp/types.ts";
 import type { Identity } from "../flash-command/types.ts";
 import type {
   DailyPort,
@@ -65,6 +66,11 @@ export interface AgentDeps {
   readonly poscake?: PoscakePort;
   /** Cổng đọc ảnh đính kèm cho tool `xem_anh`. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
   readonly vision?: VisionPort;
+  /**
+   * Cổng TOOL NGOÀI qua giao thức MCP. undefined = chưa khai server nào → agent nào khai
+   * `mcpServers` cũng chỉ đơn giản không có tool đó, không phải lỗi.
+   */
+  readonly mcp?: McpPort;
   /** Cổng việc-chờ-trả-lời (§6) cho tool mở/đóng việc treo. undefined = chưa nối → tool trả lỗi. */
   readonly workflow?: WorkflowPort;
   /**
@@ -168,6 +174,14 @@ export interface RootAgentProfile {
   readonly prompt: string;
   readonly memorySpec: DistillSpec;
   readonly tools: readonly ToolFactory[];
+  /**
+   * Tên server MCP (khớp `name` trong MCP_SERVERS) mà agent này được dùng tool. Thiếu/rỗng =
+   * KHÔNG thấy tool ngoài nào — mặc định đóng, dù server đã nối được.
+   *
+   * Khai ở ROOT chứ không ở từng sub-agent: sub-agent đổi prompt và bộ tool nghiệp vụ, nhưng
+   * "agent này được nói chuyện với hệ thống ngoài nào" là tính chất của cả lượt.
+   */
+  readonly mcpServers?: readonly string[];
   /** Rỗng/thiếu = root tự xử lý mọi lượt, KHÔNG tốn lượt LLM định tuyến nào. */
   readonly subAgents?: readonly SubAgent[];
 }

@@ -145,6 +145,116 @@ function boolEnv(name: string, fallback: boolean): boolean {
   return normalized === "true" || normalized === "1";
 }
 
+// Server MCP (Model Context Protocol) — nguồn tool NGOÀI hệ thống.
+//
+// Khai bằng MỘT env JSON vì số server là động (khác kênh chat: kênh có tập cố định, khai theo tiền
+// tố được; server MCP thì không):
+//
+//   MCP_SERVERS=[{"name":"github","url":"https://...","token":"...","tools":["search_issues"]}]
+//
+// `tools` là ALLOWLIST BẮT BUỘC: server khai 40 tool không có nghĩa agent được dùng cả 40 — mỗi
+// tool là tiền token cố định mỗi lượt và một cửa nữa cho câu lái trong nhóm đi qua. Rỗng = từ chối
+// ngay ở boot (khai server rồi không bật tool nào là gõ nhầm, không phải chủ đích).
+const MCP_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,31}$/;
+// Tên tool phía provider LLM chỉ nhận [A-Za-z0-9_-] và trần 128 ký tự. Tên cuối cùng model thấy
+// là `mcp__<server>__<tool>` → chặn độ dài ở đây để không bao giờ chạm trần đó.
+const MCP_TOOL_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+
+export interface McpServerEnv {
+  readonly name: string;
+  readonly url: string;
+  readonly token?: string;
+  readonly tools: readonly string[];
+}
+
+function mcpServersFromEnv(): readonly McpServerEnv[] {
+  const raw = optional("MCP_SERVERS");
+  if (raw === undefined) return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`Invalid env MCP_SERVERS: không phải JSON hợp lệ (${describeError(err)}).`, {
+      cause: err,
+    });
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error("Invalid env MCP_SERVERS: phải là mảng JSON các server.");
+  }
+
+  const servers: McpServerEnv[] = [];
+  const seen = new Set<string>();
+  for (const entry of parsed) {
+    const server = readMcpServer(entry);
+    if (seen.has(server.name)) {
+      throw new Error(`Invalid env MCP_SERVERS: trùng tên server "${server.name}".`);
+    }
+    seen.add(server.name);
+    servers.push(server);
+  }
+  return servers;
+}
+
+function readMcpServer(entry: unknown): McpServerEnv {
+  if (typeof entry !== "object" || entry === null) {
+    throw new Error("Invalid env MCP_SERVERS: mỗi phần tử phải là object.");
+  }
+  const record = entry as Record<string, unknown>;
+
+  const name = record.name;
+  if (typeof name !== "string" || !MCP_NAME_PATTERN.test(name)) {
+    throw new Error(
+      `Invalid env MCP_SERVERS: "name" phải khớp ${MCP_NAME_PATTERN.source} (nhận: ${String(name)}).`,
+    );
+  }
+
+  const url = record.url;
+  if (typeof url !== "string" || !isHttpUrl(url)) {
+    throw new Error(`Invalid env MCP_SERVERS[${name}]: "url" phải là http(s) URL hợp lệ.`);
+  }
+
+  const tools = record.tools;
+  if (!Array.isArray(tools) || tools.length === 0) {
+    throw new Error(
+      `Invalid env MCP_SERVERS[${name}]: "tools" phải là mảng KHÔNG RỖNG tên tool được bật.`,
+    );
+  }
+  for (const tool of tools) {
+    if (typeof tool !== "string" || !MCP_TOOL_PATTERN.test(tool)) {
+      throw new Error(
+        `Invalid env MCP_SERVERS[${name}]: tên tool "${String(tool)}" không hợp lệ ` +
+          `(cần khớp ${MCP_TOOL_PATTERN.source}).`,
+      );
+    }
+  }
+
+  const token = record.token;
+  if (token !== undefined && typeof token !== "string") {
+    throw new Error(`Invalid env MCP_SERVERS[${name}]: "token" phải là chuỗi.`);
+  }
+
+  return {
+    name,
+    url,
+    tools: tools as readonly string[],
+    ...(token === undefined || token === "" ? {} : { token }),
+  };
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function describeError(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 /** Env tỉ lệ 0..1 optional với fallback. Sai kiểu/ngoài khoảng → throw (fail fast). */
 function rateEnv(name: string, fallback: number): number {
   const raw = optional(name);
@@ -169,6 +279,12 @@ const DEFAULT_TURN_TIMEOUT_MS = 20_000;
 const DEFAULT_SCHEDULER_TICK_MS = 30_000;
 // Model đọc ảnh đính kèm — con rẻ nhất còn hiểu được ảnh, gọi mỗi lần đại lý gửi ảnh.
 const DEFAULT_VISION_MODEL = "gemini-3.1-flash-lite";
+// Trần thời gian bắt tay + `tools/list` với một server MCP lúc boot. Server chết không được làm
+// chậm cả app — quá hạn thì bỏ server đó, boot tiếp.
+const DEFAULT_MCP_CONNECT_TIMEOUT_MS = 5_000;
+// Trần MỘT lần gọi tool MCP. Phải NHỎ HƠN TURN_TIMEOUT_MS: server ngoài treo mà lượt hết giờ thì
+// khách không nhận được câu nào, còn tool hết giờ thì model vẫn kịp nói "chưa tra được".
+const DEFAULT_MCP_CALL_TIMEOUT_MS = 10_000;
 // Tỉ giá quy trần VND → USD (giá gateway tính bằng USD). Xấp xỉ là đủ: nó chỉ dịch trần vài %,
 // không phải con số kế toán. Chỉnh khi tỉ giá lệch nhiều.
 const DEFAULT_USD_VND_RATE = 26_000;
@@ -229,6 +345,17 @@ export const CONFIG = {
   vision: {
     model: optional("VISION_MODEL") ?? DEFAULT_VISION_MODEL,
     allowedHosts: csvEnv("CDN_ALLOWED_HOSTS"),
+  },
+
+  // Tool NGOÀI qua giao thức MCP (mcp/). Nối lúc boot, danh sách tool chốt một lần rồi cache.
+  //
+  // `servers` rỗng = không nối server nào (mặc định) → không agent nào thấy tool MCP. Bật một
+  // server mới chỉ là thêm một phần tử ở MCP_SERVERS + khai tên server đó vào profile agent cần
+  // (agents/roots/*.ts) — hai cửa, phải mở cả hai.
+  mcp: {
+    servers: mcpServersFromEnv(),
+    connectTimeoutMs: positiveIntEnv("MCP_CONNECT_TIMEOUT_MS", DEFAULT_MCP_CONNECT_TIMEOUT_MS),
+    callTimeoutMs: positiveIntEnv("MCP_CALL_TIMEOUT_MS", DEFAULT_MCP_CALL_TIMEOUT_MS),
   },
 
   // Hạn mức chi phí LLM theo phòng/ngày (usage/). Trần khai bằng VND theo agent ở

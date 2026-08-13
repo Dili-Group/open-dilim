@@ -11,6 +11,7 @@ import type { FlashRegistry } from "../flash-command/index.ts";
 import type { IdentityRepo, OpsPort } from "../flash-command/types.ts";
 import type { JobAdmin, JobRepo } from "../scheduler/types.ts";
 import type { LLMProvider } from "../llm/index.ts";
+import type { McpRegistry } from "../mcp/index.ts";
 import type { AgentRegistry } from "../agents/index.ts";
 import type { Broadcaster, TypingFactory } from "../broadcast/index.ts";
 import type { GroupCustomerLookup, IdentityResolver } from "../auth/index.ts";
@@ -78,6 +79,12 @@ export interface Services {
    */
   readonly announce: AnnouncePort & AnnounceApprovalPort;
   readonly announceDeps: AnnouncementDeps;
+  /**
+   * Tool NGOÀI qua MCP: đã nối + đã chốt danh sách tool lúc boot. Agent nhận nó qua `AgentDeps`
+   * (chỉ đọc/gọi); ở đây giữ bản đầy đủ vì shutdown phải đóng kết nối.
+   * MCP_SERVERS rỗng → registry rỗng, không kết nối nào.
+   */
+  readonly mcp: McpRegistry;
   /** Đọc history — CÙNG instance với ingestDeps.history. */
   readonly historyReader: HistoryReader;
   /** Ghi history (flash reply) — CÙNG instance với historyReader/ingestDeps.history. */

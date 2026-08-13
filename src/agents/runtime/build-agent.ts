@@ -9,7 +9,7 @@ import type { AgentResult } from "../../types/index.ts";
 import { assembleTurnContext } from "../../context/assembler.ts";
 import type { TurnSpeaker } from "../../context/speaker-block.ts";
 import type { Identity } from "../../flash-command/types.ts";
-import { buildToolRegistry } from "../../tools/index.ts";
+import { buildToolRegistry, mcpToolFactories } from "../../tools/index.ts";
 import type { ToolFactory } from "../../tools/types.ts";
 import type { DistillSpec } from "../../state/types.ts";
 import { chooseSubAgent } from "./sub-router.ts";
@@ -20,6 +20,11 @@ class ProfileRootAgent implements RootAgent {
   readonly agentType: string;
   readonly directOnly: boolean;
   readonly memorySpec: DistillSpec;
+  /**
+   * Tool từ server MCP agent này được dùng. Chốt Ở CONSTRUCTOR, không dựng lại mỗi lượt: danh
+   * sách tool render TRƯỚC system prompt, đổi thứ tự/nội dung giữa hai lượt là hỏng prefix cache.
+   */
+  private readonly mcpTools: readonly ToolFactory[];
 
   constructor(
     private readonly profile: RootAgentProfile,
@@ -28,6 +33,8 @@ class ProfileRootAgent implements RootAgent {
     this.agentType = profile.agentType;
     this.directOnly = profile.directOnly;
     this.memorySpec = profile.memorySpec;
+    this.mcpTools =
+      deps.mcp === undefined ? [] : mcpToolFactories(deps.mcp, profile.mcpServers ?? []);
   }
 
   async run(input: AgentRunInput): Promise<AgentResult> {
@@ -57,7 +64,9 @@ class ProfileRootAgent implements RootAgent {
         agentType: this.agentType,
         system: context.system,
         messages: context.messages,
-        registry: buildToolRegistry(handler.tools, {
+        // Tool ngoài đứng SAU tool nghiệp vụ, thứ tự cố định — vừa giữ prefix cache, vừa cho model
+        // thấy tool nhà trước tool ngoài khi hai bên cùng làm được một việc.
+        registry: buildToolRegistry([...handler.tools, ...this.mcpTools], {
           skills: this.deps.skills,
           agentType: this.agentType,
           identity: input.identity,

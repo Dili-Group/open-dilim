@@ -13,6 +13,7 @@ import { closeRedis, commandOf, redis } from "../redis/client.ts";
 import { buildBroker } from "../broker/index.ts";
 import { buildLlmProvider, buildVisionReader } from "../llm/index.ts";
 import { CdnImageVision, type VisionPort } from "../vision/index.ts";
+import { buildMcpRegistry } from "../mcp/index.ts";
 import { buildAgentRegistry, type AgentRegistry } from "../agents/index.ts";
 import {
   BroadcastRouter,
@@ -110,6 +111,15 @@ export async function bootstrap(): Promise<Services> {
     vision = new CdnImageVision(buildVisionReader(config), config.vision.allowedHosts);
   }
 
+  // Tool NGOÀI qua MCP. Nối + chốt danh sách tool NGAY Ở BOOT: danh sách tool nằm trước system
+  // prompt nên phải tĩnh cả vòng đời process. MCP_SERVERS rỗng → registry rỗng, không tốn gì.
+  // Server nào chết thì buildMcpRegistry warn rồi bỏ, KHÔNG chặn boot (xem mcp/registry.ts).
+  const mcp = await buildMcpRegistry(config.mcp.servers, {
+    connectTimeoutMs: config.mcp.connectTimeoutMs,
+    callTimeoutMs: config.mcp.callTimeoutMs,
+  });
+
+
   // skills đi thẳng vào agent: catalog vào system prompt + backing cho tool use_skill.
   // memory = cổng CHỈ-ĐỌC; scope (phòng nào) do worker cấp từng lượt qua groupCustomer.
   // orders = API vận hành `/agent/*`; đại lý của từng lượt đi lên header, client không giữ state.
@@ -192,6 +202,7 @@ export async function bootstrap(): Promise<Services> {
     daily,
     poscake,
     vision,
+    mcp,
     workflow,
     announce,
   });
@@ -236,6 +247,7 @@ export async function bootstrap(): Promise<Services> {
     workflowRegistry,
     announce,
     announceDeps,
+    mcp,
     historyReader: history,
     historyWriter: history,
     turns,
@@ -277,6 +289,8 @@ export async function start(): Promise<RunningSystem> {
     typing: services.typing,
     workflow: services.workflow,
     usage: services.usage,
+    // Chỉ để `/mcp` báo tình trạng — agent gọi tool ngoài qua AgentDeps.mcp, không qua worker.
+    mcp: services.mcp,
     announceApprovals: services.announce,
     workerCount: services.config.workerCount,
     turnTimeoutMs: services.config.turnTimeoutMs,
@@ -320,6 +334,7 @@ export async function start(): Promise<RunningSystem> {
     await scheduler.stop(); // ngừng bắn job mới TRƯỚC khi drain worker
     await workers.stop(); // ngừng nhận việc mới, chờ worker đang chạy xong
     await server.stop(true); // đóng cả connection đang mở
+    await services.mcp.close(); // sau workers.stop(): lượt cuối đã gọi xong tool ngoài
     await closeDb();
     closeRedis(); // sau workers.stop(): lệnh XACK cuối cùng đã đi xong
   }

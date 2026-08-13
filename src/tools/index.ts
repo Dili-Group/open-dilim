@@ -3,7 +3,9 @@
 // của agent cần nó (agents/roots/*.ts) — KHÔNG phải tool nào cũng đi tới mọi agent.
 
 import { ToolRegistry } from "./registry.ts";
+import type { McpPort } from "../mcp/types.ts";
 import type { Tool, ToolContext, ToolFactory } from "./types.ts";
+import { buildMcpTool } from "./impl/mcp/remote.ts";
 import { buildWhoamiTool } from "./impl/whoami.ts";
 import { buildUseSkillTool } from "./impl/use-skill.ts";
 import { buildUseReferenceTool } from "./impl/use-reference.ts";
@@ -165,6 +167,26 @@ export const OPS_ANNOUNCE_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildNoticeSendTool(ctx, VAN_HANH_FLOW),
   (ctx: ToolContext): Tool => buildNoticeStatusTool(ctx, VAN_HANH_FLOW),
 ];
+
+/**
+ * Bộ tool lấy từ SERVER MCP đã nối được — dựng theo tên server mà agent khai
+ * (`RootAgentProfile.mcpServers`), không phải "nối được server nào thì agent nào cũng thấy".
+ *
+ * Danh sách tool chốt lúc boot (mcp/registry.ts) nên hàm này chỉ tra cache: không gọi mạng, không
+ * đổi giữa hai lượt — thứ tự và nội dung phải ổn định thì prefix cache mới sống.
+ *
+ * Khác mọi bộ trên: tool MCP KHÔNG bind identity (không có act-as server-side), nên phạm vi của
+ * nó rộng đúng bằng phạm vi của service token nằm trong config server đó. Chỉ khai cho agent thật
+ * sự cần — xem tools/impl/mcp/remote.ts.
+ */
+export function mcpToolFactories(
+  mcp: McpPort,
+  servers: readonly string[],
+): readonly ToolFactory[] {
+  return servers.flatMap((server) =>
+    mcp.tools(server).map((info): ToolFactory => (): Tool => buildMcpTool(mcp, info)),
+  );
+}
 
 /**
  * Dựng registry tool cho request hiện tại từ bộ factory của agent. Factory chạy Ở ĐÂY (không ở
