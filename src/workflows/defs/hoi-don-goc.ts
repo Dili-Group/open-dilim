@@ -24,6 +24,12 @@ const NON_ALNUM = /[^A-Z0-9]/g;
 /** Mã đơn ngắn hơn ngần này chắc chắn không phải mã vận đơn — chặn model gửi bừa "OK", "co". */
 const MIN_CODE_LENGTH = 5;
 
+/**
+ * Toàn số = gần như chắc chắn SĐT khách, không phải mã vận đơn (mã vận đơn luôn có tiền tố chữ
+ * của hãng: PKE, VTP...). SĐT là ĐẦU MỐI tra cứu, không phải đáp án — agent phải tra ra mã trước.
+ */
+const DIGITS_ONLY = /^[0-9]+$/;
+
 /** Đại lý làm việc chậm, nhưng 8 tiếng một lần là đủ rát. Thực tế rơi vào ~08:00 và ~16:00 giờ VN. */
 const REMIND_INTERVAL_MS = 8 * 3_600_000;
 /** Nghiệp vụ chạy 1-2 ngày → 2 ngày là biên. Quá đó đại lý sẽ không trả lời nữa. */
@@ -77,15 +83,31 @@ export function buildAskOriginOrderWorkflow(deps: AskOriginOrderDeps): WorkflowD
     },
 
     /**
-     * Đáp án phải là một MÃ ĐƠN, không phải câu nói. Chặn hai kiểu sai hay gặp của model: gửi lại
-     * chính mã hoàn, hoặc gửi một chuỗi quá ngắn (đại lý trả lời "ok"/"đơn chị" mà model tưởng là mã).
+     * Đáp án phải là một MÃ VẬN ĐƠN thật sự — không phải câu nói, không phải SĐT khách, và không
+     * phải chính thân mã hoàn. Bốn kiểu sai bị chặn:
+     *  - chuỗi quá ngắn ("ok", "đơn chị" mà model tưởng là mã);
+     *  - mã đuôi DH (mã HOÀN, không phải đơn gốc);
+     *  - toàn số (SĐT khách — phải tra ra mã vận đơn trước, xem answerHelp);
+     *  - trùng thân mã hoàn (bỏ đuôi DH) — đáp án zero thông tin: thân mã là đơn ĐỔI HÀNG mà cả
+     *    việc treo này tồn tại chính vì nó KHÔNG xác định được đơn gốc. Vụ PKE1487782361DH:
+     *    model tự cắt đuôi rồi báo "đại lý xác nhận" trong khi chưa ai xác nhận.
      */
-    normalizeAnswer(raw: string): string | undefined {
+    normalizeAnswer(raw: string, subject: string): string | undefined {
       const code = normalizeCode(raw);
       if (code === undefined || code.length < MIN_CODE_LENGTH) return undefined;
-      // Mã kết thúc bằng DH là mã HOÀN, không phải đơn gốc → đại lý/model đang trả lời nhầm thứ.
-      return needsOriginOrder(code) ? undefined : code;
+      if (needsOriginOrder(code)) return undefined;
+      if (DIGITS_ONLY.test(code)) return undefined;
+      const subjectCode = normalizeCode(subject);
+      if (subjectCode !== undefined && code === baseCodeOf(subjectCode)) return undefined;
+      return code;
     },
+
+    answerHelp: [
+      "Đáp án hợp lệ là MÃ VẬN ĐƠN GỐC do đại lý xác nhận (có tiền tố chữ, ví dụ PKE..., VTP...).",
+      "KHÔNG hợp lệ: mã hoàn (đuôi DH), thân mã hoàn tự cắt đuôi DH, SĐT hay tên khách.",
+      "Nếu đại lý chỉ cho tên/SĐT khách: gọi tra_don_hang với tim_kiem = tên/SĐT đó để tìm mã vận " +
+        "đơn gốc, xác nhận lại với đại lý đúng đơn, rồi mới gọi tra_loi_viec với mã tìm được.",
+    ].join(" "),
 
     async resolveTarget(subject: string, signal?: AbortSignal): Promise<TargetResolution> {
       let owner;
@@ -133,6 +155,10 @@ export function buildAskOriginOrderWorkflow(deps: AskOriginOrderDeps): WorkflowD
         `Nhắc lại mã hoàn NGUYÊN VĂN "${code}" trong câu hỏi — không rút gọn, không bỏ đuôi.`,
         `Khi đại lý cho mã đơn gốc, gọi tool tra_loi_viec với ma_viec = "${ASK_ORIGIN_ORDER}", ` +
           `khoa = "${code}", tra_loi = mã đơn gốc đại lý vừa đọc.`,
+        `Nếu đại lý chỉ cho TÊN hoặc SĐT khách: gọi tra_don_hang với tim_kiem = tên/SĐT đó để tìm ` +
+          `mã vận đơn gốc, đọc lại cho đại lý xác nhận đúng đơn, rồi mới gọi tra_loi_viec với mã đó.`,
+        `TUYỆT ĐỐI không tự suy mã đơn gốc bằng cách cắt đuôi DH, và không truyền SĐT/tên khách ` +
+          `vào tra_loi_viec. Chưa có đại lý xác nhận thì chưa trả lời.`,
       ].join("\n");
     },
 

@@ -102,8 +102,16 @@ export interface WorkflowDef {
 
   /** Khoá thô người/model gõ → khoá chuẩn hoá. undefined = không hợp lệ, không mở việc. */
   normalizeSubject(raw: string): string | undefined;
-  /** Đáp án thô → dạng lưu. undefined = không hợp lệ, KHÔNG đóng việc. */
-  normalizeAnswer(raw: string): string | undefined;
+  /**
+   * Đáp án thô → dạng lưu. undefined = không hợp lệ, KHÔNG đóng việc. Nhận thêm khoá việc để
+   * chặn đáp án "vòng tròn" — ví dụ trả lời đúng bằng thân mã hoàn thì không mang thông tin gì.
+   */
+  normalizeAnswer(raw: string, subject: string): string | undefined;
+  /**
+   * Hướng dẫn cho agent khi đáp án bị từ chối — nói rõ đáp án hợp lệ trông ra sao và phải làm gì
+   * tiếp (ví dụ: đại lý chỉ cho SĐT khách → tra ra mã vận đơn trước rồi mới trả lời).
+   */
+  readonly answerHelp?: string;
   /** Tra nhóm phải trả lời. Lỗi hệ ngoài trả `failed`, KHÔNG throw. */
   resolveTarget(subject: string, signal?: AbortSignal): Promise<TargetResolution>;
   /**

@@ -150,7 +150,9 @@ export async function answerRequest(
   input: AnswerInput,
 ): Promise<AnswerOutcome> {
   const subject = def.normalizeSubject(input.subject);
-  const answer = def.normalizeAnswer(input.answer);
+  // Khoá không chuẩn hoá được thì vẫn đưa bản thô vào — guard so-với-khoá chỉ cần chuỗi để so,
+  // và nhánh đó rơi vào not_found ngay sau.
+  const answer = def.normalizeAnswer(input.answer, subject ?? input.subject);
   if (answer === undefined) return { kind: "invalid_answer" };
 
   const found = subject === undefined ? undefined : await deps.store.findOpen(def.name, subject);

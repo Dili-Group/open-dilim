@@ -82,7 +82,8 @@ async function runAnswer(ctx: ToolContext, input: unknown): Promise<ToolResult> 
       return {
         content:
           `"${answer}" không phải ${def.answerLabel} hợp lệ. Hỏi lại người trong nhóm cho đúng ` +
-          `${def.answerLabel} — KHÔNG tự suy ra một mã.`,
+          `${def.answerLabel} — KHÔNG tự suy ra một mã.` +
+          (def.answerHelp === undefined ? "" : `\n${def.answerHelp}`),
         isError: true,
       };
     case "not_found":

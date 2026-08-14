@@ -26,7 +26,10 @@ const WAREHOUSE: RoomRef = { channel: "zalo-kho", groupId: "kho-1" };
 const DEALER_ROOM: RoomRef = { channel: "zalo", groupId: "group-42" };
 const OTHER_DEALER_ROOM: RoomRef = { channel: "zalo", groupId: "group-99" };
 const RETURN_CODE = "VTP0093412DH";
-const ORIGIN_CODE = "VTP0093412";
+/** Thân mã hoàn (bỏ đuôi DH) — đơn ĐỔI HÀNG, KHÔNG phải đơn gốc. */
+const BASE_CODE = "VTP0093412";
+/** Đơn gốc thật do đại lý xác nhận — cố ý KHÁC thân mã hoàn. */
+const ORIGIN_CODE = "GHN0011223";
 /** 09:00 giờ VN = 02:00 UTC — trong giờ hành chính. */
 const NOW = Date.parse("2026-08-10T02:00:00Z");
 
@@ -286,15 +289,25 @@ describe("chuẩn hoá mã của def hoi-don-goc", () => {
   });
 
   test("đáp án là mã hoàn (đuôi DH) bị từ chối — đại lý đang trả lời nhầm thứ", () => {
-    expect(def.normalizeAnswer(RETURN_CODE)).toBeUndefined();
+    expect(def.normalizeAnswer(RETURN_CODE, RETURN_CODE)).toBeUndefined();
   });
 
   test("đáp án quá ngắn bị từ chối", () => {
-    expect(def.normalizeAnswer("ok")).toBeUndefined();
+    expect(def.normalizeAnswer("ok", RETURN_CODE)).toBeUndefined();
   });
 
   test("đáp án hợp lệ được chuẩn hoá", () => {
-    expect(def.normalizeAnswer("vtp0093412")).toBe(ORIGIN_CODE);
+    expect(def.normalizeAnswer("ghn 001-1223", RETURN_CODE)).toBe(ORIGIN_CODE);
+  });
+
+  test("đáp án toàn số (SĐT khách) bị từ chối — phải tra ra mã vận đơn trước", () => {
+    expect(def.normalizeAnswer("0912345678", RETURN_CODE)).toBeUndefined();
+  });
+
+  test("đáp án trùng thân mã hoàn (tự cắt đuôi DH) bị từ chối — zero thông tin", () => {
+    expect(def.normalizeAnswer(BASE_CODE, RETURN_CODE)).toBeUndefined();
+    // Khoá thô chưa chuẩn hoá vẫn phải chặn được.
+    expect(def.normalizeAnswer(BASE_CODE, " vtp 009-3412 dh ")).toBeUndefined();
   });
 
   test("chỉ mỗi chữ DH → không còn thân mã, không phải khoá hợp lệ", () => {
@@ -314,7 +327,7 @@ describe("chuẩn hoá mã của def hoi-don-goc", () => {
     });
 
     await withProbe.resolveTarget(RETURN_CODE);
-    expect(asked).toEqual([ORIGIN_CODE]);
+    expect(asked).toEqual([BASE_CODE]);
   });
 });
 
@@ -436,7 +449,7 @@ describe("trả lời việc", () => {
 
     const outcome = await answerRequest(deps, def, {
       subject: RETURN_CODE,
-      answer: " vtp0093412 ",
+      answer: " ghn0011223 ",
       targetRoom: DEALER_ROOM,
       answeredBy: "dl-1",
       nowMs: NOW,
