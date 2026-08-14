@@ -122,3 +122,106 @@ describe("createPaymentBatch()", () => {
     ).rejects.toBeInstanceOf(AgentApiError);
   });
 });
+
+// codCheck(): parse response engine kiểm giá. Ba thứ phải chốt:
+//   1. Có tracking_number thì body CHỈ có tracking_number (items/cod không đi kèm cho đỡ nhiễu);
+//      giỏ tự nhập thì body có items + cod.
+//   2. Response map đúng field lồng nhau (verdict/via/retailRemainder, order.cod_amount).
+//   3. 404 → null; thiếu cod/verdict.status → lỗi shape.
+describe("codCheck()", () => {
+  const ENGINE_BODY = {
+    success: true,
+    data: {
+      input: "tracking_number",
+      cod: 6450000,
+      order: { tracking_number: "VTP01", cod_amount: "6500000.00", shipping_fee: "50000.00" },
+      verdict: {
+        status: "VALID_COMBO",
+        optimal: 6400000,
+        overpay: 50000,
+        validCount: 3,
+        via: {
+          group: "TH1",
+          parts: [{ id: 12, campaign: "TH1_MXNBH", label: "Mix x6", price: 6450000, items: { MXNBH: 6 }, gifts: { MXNBH: 1 } }],
+          retailRemainder: { items: {}, amount: 0 },
+        },
+        optimalVia: { group: "TH1", parts: [{ label: "Mix x6 ưu đãi", price: 6400000 }] },
+      },
+      risk: "YELLOW",
+      cart: { MXNBH: 6 },
+      gift_items: { MXNBH: 1 },
+      paid_items: { MXNBH: 5 },
+      pricing_epoch: 2,
+      hypotheses: [],
+    },
+  };
+
+  test("theo mã vận đơn: body chỉ có tracking_number, response map đủ field lồng nhau", async () => {
+    const { fetchImpl, calls } = stubFetch(200, ENGINE_BODY);
+
+    const result = await portWith(fetchImpl).codCheck({ dealerId: "42", trackingNumber: "VTP01" });
+
+    expect(calls[0]?.url).toContain("/agent/orders/cod-check");
+    expect(calls[0]?.init.method).toBe("POST");
+    expect(JSON.parse(calls[0]?.init.body ?? "{}")).toEqual({ tracking_number: "VTP01" });
+
+    expect(result).toEqual({
+      input: "tracking_number",
+      cod: 6450000,
+      risk: "YELLOW",
+      verdict: {
+        status: "VALID_COMBO",
+        optimal: 6400000,
+        overpay: 50000,
+        nearest: [],
+        validCount: 3,
+        via: {
+          group: "TH1",
+          parts: [{ label: "Mix x6", price: 6450000, items: { MXNBH: 6 }, gifts: { MXNBH: 1 } }],
+          retailRemainderAmount: 0,
+        },
+        optimalVia: {
+          group: "TH1",
+          parts: [{ label: "Mix x6 ưu đãi", price: 6400000, items: undefined, gifts: undefined }],
+          retailRemainderAmount: undefined,
+        },
+      },
+      cart: { MXNBH: 6 },
+      giftItems: { MXNBH: 1 },
+      paidItems: { MXNBH: 5 },
+      pricingEpoch: 2,
+      orderCodAmount: "6500000.00",
+      hypotheses: [],
+    });
+  });
+
+  test("giỏ tự nhập: body có items + cod, không có tracking_number", async () => {
+    const { fetchImpl, calls } = stubFetch(200, {
+      success: true,
+      data: { input: "cart", cod: 6450000, order: null, verdict: { status: "OPTIMAL" } },
+    });
+
+    const result = await portWith(fetchImpl).codCheck({
+      dealerId: "42",
+      items: { MXNBH: 6 },
+      cod: 6450000,
+    });
+
+    expect(JSON.parse(calls[0]?.init.body ?? "{}")).toEqual({ items: { MXNBH: 6 }, cod: 6450000 });
+    expect(result?.verdict.status).toBe("OPTIMAL");
+    expect(result?.orderCodAmount).toBeUndefined();
+  });
+
+  test("404 ORDER_NOT_FOUND → null", async () => {
+    const { fetchImpl } = stubFetch(404, { code: "ORDER_NOT_FOUND", message: "not found" });
+    const result = await portWith(fetchImpl).codCheck({ dealerId: "42", trackingNumber: "X" });
+    expect(result).toBeNull();
+  });
+
+  test("thiếu verdict.status → lỗi shape, không dựng kết luận nửa vời", async () => {
+    const { fetchImpl } = stubFetch(200, { success: true, data: { cod: 100, verdict: {} } });
+    await expect(
+      portWith(fetchImpl).codCheck({ dealerId: "42", trackingNumber: "VTP01" }),
+    ).rejects.toBeInstanceOf(AgentApiError);
+  });
+});

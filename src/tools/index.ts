@@ -11,6 +11,7 @@ import { buildUseSkillTool } from "./impl/use-skill.ts";
 import { buildUseReferenceTool } from "./impl/use-reference.ts";
 import { buildOrderStatusTool } from "./impl/order/status.ts";
 import { buildOrderPaymentTool } from "./impl/order/payment.ts";
+import { buildCodCheckTool } from "./impl/order/cod-check.ts";
 import { buildPaymentBatchCreateTool } from "./impl/order/payment-batch.ts";
 import { buildValidatePaidOrdersTool } from "./impl/order/validate-paid.ts";
 import { buildOrderVideoTool } from "./impl/order/video.ts";
@@ -49,7 +50,7 @@ export const COMMON_TOOLS: readonly ToolFactory[] = [
  * Tool đọc dữ liệu đơn hàng — CHỈ agent phục vụ đại lý được khai (tool tự chặn phạm vi theo đại
  * lý chủ phòng, nhưng agent không phục vụ đại lý thì cũng không có việc gì gọi nó).
  *
- * Cả ba đều CHỈ ĐỌC. Huỷ/sửa đơn, xác nhận đã thanh toán là WRITE → chưa có tool nào, đi qua nhân
+ * Cả bộ đều CHỈ ĐỌC. Huỷ/sửa đơn, xác nhận đã thanh toán là WRITE → chưa có tool nào, đi qua nhân
  * viên vận hành cho tới khi dựng xong approval gate (§6) — xem skill `don-hang`.
  *
  * HAI loại tiền, hai tool: tiền của đơn theo giá bán + COD khách trả nằm trong `tra_don_hang`; tiền
@@ -60,6 +61,9 @@ export const ORDER_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildOrderStatusTool(ctx),
   (ctx: ToolContext): Tool => buildOrderPaymentTool(ctx),
   (ctx: ToolContext): Tool => buildOrderVideoTool(ctx),
+  // Đối chiếu COD với bảng giá (engine cod-check). POST nhưng CHỈ ĐỌC — không sửa giá, không
+  // duyệt đơn. Cách đọc kết quả + ranh giới phát ngôn: skill `kiem-tra-gia-cod`.
+  (ctx: ToolContext): Tool => buildCodCheckTool(ctx),
 ];
 
 /**

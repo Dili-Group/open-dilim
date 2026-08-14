@@ -11,6 +11,7 @@ import { describe, expect, test } from "bun:test";
 import type { Identity } from "../flash-command/types.ts";
 import { AgentApiError, AgentApiErrorCode } from "../operational/agent-api.ts";
 import type {
+  CodCheckResult,
   OrderCameraLink,
   OrderDetail,
   OrderPayment,
@@ -75,6 +76,9 @@ class FakeOrders implements OrderPort {
   }
   cameraLinks(): Promise<readonly OrderCameraLink[]> {
     throw new Error("test không dùng cameraLinks");
+  }
+  codCheck(): Promise<CodCheckResult | null> {
+    throw new Error("test không dùng codCheck");
   }
 }
 

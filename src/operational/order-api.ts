@@ -26,6 +26,10 @@ import {
   readString,
 } from "./read.ts";
 import type {
+  CodCheckPart,
+  CodCheckResult,
+  CodCheckVerdict,
+  CodCheckVia,
   OrderCameraLink,
   OrderDetail,
   OrderItem,
@@ -41,6 +45,7 @@ import type {
 } from "./types.ts";
 
 const ORDERS_PATH = "/agent/orders";
+const COD_CHECK_PATH = "/agent/orders/cod-check";
 const PAYMENT_BATCHES_PATH = "/agent/payment-batches";
 /** Trần backend cho page_size. Xin quá số này backend từ chối. */
 const MAX_PAGE_SIZE = 500;
@@ -219,6 +224,63 @@ export class AgentApiOrderPort implements OrderPort {
     return data.map(readCameraLink).filter(isPresent);
   }
 
+  async codCheck(
+    p: OrderPrincipal & {
+      trackingNumber?: string;
+      items?: Readonly<Record<string, number>>;
+      cod?: number;
+      signal?: AbortSignal;
+    },
+  ): Promise<CodCheckResult | null> {
+    // Luật backend: có tracking_number thì items/cod bị bỏ qua → đừng gửi kèm cho đỡ nhiễu.
+    const payload =
+      p.trackingNumber !== undefined
+        ? { tracking_number: p.trackingNumber }
+        : { items: p.items, cod: p.cod };
+    let body: unknown;
+    try {
+      body = await this.api.post(COD_CHECK_PATH, {
+        principal: toPrincipal(p),
+        body: payload,
+        signal: p.signal,
+      });
+    } catch (err) {
+      // 404 ORDER_NOT_FOUND: mã không tồn tại / đơn xoá mềm — câu trả lời hợp lệ, không phải sự cố.
+      if (err instanceof AgentApiError && err.status === 404) return null;
+      throw err;
+    }
+
+    const record = asRecord(readEnvelopeData(body, COD_CHECK_PATH));
+    const cod = record === undefined ? undefined : readNumber(record, "cod");
+    const verdict = record === undefined ? undefined : readVerdict(record["verdict"]);
+    // Thiếu cod hoặc verdict.status thì không có gì để kết luận → lỗi shape, tool báo trục trặc
+    // thay vì dựng một kết luận nửa vời.
+    if (record === undefined || cod === undefined || verdict === undefined) {
+      throw new AgentApiError(
+        `POST ${COD_CHECK_PATH} trả response thiếu cod/verdict.status`,
+        200,
+        AgentApiErrorCode.InvalidResponse,
+        COD_CHECK_PATH,
+      );
+    }
+
+    const order = asRecord(record["order"]);
+    return {
+      input: readString(record, "input"),
+      cod,
+      risk: readString(record, "risk"),
+      verdict,
+      cart: readSkuCounts(record["cart"]),
+      giftItems: readSkuCounts(record["gift_items"]),
+      paidItems: readSkuCounts(record["paid_items"]),
+      pricingEpoch: readNumber(record, "pricing_epoch"),
+      orderCodAmount: order === undefined ? undefined : readMoney(order, "cod_amount"),
+      hypotheses: readList(record, "hypotheses")
+        .map((h) => (typeof h === "string" && h.trim() !== "" ? h : undefined))
+        .filter(isPresent),
+    };
+  }
+
   /** 404 = đơn không thuộc đại lý này → null. Lỗi khác bubble (tool phân biệt "không có" vs "hỏng"). */
   private async notFoundToNull(
     path: string,
@@ -314,6 +376,63 @@ function readTransition(value: unknown): OrderTransition {
     actorName: readString(record, "actor_name"),
     reason: readString(record, "reason"),
     createdAt: readString(record, "created_at"),
+  };
+}
+
+/** Map SKU → số lượng. Không phải object, hay có value không phải số → undefined/bỏ entry. */
+function readSkuCounts(value: unknown): Readonly<Record<string, number>> | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const counts: Record<string, number> = {};
+  for (const [sku, qty] of Object.entries(record)) {
+    if (typeof qty === "number" && Number.isFinite(qty)) counts[sku] = qty;
+  }
+  return counts;
+}
+
+/** Thiếu `status` = không có kết luận → undefined để codCheck() coi là lỗi shape. */
+function readVerdict(value: unknown): CodCheckVerdict | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const status = readString(record, "status");
+  if (status === undefined) return undefined;
+  return {
+    status,
+    optimal: readNumber(record, "optimal"),
+    overpay: readNumber(record, "overpay"),
+    nearest: readList(record, "nearest")
+      .map((n) => (typeof n === "number" && Number.isFinite(n) ? n : undefined))
+      .filter(isPresent),
+    validCount: readNumber(record, "validCount"),
+    via: readVia(record["via"]),
+    optimalVia: readVia(record["optimalVia"]),
+  };
+}
+
+function readVia(value: unknown): CodCheckVia | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const remainder = asRecord(record["retailRemainder"]);
+  return {
+    group: readString(record, "group"),
+    parts: readList(record, "parts").map(readPart).filter(isPresent),
+    retailRemainderAmount:
+      remainder === undefined ? undefined : readNumber(remainder, "amount"),
+  };
+}
+
+/** Phần không có cả label lẫn price thì không kể được gì cho người nghe → bỏ. */
+function readPart(value: unknown): CodCheckPart | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const label = readString(record, "label");
+  const price = readNumber(record, "price");
+  if (label === undefined && price === undefined) return undefined;
+  return {
+    label,
+    price,
+    items: readSkuCounts(record["items"]),
+    gifts: readSkuCounts(record["gifts"]),
   };
 }
 

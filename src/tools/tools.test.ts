@@ -12,6 +12,7 @@ import type { SkillRegistry } from "../skills/registry.ts";
 import { AgentApiError, AgentApiErrorCode } from "../operational/agent-api.ts";
 import type {
   DealerPort,
+  CodCheckResult,
   DealerProfile,
   InternalDailyPage,
   InternalOrdersPort,
@@ -45,6 +46,7 @@ import { buildOrderStatusTool } from "./impl/order/status.ts";
 import { buildValidatePaidOrdersTool } from "./impl/order/validate-paid.ts";
 import { buildOrderPaymentTool } from "./impl/order/payment.ts";
 import { buildOrderVideoTool } from "./impl/order/video.ts";
+import { buildCodCheckTool } from "./impl/order/cod-check.ts";
 import { buildDealerProfileTool } from "./impl/dealer/profile.ts";
 
 const GUEST: Identity = { role: "guest", senderId: "u1" };
@@ -203,6 +205,7 @@ class FakeOrders implements OrderPort {
     private readonly owned: readonly OwnedOrder[],
     private readonly links: Readonly<Record<string, readonly OrderCameraLink[]>> = {},
     private readonly payments: Readonly<Record<string, OrderPayment>> = {},
+    private readonly codChecks: Readonly<Record<string, CodCheckResult>> = {},
   ) {}
 
   search(
@@ -255,6 +258,18 @@ class FakeOrders implements OrderPort {
     });
   }
 
+  codCheck(
+    p: OrderPrincipal & { trackingNumber?: string; items?: Readonly<Record<string, number>>; cod?: number },
+  ): Promise<CodCheckResult | null> {
+    this.seen.push({ dealerId: p.dealerId, staffId: p.staffId });
+    // Khác các hàm trên: 404 của cod-check là "mã không tồn tại TOÀN hệ thống" (endpoint không
+    // lọc theo đại lý) — fake giữ đơn giản: có kết quả khai sẵn theo mã thì trả, không thì null.
+    if (p.trackingNumber !== undefined) {
+      return Promise.resolve(this.codChecks[p.trackingNumber] ?? null);
+    }
+    return Promise.resolve(this.codChecks["cart"] ?? null);
+  }
+
   private mine(dealerId: string): OrderDetail[] {
     return this.owned.filter((o) => o.dealerId === dealerId).map((o) => o.order);
   }
@@ -291,6 +306,9 @@ class BrokenOrders implements OrderPort {
     this.fail();
   }
   cameraLinks(): Promise<readonly OrderCameraLink[]> {
+    this.fail();
+  }
+  codCheck(): Promise<CodCheckResult | null> {
     this.fail();
   }
 }
@@ -528,6 +546,99 @@ describe("video_don_hang", () => {
   });
 });
 
+describe("kiem_tra_gia_cod", () => {
+  // Verdict mẫu theo spec engine: tiền là VND nguyên (number), khác chuỗi NUMERIC của đơn.
+  const optimal: CodCheckResult = {
+    input: "tracking_number",
+    cod: 6450000,
+    risk: "GREEN",
+    verdict: {
+      status: "OPTIMAL",
+      optimal: 6450000,
+      via: {
+        group: "TH1",
+        parts: [{ label: "Mix x6", price: 6450000, items: { MXNBH: 6 } }],
+        retailRemainderAmount: 0,
+      },
+    },
+    cart: { MXNBH: 6 },
+    paidItems: { MXNBH: 5 },
+    giftItems: { MXNBH: 1 },
+    pricingEpoch: 1,
+    orderCodAmount: "6500000.00",
+    hypotheses: [],
+  };
+  const invalid: CodCheckResult = {
+    input: "tracking_number",
+    cod: 6480000,
+    risk: "RED",
+    verdict: { status: "INVALID", optimal: 6450000, nearest: [6450000, 6600000], validCount: 1 },
+    cart: { MXNBH: 6 },
+    giftItems: {},
+    hypotheses: ["Giỏ hàng thiếu 1 MXNBH — COD chưa khớp với vector {MXNBH:5} (OPTIMAL)"],
+  };
+  const orders = new FakeOrders(
+    [{ dealerId: "dealer-1", order: makeOrder() }],
+    {},
+    {},
+    { VTP01: optimal, VTP03: invalid, cart: { ...optimal, input: "cart", orderCodAmount: undefined } },
+  );
+  const ctx = { skills, identity: GUEST, roomCustomerId: "dealer-1", orders };
+
+  test("OPTIMAL → nói đúng giá, in chương trình, phân rã quà, tách hai số tiền", async () => {
+    const result = await buildCodCheckTool(ctx).run({ ma_van_don: "VTP01" });
+    expect(result.isError).toBeFalsy();
+    expect(result.content).toContain("ĐÚNG GIÁ");
+    expect(result.content).toContain("Mix x6");
+    expect(result.content).toContain("6.450.000 ₫");
+    // orderCodAmount khác cod → phải in kèm nhãn tài xế thu, chống đọc nhầm hai số.
+    expect(result.content).toContain("Tài xế thu trên đơn: 6.500.000 ₫");
+    expect(result.content).toContain("quà tặng: MXNBH ×1");
+    expect(result.content).toContain("Bảng giá phiên bản 1");
+  });
+
+  test("INVALID → nêu mức gần nhất, validCount 1 nói chắc, hypotheses NGUYÊN VĂN, im về quà", async () => {
+    const result = await buildCodCheckTool(ctx).run({ ma_van_don: "VTP03" });
+    expect(result.content).toContain("KHÔNG khớp");
+    expect(result.content).toContain("6.450.000 ₫ hoặc 6.600.000 ₫");
+    expect(result.content).toContain("ĐÚNG MỘT mức COD hợp lệ");
+    expect(result.content).toContain("Giỏ hàng thiếu 1 MXNBH");
+    // gift_items {} ở INVALID = "không biết" — cấm dịch thành "không có quà".
+    expect(result.content).not.toContain("quà tặng");
+  });
+
+  test("giỏ tự nhập: gio_hang + cod → kiểm được, không cần mã vận đơn", async () => {
+    const result = await buildCodCheckTool(ctx).run({
+      gio_hang: [{ sku: "MXNBH", so_luong: 6 }],
+      cod: 6450000,
+    });
+    expect(result.isError).toBeFalsy();
+    expect(result.content).toContain("giỏ tự nhập");
+    expect(result.content).toContain("ĐÚNG GIÁ");
+  });
+
+  test("thiếu cả mã lẫn giỏ (hoặc giỏ thiếu cod) → isError hướng dẫn lại", async () => {
+    const missingAll = await buildCodCheckTool(ctx).run({});
+    expect(missingAll.isError).toBe(true);
+    const missingCod = await buildCodCheckTool(ctx).run({ gio_hang: [{ sku: "A", so_luong: 1 }] });
+    expect(missingCod.isError).toBe(true);
+  });
+
+  test("mã không có kết quả (404) → nói không thấy, KHÔNG nói 'không tồn tại'", async () => {
+    const result = await buildCodCheckTool(ctx).run({ ma_van_don: "VTP999" });
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("Không thấy đơn");
+    expect(result.content).toContain("ĐỪNG nói là đơn không tồn tại");
+  });
+
+  test("API vận hành lỗi → báo trục trặc, KHÔNG kết luận gì về giá", async () => {
+    const tool = buildCodCheckTool({ ...ctx, orders: new BrokenOrders() });
+    const result = await tool.run({ ma_van_don: "VTP01" });
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("KHÔNG nói là không tìm thấy");
+  });
+});
+
 describe("buildToolRegistry", () => {
   test("có đủ whoami + use_skill + use_reference", () => {
     const names = buildToolRegistry(COMMON_TOOLS, { skills, identity: GUEST })
@@ -724,6 +835,32 @@ describe("duyet_don_da_thanh_toan", () => {
     expect(internal.validated).toEqual([{ staffId: undefined, trackingNumbers: ["VTP01"], signal: undefined }]);
     expect(result.content).toContain("Duyệt mới: 1 đơn");
     expect(result.content).toContain("VTP01 · COD 0 ₫");
+  });
+
+  test("đơn CHỜ ĐẠI LÝ CHUYỂN TIỀN bị loại khỏi lô, phần còn lại vẫn duyệt, chỉ đường phiếu gộp", async () => {
+    const internal = new StubInternal();
+    const withDebt = [
+      ...owned,
+      { dealerId: "dealer-1", order: makeOrder({ trackingNumber: "VTP07", status: 2 }) },
+    ];
+    const ctx = { skills, identity: DEALER, roomCustomerId: "dealer-1", orders: new FakeOrders(withDebt), internal };
+    const result = await buildValidatePaidOrdersTool(ctx).run({ ma_van_don: ["VTP01", "VTP07"] });
+
+    expect(internal.validated[0]?.trackingNumbers).toEqual(["VTP01"]);
+    expect(result.content).toContain("CHỜ ĐẠI LÝ CHUYỂN TIỀN");
+    expect(result.content).toContain("tao_phieu_thanh_toan");
+    expect(result.content).toContain("- VTP07");
+  });
+
+  test("lô toàn đơn chờ đại lý chuyển tiền → isError, KHÔNG gọi đường ghi", async () => {
+    const internal = new StubInternal();
+    const debtOnly = [{ dealerId: "dealer-1", order: makeOrder({ trackingNumber: "VTP07", status: 2 }) }];
+    const ctx = { skills, identity: DEALER, roomCustomerId: "dealer-1", orders: new FakeOrders(debtOnly), internal };
+    const result = await buildValidatePaidOrdersTool(ctx).run({ ma_van_don: ["VTP07"] });
+
+    expect(result.isError).toBe(true);
+    expect(internal.validated).toHaveLength(0);
+    expect(result.content).toContain("tao_phieu_thanh_toan");
   });
 
   test("mã của đại lý khác bị LOẠI khỏi lô ghi, phần còn lại vẫn duyệt", async () => {

@@ -545,6 +545,77 @@ export interface InternalOrdersPort {
   validateOrders(r: InternalValidateRequest): Promise<InternalValidateResult>;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Kiểm tra giá COD (`POST /agent/orders/cod-check`) — engine đối chiếu COD của một giỏ hàng với
+// bảng giá hiện hành. POST nhưng CHỈ ĐỌC: không ghi gì, chỉ tính.
+//
+// TIỀN Ở ĐÂY LÀ SỐ VND NGUYÊN (number từ engine), khác `cod_amount` chuỗi NUMERIC của đơn.
+// Chỉ hiển thị, không cộng trừ — cần trừ thì engine đã trừ sẵn (`overpay`).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Một phần của cách ghép giỏ: một combo/chương trình giá, kèm hàng tính tiền + quà của phần đó. */
+export interface CodCheckPart {
+  /** Tên chương trình cho người đọc (vd "Mix x6"). */
+  readonly label?: string;
+  readonly price?: number;
+  readonly items?: Readonly<Record<string, number>>;
+  readonly gifts?: Readonly<Record<string, number>>;
+}
+
+/** Bằng chứng phân rã: giỏ ghép thế nào để ra một mức giá. */
+export interface CodCheckVia {
+  /** Nhóm loại trừ; "RETAIL" = cả giỏ tính giá lẻ. */
+  readonly group?: string;
+  readonly parts: readonly CodCheckPart[];
+  /** Phần hàng không nằm trong combo nào, tính giá lẻ. 0 = không có phần dư. */
+  readonly retailRemainderAmount?: number;
+}
+
+/**
+ * Kết luận của engine. `status` là một trong OPTIMAL / VALID_COMBO / INVALID / UNREACHABLE /
+ * TOO_COMPLEX — giữ string để status mới của backend không làm tool vỡ (tool in nguyên chuỗi lạ).
+ */
+export interface CodCheckVerdict {
+  readonly status: string;
+  /** Giá thấp nhất giỏ có thể đạt. INVALID vẫn có để so. */
+  readonly optimal?: number;
+  /** = cod − optimal. Chỉ VALID_COMBO. */
+  readonly overpay?: number;
+  /** Các mức hợp lệ gần cod nhất (có thể 2 phần tử: một dưới một trên). Chỉ INVALID. */
+  readonly nearest?: readonly number[];
+  /** Tổng số mức COD hợp lệ của giỏ. 1 = chỉ một giá đúng duy nhất, nói chắc được. */
+  readonly validCount?: number;
+  /** Ghép ra đúng số COD đang kiểm (OPTIMAL/VALID_COMBO). */
+  readonly via?: CodCheckVia;
+  /** Ghép ra `optimal` (VALID_COMBO). */
+  readonly optimalVia?: CodCheckVia;
+}
+
+/**
+ * Kết quả một lần kiểm giá. `cod` là TIỀN HÀNG engine đối chiếu (đã trừ ship nếu nguồn đơn gộp
+ * ship vào COD) — KHÁC `orderCodAmount` (số tài xế thu trên đơn). Đọc nhầm hai số này cho người
+ * nghe là báo sai tiền.
+ */
+export interface CodCheckResult {
+  /** Nguồn giỏ: "tracking_number" (đơn trong hệ thống) | "cart" (giỏ tự nhập). */
+  readonly input?: string;
+  readonly cod: number;
+  /** GREEN = OPTIMAL · YELLOW = VALID_COMBO/TOO_COMPLEX · RED = INVALID/UNREACHABLE. */
+  readonly risk?: string;
+  readonly verdict: CodCheckVerdict;
+  /** Giỏ đã chuẩn hoá (SKU khuyến mãi map về SKU gốc) — đọc theo đây, không theo dòng hàng gốc. */
+  readonly cart?: Readonly<Record<string, number>>;
+  /** {} khi engine không phân rã được — nghĩa là "không biết", KHÔNG phải "không có quà". */
+  readonly giftItems?: Readonly<Record<string, number>>;
+  readonly paidItems?: Readonly<Record<string, number>>;
+  /** Phiên bản bảng giá engine đang dùng. */
+  readonly pricingEpoch?: number;
+  /** `order.cod_amount` — số TÀI XẾ THU, chuỗi NUMERIC. Chỉ có khi kiểm theo mã vận đơn. */
+  readonly orderCodAmount?: string;
+  /** Câu tiếng Việt engine đoán nguyên nhân lệch — chỉ có ở INVALID, đọc NGUYÊN VĂN, không bịa thêm. */
+  readonly hypotheses?: readonly string[];
+}
+
 /**
  * Cổng ĐỌC đơn hàng. CHỈ ĐỌC: huỷ/sửa đơn là WRITE, đi qua nhân viên vận hành cho tới khi có
  * approval gate (§6).
@@ -595,6 +666,21 @@ export interface OrderPort {
   cameraLinks(
     p: OrderPrincipal & { readonly trackingNumber: string; readonly signal?: AbortSignal },
   ): Promise<readonly OrderCameraLink[]>;
+  /**
+   * Đối chiếu COD với bảng giá hiện hành (`POST /agent/orders/cod-check` — POST nhưng CHỈ ĐỌC).
+   * Có `trackingNumber` → engine lấy giỏ từ đơn trong hệ thống, bỏ qua `items`/`cod`; không có →
+   * phải đủ cả `items` (SKU → số lượng) lẫn `cod` (VND nguyên, ĐÃ trừ ship). Mỗi lần gọi 1 đơn.
+   *
+   * null = mã vận đơn không tồn tại / đơn xoá mềm (404 ORDER_NOT_FOUND). Lỗi khác bubble lên.
+   */
+  codCheck(
+    p: OrderPrincipal & {
+      readonly trackingNumber?: string;
+      readonly items?: Readonly<Record<string, number>>;
+      readonly cod?: number;
+      readonly signal?: AbortSignal;
+    },
+  ): Promise<CodCheckResult | null>;
 }
 
 /**

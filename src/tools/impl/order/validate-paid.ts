@@ -1,8 +1,11 @@
-// validate-paid.ts — tool GHI `duyet_don_da_thanh_toan`: đại lý gửi bill KHÁCH LẺ chuyển khoản
-// cho đại lý kèm mã vận đơn → duyệt lô đơn đó qua bước kho, ngay trong nhóm đại lý. Bill là
-// điều kiện BẮT BUỘC với mọi đơn (kể cả COD 0đ). Dòng tiền ở đây là khách cuối → đại lý, KHÔNG
-// phải đại lý → công ty; COD trên hệ thống của đơn bán khách lẻ hay bị nhập sai (khách trả trước
-// một phần không được ghi) nên chỉ mang tính tham khảo, không phải điều kiện.
+// validate-paid.ts — tool GHI `duyet_don_da_thanh_toan`: duyệt lô đơn qua bước kho ngay trong
+// nhóm đại lý, theo một trong HAI cửa của skill `duyet-don-0d`:
+//   1. Đơn khách lẻ đã thanh toán cho đại lý — đại lý gửi bill khách chuyển khoản kèm mã vận
+//      đơn; bill BẮT BUỘC (kể cả COD 0đ). Dòng tiền là khách cuối → đại lý, KHÔNG phải đại lý →
+//      công ty; COD hệ thống của đơn khách lẻ hay nhập sai nên chỉ tham khảo, không phải điều kiện.
+//   2. Đơn kẹt ở "đơn hàng mới" vì COD lệch bảng giá (`kiem_tra_gia_cod` INVALID) và đại lý yêu
+//      cầu cho đơn đi — giá đang giai đoạn chưa thống nhất, công ty chấp nhận lệch; không cần
+//      bill nhưng phải báo mức lệch và được đại lý xác nhận trước.
 //
 // Khác `duyet_don_qua_kho` (nội bộ, chỉ nhân viên, mọi đơn): tool này cho ĐẠI LÝ tự kích hoạt,
 // nên hàng rào đổi từ VAI sang PHẠM VI — trước khi ghi, từng mã được tra qua cổng đọc đơn scoped
@@ -30,6 +33,13 @@ import { NO_CUSTOMER, NO_PORT, formatMoney } from "./scope.ts";
 
 /** Một bill che vài đơn là cùng; mỗi mã tốn một lượt tra chủ đơn nên trần thấp hơn lô nội bộ. */
 const MAX_TRACKING_NUMBERS = 20;
+
+/**
+ * `orders.status` = 2 (chờ đại lý chuyển tiền): đơn này KHÔNG duyệt qua cửa nào của tool —
+ * đường đi đúng là đại lý tạo phiếu thanh toán gộp (`tao_phieu_thanh_toan`), webhook SePay
+ * tự mở khoá khi tiền về. Duyệt hộ ở đây là cho đơn đi mà công ty chưa nhận tiền hàng.
+ */
+const STATUS_CHO_DAI_LY_CHUYEN_TIEN = 2;
 
 const NO_GUEST: ToolResult = {
   content:
@@ -75,12 +85,15 @@ export function buildValidatePaidOrdersTool(ctx: ToolContext): Tool {
   return {
     name: "duyet_don_da_thanh_toan",
     description:
-      "Duyệt qua bước kho các đơn CỦA ĐẠI LÝ TRONG PHÒNG NÀY mà khách lẻ đã thanh toán cho đại " +
-      "lý: đại lý gửi bill khách chuyển khoản kèm mã vận đơn — bill là bắt buộc với MỌI đơn, " +
-      "kể cả đơn COD 0đ. Nhận danh sách mã vận đơn " +
+      "Duyệt qua bước kho các đơn CỦA ĐẠI LÝ TRONG PHÒNG NÀY, theo một trong hai cửa của skill " +
+      "`duyet-don-0d`: (1) khách lẻ đã thanh toán cho đại lý — đại lý gửi bill khách chuyển " +
+      "khoản kèm mã vận đơn, bill bắt buộc kể cả đơn COD 0đ; (2) đơn kẹt vì COD lệch bảng giá " +
+      "(kiem_tra_gia_cod trả KHÔNG khớp) và đại lý yêu cầu cho đơn đi — không cần bill, nhưng " +
+      "phải đã báo mức lệch và được đại lý xác nhận. Nhận danh sách mã vận đơn " +
       `(1–${MAX_TRACKING_NUMBERS} mã); từng mã được kiểm tra là đơn của đúng đại lý phòng trước ` +
-      "khi duyệt, mã lạ bị loại. Đây là lệnh GHI — chỉ gọi khi đủ điều kiện theo skill " +
-      "`duyet-don-0d`, không tự gom mã từ chỗ khác.",
+      "khi duyệt, mã lạ bị loại. Đơn đang CHỜ ĐẠI LÝ CHUYỂN TIỀN cũng bị tự loại — đơn đó phải " +
+      "đi đường phiếu thanh toán gộp (tao_phieu_thanh_toan), không duyệt hộ được. Đây là lệnh " +
+      "GHI — chỉ gọi khi đủ điều kiện theo skill `duyet-don-0d`, không tự gom mã từ chỗ khác.",
     inputSchema: {
       type: "object",
       properties: {
@@ -150,13 +163,29 @@ async function run(
     };
   }
 
+  // Hàng rào trạng thái: đơn "chờ đại lý chuyển tiền" bị loại khỏi lô — đường đi của nó là
+  // phiếu thanh toán gộp, không phải duyệt kho.
+  const awaitingPayment = owned.filter((o) => o.status === STATUS_CHO_DAI_LY_CHUYEN_TIEN);
+  const eligible = owned.filter((o) => o.status !== STATUS_CHO_DAI_LY_CHUYEN_TIEN);
+
+  if (eligible.length === 0) {
+    return {
+      content:
+        "Chưa duyệt gì: các đơn này đang ở trạng thái CHỜ ĐẠI LÝ CHUYỂN TIỀN — không duyệt qua " +
+        "kho được (kể cả có bill khách CK hay đại lý yêu cầu). Hướng dẫn đại lý tạo phiếu thanh " +
+        "toán gộp (tao_phieu_thanh_toan) và chuyển khoản; tiền về là đơn tự đi tiếp.\n" +
+        awaitingPayment.map((o) => `- ${o.trackingNumber}`).join("\n"),
+      isError: true,
+    };
+  }
+
   try {
     const result = await internal.validateOrders({
       staffId: resolveStaffId(ctx),
-      trackingNumbers: owned.map((o) => o.trackingNumber),
+      trackingNumbers: eligible.map((o) => o.trackingNumber),
       signal,
     });
-    return { content: renderPaid(result, owned, skipped) };
+    return { content: renderPaid(result, eligible, skipped, awaitingPayment) };
   } catch (err) {
     if (err instanceof AgentApiError) {
       // message chỉ có method/path/status/code — KHÔNG có service token.
@@ -198,6 +227,7 @@ function renderPaid(
   result: InternalValidateResult,
   owned: readonly OrderDetail[],
   skipped: readonly string[],
+  awaitingPayment: readonly OrderDetail[],
 ): string {
   const lines: string[] = [render(result)];
   lines.push("COD trên hệ thống của từng đơn (tham khảo — đơn khách lẻ có thể ghi sai COD):");
@@ -206,6 +236,13 @@ function renderPaid(
       (o) => `- ${o.trackingNumber} · COD ${formatMoney(o.codAmount) ?? "hệ thống không trả số"}`,
     ),
   );
+  if (awaitingPayment.length > 0) {
+    lines.push(
+      "Đang CHỜ ĐẠI LÝ CHUYỂN TIỀN (đã loại, không duyệt qua kho — hướng dẫn tạo phiếu thanh " +
+        "toán gộp tao_phieu_thanh_toan, tiền về là đơn tự đi tiếp):",
+    );
+    lines.push(...awaitingPayment.map((o) => `- ${o.trackingNumber}`));
+  }
   if (skipped.length > 0) {
     lines.push("KHÔNG PHẢI đơn của đại lý phòng này (đã loại, không duyệt):");
     lines.push(...skipped.map((code) => `- ${code}`));
