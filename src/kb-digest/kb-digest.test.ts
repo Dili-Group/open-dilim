@@ -459,7 +459,7 @@ describe("kb-digest poller tick", () => {
 describe("KbReviewService", () => {
   async function pendingStore(): Promise<FakeStore> {
     const store = new FakeStore();
-    await store.insertProposals({ facts: ["fact A"] } as never);
+    await store.insertProposals({ facts: ["fact A"] });
     return store;
   }
 
@@ -553,7 +553,7 @@ describe("flash /kiemduyet-kb + /duyet-kb", () => {
   test("/duyet-kb ngoài group kiểm duyệt → chặn (đề xuất không lộ ra nhóm đại lý)", async () => {
     const store = await (async () => {
       const s = new FakeStore();
-      await s.insertProposals({ facts: ["f"] } as never);
+      await s.insertProposals({ facts: ["f"] });
       return s;
     })();
     const kb = new KbReviewService({ store, memory: new RecordingMemory() });
@@ -566,7 +566,7 @@ describe("flash /kiemduyet-kb + /duyet-kb", () => {
 
   test("/duyet-kb trong group kiểm duyệt → duyệt + ghi KB", async () => {
     const store = new FakeStore();
-    await store.insertProposals({ facts: ["f"] } as never);
+    await store.insertProposals({ facts: ["f"] });
     const memory = new RecordingMemory();
     const kb = new KbReviewService({ store, memory });
     const result = await duyetKb.handler(flashCtx({ kb, args: ["00000000"] }));
