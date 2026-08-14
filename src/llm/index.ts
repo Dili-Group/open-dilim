@@ -3,10 +3,12 @@
 export {
   buildLlmProvider,
   buildMemoryLlmProvider,
+  buildCompactorLlmProvider,
   buildEmbedder,
   buildVisionReader,
 } from "./registry.ts";
 export { AnthropicProvider } from "./providers/anthropic.ts";
+export { GeminiChat } from "./providers/gemini.ts";
 export { GeminiEmbedder } from "./providers/gemini-embedder.ts";
 export { GeminiVision } from "./providers/gemini-vision.ts";
 export { LLMError, singleSystem } from "./types.ts";

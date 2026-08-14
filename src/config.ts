@@ -279,6 +279,9 @@ const DEFAULT_TURN_TIMEOUT_MS = 20_000;
 const DEFAULT_SCHEDULER_TICK_MS = 30_000;
 // Model đọc ảnh đính kèm — con rẻ nhất còn hiểu được ảnh, gọi mỗi lần đại lý gửi ảnh.
 const DEFAULT_VISION_MODEL = "gemini-3.1-flash-lite";
+// Model NÉN hội thoại ngắn hạn (rolling summary) — luôn Gemini, độc lập PROVIDER của agent,
+// cùng lý do với vision/embedder: việc nền tần suất cao, chạy con rẻ.
+const DEFAULT_COMPACT_MODEL = "gemini-3.5-flash-lite";
 // Trần thời gian bắt tay + `tools/list` với một server MCP lúc boot. Server chết không được làm
 // chậm cả app — quá hạn thì bỏ server đó, boot tiếp.
 const DEFAULT_MCP_CONNECT_TIMEOUT_MS = 5_000;
@@ -330,6 +333,9 @@ export const CONFIG = {
   // Con nhẹ cho việc tóm-rút ghi nhớ (distill + rolling summary) — chạy ngầm, tần suất cao.
   // Cùng provider với agent; mặc định = model chính nếu không set MEMORY_MODEL.
   memoryModel: optional("MEMORY_MODEL") ?? required("MODEL"),
+  // Con nén hội thoại ngắn hạn — Gemini, tách khỏi memoryModel (distill vẫn theo PROVIDER).
+  // Thiếu GEMINI_API_KEY thì registry tự rơi về memoryModel, không chặn boot.
+  compactModel: optional("COMPACT_MODEL") ?? DEFAULT_COMPACT_MODEL,
   effort: oneOf("EFFORT", EFFORTS, "medium"),
   maxTokens: positiveIntEnv("MAX_TOKENS", DEFAULT_MAX_TOKENS),
   anthropicApiKey,

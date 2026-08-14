@@ -3,7 +3,7 @@
 
 import { sql } from "../db/client.ts";
 import { commandOf, redis } from "../redis/client.ts";
-import { buildEmbedder, buildMemoryLlmProvider } from "../llm/index.ts";
+import { buildCompactorLlmProvider, buildEmbedder, buildMemoryLlmProvider } from "../llm/index.ts";
 import { PgMemoryStore } from "./memory.ts";
 import { RedisHistoryStore } from "./session.ts";
 import { RedisDedupe } from "./dedupe.ts";
@@ -44,12 +44,12 @@ export function buildDistiller(spec: DistillSpec): Distiller {
 }
 
 /**
- * Nén hội thoại ngắn hạn — cùng con nhẹ với distiller, nhưng lưu Redis theo phòng (không cần
- * MemoryScope) nên chạy được cho cả phòng chưa bind.
+ * Nén hội thoại ngắn hạn — chạy Gemini (CONFIG.compactModel, thiếu key thì registry rơi về
+ * memoryModel), lưu Redis theo phòng (không cần MemoryScope) nên chạy được cho cả phòng chưa bind.
  */
 export function buildCompactor(): { compactor: LlmCompactor; summaries: RedisSummaryStore } {
   const summaries = new RedisSummaryStore(commandOf(redis));
-  return { compactor: new LlmCompactor(buildMemoryLlmProvider(), summaries), summaries };
+  return { compactor: new LlmCompactor(buildCompactorLlmProvider(), summaries), summaries };
 }
 
 /**

@@ -4,6 +4,7 @@
 import { CONFIG, type Config } from "../config.ts";
 import type { Embedder, LLMProvider, VisionReader } from "./types.ts";
 import { AnthropicProvider } from "./providers/anthropic.ts";
+import { GeminiChat } from "./providers/gemini.ts";
 import { GeminiEmbedder } from "./providers/gemini-embedder.ts";
 import { GeminiVision } from "./providers/gemini-vision.ts";
 
@@ -17,6 +18,22 @@ export function buildLlmProvider(config: Config = CONFIG): LLMProvider {
  */
 export function buildMemoryLlmProvider(config: Config = CONFIG): LLMProvider {
   return buildProviderForModel(config, config.memoryModel);
+}
+
+/**
+ * Provider cho NÉN hội thoại ngắn hạn — LUÔN Gemini (config.compactModel), độc lập PROVIDER của
+ * agent, cùng lý do với embedder/vision: việc nền tần suất cao, chạy con rẻ. GeminiChat text-only
+ * là đủ — compactor không dùng tool.
+ *
+ * Thiếu GEMINI_API_KEY → rơi về con nhẹ theo PROVIDER (memoryModel) thay vì chặn boot, giữ đúng
+ * hành vi cũ cho môi trường chưa có key.
+ */
+export function buildCompactorLlmProvider(config: Config = CONFIG): LLMProvider {
+  if (config.geminiApiKey === undefined) {
+    console.warn("[llm] thiếu GEMINI_API_KEY → nén hội thoại dùng memoryModel thay vì Gemini.");
+    return buildMemoryLlmProvider(config);
+  }
+  return new GeminiChat(config.geminiApiKey, config.compactModel);
 }
 
 function buildProviderForModel(config: Config, model: string): LLMProvider {
