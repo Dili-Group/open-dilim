@@ -78,6 +78,7 @@ async function processMessage(deps: IngestDeps, msg: ParsedMessage): Promise<boo
         await markLatestTurn(deps, envelope);
       }
       await trackSpeakerTurnover(deps, envelope);
+      await logMessage(deps, envelope);
     } catch (err) {
       // Trả lại mark để retry của channel reprocess (không mất tin).
       await deps.dedupe.release(msg.channel, msg.msgId);
@@ -109,6 +110,24 @@ async function markLatestTurn(deps: IngestDeps, envelope: Envelope): Promise<voi
 }
 
 /**
+ * Ghi raw log bền cho knowledge base — MỌI tin, kể cả tin không nhắm agent. Ingest là nơi duy
+ * nhất thấy đủ mọi tin nên hook nằm ở đây, không nằm ở worker.
+ *
+ * Best-effort: hỏng thì log rồi thôi — đây là thu thập dữ liệu kiểm duyệt, không được làm rớt
+ * tin của khách (throw sẽ nhả dedupe và bắt channel gửi lại nguyên tin). Postgres sập một nhịp
+ * thì mất mấy row log, không mất câu trả lời.
+ */
+async function logMessage(deps: IngestDeps, envelope: Envelope): Promise<void> {
+  if (deps.messageLog === undefined) return;
+  try {
+    await deps.messageLog.append(envelope);
+  } catch (err) {
+    console.error(`[ingest:${envelope.channel}] ghi message_log lỗi:`, err);
+    captureError(err, "ingest.message_log", { channel: envelope.channel, msgId: envelope.msgId });
+  }
+}
+
+/**
  * Ghi lại người vừa nói; NGƯỜI KHÁC vừa đáp lời người trước → đẩy một envelope `distill` để worker
  * chưng cất phòng này. Đây là chỗ duy nhất thấy được nhịp đó: tin không nhắm agent không bao giờ
  * tới worker, mà phần lớn cuộc trao đổi trong nhóm là loại tin đó.
@@ -129,7 +148,8 @@ async function trackSpeakerTurnover(deps: IngestDeps, envelope: Envelope): Promi
     );
     if (envelope.addressedToAgent) return;
     if (previous === undefined || previous === envelope.senderId) return;
-    await deps.broker.publish(distillEnvelope(envelope));
+    // ĐÃ THÁO hook chưng cất theo nhịp đổi người nói — muốn bật lại thì publish
+    // `distillEnvelope(envelope)` tại đây. Swap vẫn chạy để mốc người-nói-trước không đứt.
   } catch (err) {
     console.error(`[ingest:${envelope.channel}] theo dõi đổi người nói lỗi:`, err);
   }

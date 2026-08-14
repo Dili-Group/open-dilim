@@ -7,6 +7,7 @@ import { duyetThongbao, thongbaoCho, tuchoiThongbao } from "./commands/duyet-tho
 import huyKetnoi from "./commands/huy-ketnoi.ts";
 import ketnoiDaily from "./commands/ketnoi-daily.ts";
 import ketnoiHethong from "./commands/ketnoi-hethong.ts";
+import { duyetKb, kbPending, kiemduyetKb, tuchoiKb } from "./commands/kiemduyet-kb.ts";
 import lich from "./commands/lich.ts";
 import mcp from "./commands/mcp.ts";
 import mucSudung from "./commands/muc-sudung.ts";
@@ -25,7 +26,11 @@ export const flashRegistry = new FlashRegistry()
   .register(unlock)
   .register(duyetThongbao)
   .register(tuchoiThongbao)
-  .register(thongbaoCho);
+  .register(thongbaoCho)
+  .register(kiemduyetKb)
+  .register(duyetKb)
+  .register(tuchoiKb)
+  .register(kbPending);
 
 export { FlashRegistry, parseCommand } from "./registry.ts";
 export type { DispatchInput, ParsedCommand } from "./registry.ts";

@@ -31,6 +31,8 @@ import type {
   AnnouncePort,
   AnnouncementDeps,
 } from "../announcements/types.ts";
+import type { KbDigestService } from "../kb-digest/service.ts";
+import type { KbDigestStore, KbReviewPort } from "../kb-digest/types.ts";
 
 /** Mọi service dựng lúc boot, share cho các tầng downstream (worker/gateway). */
 export interface Services {
@@ -105,6 +107,10 @@ export interface Services {
   readonly summaries: SummaryReader;
   /** Đo chi phí LLM theo phòng + chặn phòng vượt trần ngày (usage/). */
   readonly usage: UsageTracking;
+  /** Digest cuối ngày + kiểm duyệt knowledge base (kb-digest/): store + pipeline + cửa duyệt. */
+  readonly kbDigestStore: KbDigestStore;
+  readonly kbDigest: KbDigestService;
+  readonly kbReview: KbReviewPort;
 }
 
 /** Hệ thống ĐANG CHẠY: service + HTTP server + hook shutdown sạch. */

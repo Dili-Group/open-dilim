@@ -60,6 +60,11 @@ export type { AnnounceApprovalPort };
 import type { McpStatusPort } from "../mcp/types.ts";
 export type { McpStatusPort };
 
+// Cửa KIỂM DUYỆT knowledge base — định nghĩa ở tầng kb-digest. Chỉ flash-command cầm; agent
+// KHÔNG (ghi tri thức cho mọi group đọc không được nằm trong tầm với của LLM).
+import type { KbReviewPort } from "../kb-digest/types.ts";
+export type { KbReviewPort };
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Ports — seam I/O. Implementation cấp lúc khởi động, không nằm ở đây.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -186,6 +191,11 @@ export interface FlashContext {
    * undefined = chưa nối tầng MCP → lệnh trả lỗi rõ.
    */
   readonly mcp?: McpStatusPort;
+  /**
+   * Kiểm duyệt knowledge base (`/kiemduyet-kb`, `/duyet-kb`…). undefined = chưa wiring → lệnh
+   * trả lỗi rõ, KHÔNG mặc định cho qua.
+   */
+  readonly kb?: KbReviewPort;
 }
 
 /**

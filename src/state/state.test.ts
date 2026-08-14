@@ -25,6 +25,8 @@ import {
   type DistillCursor,
 } from "./memory-writer.ts";
 import { LlmCompactor, SUMMARY_MAX_CHARS, type SummaryStore } from "./compactor.ts";
+import { SqlMessageLog } from "./message-log.ts";
+import type { Envelope } from "../types/index.ts";
 import { toVectorLiteral } from "./vector.ts";
 import { customerSupportSpec } from "./specs.ts";
 import {
@@ -682,5 +684,47 @@ describe("MemoryWriterRegistry", () => {
 
   test("agent lạ → undefined (không mượn writer agent khác)", () => {
     expect(build().registry.for("khong_ton_tai")).toBeUndefined();
+  });
+});
+
+// ─── SqlMessageLog (raw log knowledge base) ─────────────────────────────────
+
+describe("SqlMessageLog.append", () => {
+  const ENVELOPE: Envelope = {
+    source: "channel",
+    channel: "zalo",
+    msgId: "m1",
+    conversationId: "g1",
+    senderId: "u1",
+    senderName: "Chị Lan",
+    isGroup: true,
+    addressedToAgent: false,
+    text: "hàng về chưa em",
+    imageUrl: "https://cdn.dili.vn/a/anh.jpg",
+    mentions: [],
+    ts: 1_700_000_000_000,
+  };
+
+  test("insert đủ cột theo đúng thứ tự param, có ON CONFLICT chống trùng", async () => {
+    const exec = new FakeExec();
+    await new SqlMessageLog(exec).append(ENVELOPE);
+
+    expect(exec.inserts()).toHaveLength(1);
+    const call = exec.calls[0];
+    expect(call?.text).toContain("ON CONFLICT (channel, msg_id) DO NOTHING");
+    expect(call?.params).toEqual([
+      "zalo", "m1", "g1", "u1", "Chị Lan", true, false, "hàng về chưa em",
+      "https://cdn.dili.vn/a/anh.jpg", 1_700_000_000_000,
+    ]);
+  });
+
+  test("senderName/imageUrl thiếu → bind null, không phải undefined", async () => {
+    const exec = new FakeExec();
+    const { senderName: _n, imageUrl: _i, ...rest } = ENVELOPE;
+    await new SqlMessageLog(exec).append(rest);
+
+    const params = exec.calls[0]?.params;
+    expect(params?.[4]).toBeNull();
+    expect(params?.[8]).toBeNull();
   });
 });

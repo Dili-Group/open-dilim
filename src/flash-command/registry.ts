@@ -18,6 +18,7 @@ import {
 } from "./types.ts";
 import type { UsageTracking } from "../usage/types.ts";
 import type { McpStatusPort } from "../mcp/types.ts";
+import type { KbReviewPort } from "../kb-digest/types.ts";
 
 const COMMAND_PREFIX = "/";
 
@@ -64,6 +65,8 @@ export type DispatchInput = {
   readonly usage?: UsageTracking;
   /** Soát server MCP đang nối (`/mcp`). undefined = chưa nối tầng MCP. */
   readonly mcp?: McpStatusPort;
+  /** Kiểm duyệt knowledge base (`/kiemduyet-kb`, `/duyet-kb`…). undefined = chưa wiring. */
+  readonly kb?: KbReviewPort;
 };
 
 export class FlashRegistry {
@@ -126,6 +129,7 @@ export class FlashRegistry {
       agentType: input.agentType,
       usage: input.usage,
       mcp: input.mcp,
+      kb: input.kb,
     };
 
     try {

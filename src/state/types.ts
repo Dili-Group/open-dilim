@@ -27,6 +27,12 @@ export const MemoryOwnerKind = {
    * bind vẫn ghi theo `Customer` (fact thuộc về khách, không thuộc về phòng).
    */
   Room: "room",
+  /**
+   * Knowledge base TOÀN CÔNG TY (kb-digest): fact chính sách/quy trình đại lý↔công ty, ẩn danh,
+   * mọi group cùng đọc. ownerId/channel/conversationId là sentinel cố định (ORG_KB_SCOPE) —
+   * SCOPE_WHERE lọc cả 4 cột nên phải ghim cả 4, không thì KB tự vỡ thành phân vùng theo phòng.
+   */
+  Org: "org",
 } as const;
 export type MemoryOwnerKind = (typeof MemoryOwnerKind)[keyof typeof MemoryOwnerKind];
 
@@ -46,6 +52,17 @@ export interface MemoryScope {
   readonly channel: string;
   readonly conversationId: string;
 }
+
+/**
+ * Scope CỐ ĐỊNH của knowledge base công ty. Mọi đường ghi/đọc KB đều qua đúng hằng này —
+ * sentinel tự đặt tay ở chỗ khác là fact rơi vào phân vùng chết không ai đọc lại được.
+ */
+export const ORG_KB_SCOPE: MemoryScope = {
+  ownerKind: MemoryOwnerKind.Org,
+  ownerId: "company",
+  channel: "kb",
+  conversationId: "policy",
+};
 
 // Vocabulary loại fact MẶC ĐỊNH (dùng cho agent hỗ trợ khách — xem specs.ts). KHÔNG phải bộ
 // duy nhất: mỗi agent khai vocab riêng trong DistillSpec. Cột `type` là text tự do ở DB.

@@ -16,6 +16,16 @@ export interface HistoryStore {
 }
 
 /**
+ * Raw log bền cho knowledge base — MỌI tin qua ingest vào Postgres, append-only. Khác
+ * `HistoryStore` (Redis, cắt 40 entry + TTL 7 ngày, phục vụ cửa sổ agent đọc): tầng này giữ
+ * nguyên vẹn để cuối ngày digest + chưng cất. Nhận nguyên Envelope: log là bản chụp cái ingest
+ * thấy, không phải dạng đã render cho agent.
+ */
+export interface MessageLogStore {
+  append(envelope: Envelope): Promise<void>;
+}
+
+/**
  * Chống xử lý trùng (webhook retry). `firstSee` atomic check-and-mark; `release` trả lại key
  * khi xử lý FAIL để retry làm lại (không mất tin). Dedupe authoritative vẫn nằm ở worker.
  */
@@ -64,4 +74,9 @@ export interface IngestDeps {
    * Không chặn boot: thiếu cổng này agent vẫn chạy, chỉ kém dữ liệu về nhóm chưa bind.
    */
   readonly speakers?: SpeakerTracker;
+  /**
+   * undefined = không ghi raw log knowledge base. Không chặn boot: thiếu cổng này chỉ mất dữ
+   * liệu kiểm duyệt, tin của khách vẫn xử lý đủ.
+   */
+  readonly messageLog?: MessageLogStore;
 }

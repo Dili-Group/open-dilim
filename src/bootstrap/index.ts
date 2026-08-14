@@ -11,7 +11,14 @@ import { closeDb, sql } from "../db/client.ts";
 import { SqlUsageStore } from "../usage/index.ts";
 import { closeRedis, commandOf, redis } from "../redis/client.ts";
 import { buildBroker } from "../broker/index.ts";
-import { buildLlmProvider, buildVisionReader } from "../llm/index.ts";
+import { buildLlmProvider, buildMemoryLlmProvider, buildVisionReader } from "../llm/index.ts";
+import {
+  KbDigestExtractor,
+  KbDigestService,
+  KbReviewService,
+  SqlKbDigestStore,
+  startKbDigestPoller,
+} from "../kb-digest/index.ts";
 import { CdnImageVision, type VisionPort } from "../vision/index.ts";
 import { buildMcpRegistry } from "../mcp/index.ts";
 import { buildAgentRegistry, type AgentRegistry } from "../agents/index.ts";
@@ -58,6 +65,8 @@ import {
   buildDedupe,
   buildTurnMarker,
   buildHistoryStore,
+  buildMessageLog,
+  sqlExecutor,
   buildMemoryStore,
   buildMemoryWriters,
   buildCompactor,
@@ -88,7 +97,9 @@ export async function bootstrap(): Promise<Services> {
   const speakers = new RedisSpeakerTracker(commandOf(redis));
   // Vạch "tin mới nhất phòng": ingest nâng, pool soi để gom tin gửi liên tiếp thành một lượt.
   const turns = buildTurnMarker();
-  const ingestDeps: IngestDeps = { broker, history, dedupe, speakers, turns };
+  // Raw log bền knowledge base: mọi tin qua ingest vào Postgres, best-effort (gateway tự nuốt lỗi).
+  const messageLog = buildMessageLog();
+  const ingestDeps: IngestDeps = { broker, history, dedupe, speakers, turns, messageLog };
 
   const llm = buildLlmProvider(config);
   // Memory dài hạn cần embedder Gemini (buildEmbedder throw nếu thiếu key). Không có key → chạy
@@ -232,6 +243,17 @@ export async function bootstrap(): Promise<Services> {
   // scheduler_jobs → việc nhân viên vừa đặt là việc tick sau lên lịch.
   const jobs = new SqlJobRepo();
 
+  // Digest cuối ngày + kiểm duyệt KB. MỘT store cho cả ba đầu: poller (claim/quét), pipeline
+  // (extract + gửi), flash command (bind/duyệt). Extractor chạy con nhẹ — cùng provider với
+  // distiller. `memory` có thể vắng (thiếu Gemini) → duyệt fail-closed, digest vẫn chạy.
+  const kbDigestStore = new SqlKbDigestStore(sqlExecutor);
+  const kbDigest = new KbDigestService({
+    store: kbDigestStore,
+    extractor: new KbDigestExtractor(buildMemoryLlmProvider()),
+    broadcaster,
+  });
+  const kbReview = new KbReviewService({ store: kbDigestStore, memory });
+
   return {
     config,
     ingestDeps,
@@ -266,6 +288,9 @@ export async function bootstrap(): Promise<Services> {
       usdVndRate: config.usdVndRate,
       enforce: config.enforceBudget,
     },
+    kbDigestStore,
+    kbDigest,
+    kbReview,
   };
 }
 
@@ -297,6 +322,7 @@ export async function start(): Promise<RunningSystem> {
     // Chỉ để `/mcp` báo tình trạng — agent gọi tool ngoài qua AgentDeps.mcp, không qua worker.
     mcp: services.mcp,
     announceApprovals: services.announce,
+    kbReview: services.kbReview,
     workerCount: services.config.workerCount,
     turnTimeoutMs: services.config.turnTimeoutMs,
     // Gom tin gửi liên tiếp: CÙNG vạch mà ingest nâng (services.ingestDeps.turns).
@@ -333,7 +359,16 @@ export async function start(): Promise<RunningSystem> {
     services.config.schedulerTickMs,
   );
 
+  // Nguồn phát thứ tư: digest cuối ngày các nhóm có nhân viên trao đổi + đề xuất KB chờ duyệt.
+  // Chưa /kiemduyet-kb thì config rỗng → tick chạy không, vô hại.
+  const kbDigestPoller = startKbDigestPoller(
+    services.kbDigestStore,
+    services.kbDigest,
+    services.config.schedulerTickMs,
+  );
+
   async function stop(): Promise<void> {
+    await kbDigestPoller.stop(); // ngừng digest KB (có thể đang giữa call LLM)
     await announcePoller.stop(); // ngừng phát tin đại lý
     await workflowPoller.stop(); // ngừng nhắc việc treo
     await scheduler.stop(); // ngừng bắn job mới TRƯỚC khi drain worker

@@ -190,4 +190,105 @@ CREATE TABLE IF NOT EXISTS group_block (
   PRIMARY KEY (channel, group_id)
 );
 
+-- llm_usage_log — sổ cái chi phí LLM, mỗi lượt agent một row. Nguồn sự thật của rate limit theo
+-- phòng: bộ đếm Redis là cache, mất nó thì hạn mức trong ngày dựng lại bằng SUM trên bảng này.
+CREATE TABLE IF NOT EXISTS llm_usage_log (
+  id                bigserial   PRIMARY KEY,
+  conversation_id    text        NOT NULL,   -- PHÒNG: đơn vị gom hạn mức
+  agent_type         text        NOT NULL,   -- dealer | warehouse | ... → tra trần
+  msg_id             text        NOT NULL,   -- envelope chạy LLM; chống ghi trùng
+  -- NGÀY GIỜ VN, app tính rồi bind. KHÔNG dùng CURRENT_DATE: server chạy UTC thì mốc nửa đêm
+  -- lệch 7 tiếng → hạn mức reset lúc 7h sáng, đúng giờ nhóm đại lý bắt đầu làm việc.
+  usage_day          date        NOT NULL,
+  input_tokens       integer     NOT NULL,   -- cache miss
+  output_tokens      integer     NOT NULL,
+  cache_read_tokens   integer     NOT NULL,   -- cache hit
+  cache_write_tokens  integer     NOT NULL,
+  -- pico-USD (1e-12 USD) theo bảng giá lúc ghi. bigint: một phòng một ngày ~4e11, integer tràn.
+  cost_pico_usd       bigint      NOT NULL,
+  created_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- một msgId chỉ vào sổ một lần dù broker giao lại lượt bao nhiêu lần.
+CREATE UNIQUE INDEX IF NOT EXISTS llm_usage_log_msg_id_key
+  ON llm_usage_log (msg_id);
+
+-- query nóng duy nhất: SUM chi phí phòng trong ngày (dựng lại bộ đếm Redis).
+CREATE INDEX IF NOT EXISTS llm_usage_log_room_day_idx
+  ON llm_usage_log (conversation_id, usage_day);
+
+-- message_log — RAW LOG mọi tin qua ingest (tầng 1 knowledge base). Append-only, giữ bền —
+-- khác history Redis (LTRIM + TTL). Digest/chưng cất derive từ đây, sai thì chạy lại được.
+CREATE TABLE IF NOT EXISTS message_log (
+  id                bigserial   PRIMARY KEY,
+  channel           text        NOT NULL,
+  msg_id             text        NOT NULL,
+  conversation_id    text        NOT NULL,
+  sender_id          text        NOT NULL,
+  sender_name        text,                     -- tên hiển thị lúc gửi, payload có thể thiếu
+  role              text        NOT NULL DEFAULT 'user', -- ingest chỉ ghi user; chờ sẵn cho reply agent
+  is_group           boolean     NOT NULL,
+  addressed_to_agent  boolean     NOT NULL,     -- audit: tin này agent có được gọi không
+  text              text        NOT NULL,
+  image_url          text,                     -- con trỏ CDN, không tải nội dung
+  -- EVENT TIME ms epoch (Envelope.ts). Mốc ngày giờ VN app tự tính khi query (cùng lý do
+  -- usage_day ở llm_usage_log: server UTC thì CURRENT_DATE lệch 7 tiếng).
+  ts                bigint      NOT NULL,
+  created_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- Chốt bền chống ghi trùng khi webhook retry (dedupe Redis có TTL, hết hạn là quên).
+CREATE UNIQUE INDEX IF NOT EXISTS message_log_msg_id_key
+  ON message_log (channel, msg_id);
+
+-- Đọc lại hội thoại một phòng theo thời gian (kiểm duyệt truy vết, distill lại).
+CREATE INDEX IF NOT EXISTS message_log_room_ts_idx
+  ON message_log (channel, conversation_id, ts);
+
+-- Quét dải ngày xuyên phòng (digest cuối ngày). BRIN đủ: bảng append-only, ts tăng dần.
+CREATE INDEX IF NOT EXISTS message_log_ts_brin
+  ON message_log USING brin (ts);
+
+-- kb_review_config — binding group kiểm duyệt + giờ chạy digest. MỘT row (id='main'),
+-- ghi bằng /kiemduyet-kb trong chính group kiểm duyệt. Không env var, không hardcode id nhóm.
+CREATE TABLE IF NOT EXISTS kb_review_config (
+  id              text        PRIMARY KEY,
+  channel         text        NOT NULL,
+  conversation_id  text        NOT NULL,   -- group nhận digest + nơi gõ lệnh duyệt
+  run_time         text        NOT NULL,   -- 'HH:MM' giờ VN
+  enabled         boolean     NOT NULL DEFAULT true,
+  created_by       text        NOT NULL,   -- user_id nhân viên bind (audit)
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now()
+);
+
+-- kb_digest_run — claim mỗi (ngày VN, group): giành trước bằng INSERT ON CONFLICT DO NOTHING.
+-- Crash giữa chừng → group chưa claim chạy tick sau; Failed là TERMINAL (không digest đôi).
+CREATE TABLE IF NOT EXISTS kb_digest_run (
+  day             date        NOT NULL,
+  conversation_id  text        NOT NULL,
+  status          smallint    NOT NULL CHECK (status IN (0, 1, 2)),
+  started_at       timestamptz NOT NULL DEFAULT now(),
+  finished_at      timestamptz,
+  PRIMARY KEY (day, conversation_id)
+);
+
+-- kb_proposal — đề xuất KB chờ duyệt. Fact ẨN DANH; provenance (channel, conversation_id)
+-- chỉ nằm ở đây để truy vết nội bộ. Approved mới được ghi vào memory (scope org).
+CREATE TABLE IF NOT EXISTS kb_proposal (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  day             date        NOT NULL,
+  channel         text        NOT NULL,
+  conversation_id  text        NOT NULL,
+  fact_text        text        NOT NULL,
+  status          smallint    NOT NULL DEFAULT 0 CHECK (status IN (0, 1, 2)),
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  decided_by       text,
+  decided_at       timestamptz
+);
+
+-- Query nóng duy nhất: liệt kê + tra mã ngắn trong đống pending.
+CREATE INDEX IF NOT EXISTS kb_proposal_pending_idx
+  ON kb_proposal (created_at) WHERE status = 0;
+
 COMMIT;

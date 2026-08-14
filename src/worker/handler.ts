@@ -73,6 +73,8 @@ export async function handleEnvelope(
       usage: ctx.usage,
       // `/mcp` soát tool ngoài — chỉ đọc tình trạng, không phải đường gọi tool.
       mcp: ctx.mcp,
+      // `/kiemduyet-kb`, `/duyet-kb`… — cửa kiểm duyệt knowledge base, chỉ flash command cầm.
+      kb: ctx.kbReview,
     });
     timer.lap("flash");
     if (flash !== null) {

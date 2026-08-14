@@ -347,6 +347,108 @@ export const LLM_USAGE_LOG = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// message_log — RAW LOG mọi tin nhắn qua ingest (tầng 1 của knowledge base). Append-only,
+// KHÔNG sửa/xoá từng row: mọi tầng derive (digest cuối ngày, fact chưng cất) dựng lại được
+// từ đây. Khác history Redis (LTRIM 40 entry + TTL 7 ngày, chỉ phục vụ cửa sổ agent đọc):
+// bảng này giữ bền, retention xử lý sau theo dải `ts`.
+// ─────────────────────────────────────────────────────────────────────────────
+export const MESSAGE_LOG = {
+  table: "message_log",
+  col: {
+    id: "id",
+    channel: "channel",
+    msgId: "msg_id",
+    conversationId: "conversation_id",
+    senderId: "sender_id",
+    senderName: "sender_name",         // tên hiển thị lúc gửi — nullable (payload có thể thiếu)
+    role: "role",                      // 'user' | 'agent' — ingest chỉ ghi user; cột chờ sẵn cho reply
+    isGroup: "is_group",
+    addressedToAgent: "addressed_to_agent", // tin có nhắm agent không — audit "agent thấy gì"
+    text: "text",
+    imageUrl: "image_url",             // con trỏ CDN, nullable — không tải nội dung ảnh
+    ts: "ts",                          // event time ms epoch (Envelope.ts) — mốc ngày VN app tự tính
+    createdAt: "created_at",
+  },
+  idx: {
+    /** Idempotency: webhook retry không nhân đôi row (dedupe Redis có TTL, đây là chốt bền). */
+    msgId: "message_log_msg_id_key",
+    /** Đọc lại hội thoại một phòng theo thời gian. */
+    roomTs: "message_log_room_ts_idx",
+    /** Quét theo dải ngày xuyên phòng (digest cuối ngày). BRIN: bảng append-only theo ts. */
+    tsBrin: "message_log_ts_brin",
+  },
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// kb-digest — tổng kết cuối ngày theo group + đề xuất knowledge base có kiểm duyệt.
+// Poller headless đọc message_log, rút vấn đề/giải pháp/đề xuất KB bằng con nhẹ, gửi digest về
+// group kiểm duyệt; entry KB chỉ vào bảng memory (scope org) sau khi nhân viên /duyet-kb.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Trạng thái một lượt digest (ngày, group). Failed là TERMINAL — không tự chạy lại (tránh digest đôi). */
+export const KbDigestRunStatus = {
+  Running: 0,
+  Done: 1,
+  Failed: 2,
+} as const;
+export type KbDigestRunStatus = (typeof KbDigestRunStatus)[keyof typeof KbDigestRunStatus];
+
+/** Trạng thái đề xuất KB. Pending → người duyệt gật/lắc; chỉ Approved mới được ghi vào memory. */
+export const KbProposalStatus = {
+  Pending: 0,
+  Approved: 1,
+  Rejected: 2,
+} as const;
+export type KbProposalStatus = (typeof KbProposalStatus)[keyof typeof KbProposalStatus];
+
+/** Binding group kiểm duyệt + giờ chạy — MỘT row (id cố định), ghi bằng /kiemduyet-kb. */
+export const KB_REVIEW_CONFIG = {
+  table: "kb_review_config",
+  col: {
+    id: "id",                          // hằng 'main' — bảng đơn row, bind lại là ghi đè
+    channel: "channel",
+    conversationId: "conversation_id", // group kiểm duyệt nhận digest
+    runTime: "run_time",               // 'HH:MM' giờ VN
+    enabled: "enabled",
+    createdBy: "created_by",           // user_id nhân viên bind (audit)
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  },
+} as const;
+
+/** Claim mỗi (ngày VN, group): INSERT ON CONFLICT DO NOTHING = giành trước, chạy sau. */
+export const KB_DIGEST_RUN = {
+  table: "kb_digest_run",
+  col: {
+    day: "day",                        // ngày GIỜ VN, app tính (cùng lý do usage_day)
+    conversationId: "conversation_id",
+    status: "status",
+    startedAt: "started_at",
+    finishedAt: "finished_at",
+  },
+} as const;
+
+/** Đề xuất KB chờ duyệt. Provenance (channel, conversation_id) CHỈ nằm trong DB — fact ẩn danh. */
+export const KB_PROPOSAL = {
+  table: "kb_proposal",
+  col: {
+    id: "id",
+    day: "day",
+    channel: "channel",
+    conversationId: "conversation_id", // group nguồn — truy vết nội bộ, không lộ ra digest/fact
+    factText: "fact_text",
+    status: "status",
+    createdAt: "created_at",
+    decidedBy: "decided_by",           // user_id nhân viên quyết
+    decidedAt: "decided_at",
+  },
+  idx: {
+    /** Query nóng duy nhất: liệt kê + tra mã ngắn trong đống pending. */
+    pending: "kb_proposal_pending_idx",
+  },
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // DDL builder — generate init migration từ constants trên.
 // Idempotent (IF NOT EXISTS), bọc BEGIN/COMMIT. Chạy lại an toàn.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -361,6 +463,12 @@ export function buildInitSql(): string {
   const an = ANNOUNCEMENTS;
   const ad = ANNOUNCEMENT_DELIVERIES;
   const lu = LLM_USAGE_LOG;
+  const ml = MESSAGE_LOG;
+  const kc = KB_REVIEW_CONFIG;
+  const kr = KB_DIGEST_RUN;
+  const kp = KB_PROPOSAL;
+  const kbRunStatusList = Object.values(KbDigestRunStatus).join(", ");
+  const kbProposalStatusList = Object.values(KbProposalStatus).join(", ");
   const statusList = PENDING_STATUS_VALUES.join(", ");
   const deliveryStatusList = DELIVERY_STATUS_VALUES.join(", ");
   const announcementStatusList = ANNOUNCEMENT_STATUS_VALUES.join(", ");
@@ -584,6 +692,80 @@ CREATE UNIQUE INDEX IF NOT EXISTS ${lu.idx.msgId}
 -- query nóng duy nhất: SUM chi phí phòng trong ngày (dựng lại bộ đếm Redis).
 CREATE INDEX IF NOT EXISTS ${lu.idx.roomDay}
   ON ${lu.table} (${lu.col.conversationId}, ${lu.col.usageDay});
+
+-- message_log — RAW LOG mọi tin qua ingest (tầng 1 knowledge base). Append-only, giữ bền —
+-- khác history Redis (LTRIM + TTL). Digest/chưng cất derive từ đây, sai thì chạy lại được.
+CREATE TABLE IF NOT EXISTS ${ml.table} (
+  ${ml.col.id}                bigserial   PRIMARY KEY,
+  ${ml.col.channel}           text        NOT NULL,
+  ${ml.col.msgId}             text        NOT NULL,
+  ${ml.col.conversationId}    text        NOT NULL,
+  ${ml.col.senderId}          text        NOT NULL,
+  ${ml.col.senderName}        text,                     -- tên hiển thị lúc gửi, payload có thể thiếu
+  ${ml.col.role}              text        NOT NULL DEFAULT 'user', -- ingest chỉ ghi user; chờ sẵn cho reply agent
+  ${ml.col.isGroup}           boolean     NOT NULL,
+  ${ml.col.addressedToAgent}  boolean     NOT NULL,     -- audit: tin này agent có được gọi không
+  ${ml.col.text}              text        NOT NULL,
+  ${ml.col.imageUrl}          text,                     -- con trỏ CDN, không tải nội dung
+  -- EVENT TIME ms epoch (Envelope.ts). Mốc ngày giờ VN app tự tính khi query (cùng lý do
+  -- usage_day ở llm_usage_log: server UTC thì CURRENT_DATE lệch 7 tiếng).
+  ${ml.col.ts}                bigint      NOT NULL,
+  ${ml.col.createdAt}         timestamptz NOT NULL DEFAULT now()
+);
+
+-- Chốt bền chống ghi trùng khi webhook retry (dedupe Redis có TTL, hết hạn là quên).
+CREATE UNIQUE INDEX IF NOT EXISTS ${ml.idx.msgId}
+  ON ${ml.table} (${ml.col.channel}, ${ml.col.msgId});
+
+-- Đọc lại hội thoại một phòng theo thời gian (kiểm duyệt truy vết, distill lại).
+CREATE INDEX IF NOT EXISTS ${ml.idx.roomTs}
+  ON ${ml.table} (${ml.col.channel}, ${ml.col.conversationId}, ${ml.col.ts});
+
+-- Quét dải ngày xuyên phòng (digest cuối ngày). BRIN đủ: bảng append-only, ts tăng dần.
+CREATE INDEX IF NOT EXISTS ${ml.idx.tsBrin}
+  ON ${ml.table} USING brin (${ml.col.ts});
+
+-- kb_review_config — binding group kiểm duyệt + giờ chạy digest. MỘT row (id='main'),
+-- ghi bằng /kiemduyet-kb trong chính group kiểm duyệt. Không env var, không hardcode id nhóm.
+CREATE TABLE IF NOT EXISTS ${kc.table} (
+  ${kc.col.id}              text        PRIMARY KEY,
+  ${kc.col.channel}         text        NOT NULL,
+  ${kc.col.conversationId}  text        NOT NULL,   -- group nhận digest + nơi gõ lệnh duyệt
+  ${kc.col.runTime}         text        NOT NULL,   -- 'HH:MM' giờ VN
+  ${kc.col.enabled}         boolean     NOT NULL DEFAULT true,
+  ${kc.col.createdBy}       text        NOT NULL,   -- user_id nhân viên bind (audit)
+  ${kc.col.createdAt}       timestamptz NOT NULL DEFAULT now(),
+  ${kc.col.updatedAt}       timestamptz NOT NULL DEFAULT now()
+);
+
+-- kb_digest_run — claim mỗi (ngày VN, group): giành trước bằng INSERT ON CONFLICT DO NOTHING.
+-- Crash giữa chừng → group chưa claim chạy tick sau; Failed là TERMINAL (không digest đôi).
+CREATE TABLE IF NOT EXISTS ${kr.table} (
+  ${kr.col.day}             date        NOT NULL,
+  ${kr.col.conversationId}  text        NOT NULL,
+  ${kr.col.status}          smallint    NOT NULL CHECK (${kr.col.status} IN (${kbRunStatusList})),
+  ${kr.col.startedAt}       timestamptz NOT NULL DEFAULT now(),
+  ${kr.col.finishedAt}      timestamptz,
+  PRIMARY KEY (${kr.col.day}, ${kr.col.conversationId})
+);
+
+-- kb_proposal — đề xuất KB chờ duyệt. Fact ẨN DANH; provenance (channel, conversation_id)
+-- chỉ nằm ở đây để truy vết nội bộ. Approved mới được ghi vào memory (scope org).
+CREATE TABLE IF NOT EXISTS ${kp.table} (
+  ${kp.col.id}              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  ${kp.col.day}             date        NOT NULL,
+  ${kp.col.channel}         text        NOT NULL,
+  ${kp.col.conversationId}  text        NOT NULL,
+  ${kp.col.factText}        text        NOT NULL,
+  ${kp.col.status}          smallint    NOT NULL DEFAULT 0 CHECK (${kp.col.status} IN (${kbProposalStatusList})),
+  ${kp.col.createdAt}       timestamptz NOT NULL DEFAULT now(),
+  ${kp.col.decidedBy}       text,
+  ${kp.col.decidedAt}       timestamptz
+);
+
+-- Query nóng duy nhất: liệt kê + tra mã ngắn trong đống pending.
+CREATE INDEX IF NOT EXISTS ${kp.idx.pending}
+  ON ${kp.table} (${kp.col.createdAt}) WHERE ${kp.col.status} = 0;
 
 COMMIT;
 `;

@@ -38,16 +38,24 @@ class FakeTurnMarker {
 function makeDeps(
   opts: {
     failPublish?: boolean;
+    failMessageLog?: boolean;
     speakers?: FakeSpeakerTracker;
     turns?: IngestDeps["turns"];
   } = {},
 ) {
   const published: Envelope[] = [];
   const history: HistoryEntry[] = [];
+  const logged: Envelope[] = [];
   const seen = new Set<string>();
   const released: string[] = [];
   const deps: IngestDeps = {
     turns: opts.turns,
+    messageLog: {
+      async append(e) {
+        if (opts.failMessageLog) throw new Error("Postgres chết");
+        logged.push(e);
+      },
+    },
     broker: {
       async publish(e) {
         if (opts.failPublish) throw new Error("broker down");
@@ -74,7 +82,7 @@ function makeDeps(
       },
     },
   };
-  return { deps, published, history, released };
+  return { deps, published, history, logged, released };
 }
 
 function makeGateway(deps: IngestDeps) {
@@ -218,23 +226,39 @@ describe("gateway", () => {
     expect(local.published).toHaveLength(0);
   });
 
-  test("người KHÁC đáp lại → đẩy envelope distill (dù tin không nhắm agent)", async () => {
+  test("người KHÁC đáp lại → KHÔNG đẩy distill (hook chưng cất đã tháo)", async () => {
     const local = makeDeps({ speakers: new FakeSpeakerTracker() });
     const gw = makeGateway(local.deps);
     await gw.handle(webhook(event({ msgId: "s1", uidFrom: "U1" })));
     await gw.handle(webhook(event({ msgId: "s2", uidFrom: "U1" })));
     await gw.handle(webhook(event({ msgId: "s3", uidFrom: "U2" })));
 
-    expect(local.published).toHaveLength(1);
-    expect(local.published[0]).toMatchObject({
-      source: "distill",
-      msgId: "distill:s3",
-      conversationId: "G1",
-      addressedToAgent: false,
-      text: "",
-    });
-    // Tin chatter vẫn KHÔNG vào queue agent: chỉ có đúng envelope distill.
+    // Tin chatter vẫn không vào queue agent, và cũng không còn envelope distill nào.
+    expect(local.published).toHaveLength(0);
     expect(local.history).toHaveLength(3);
+  });
+
+  test("MỌI tin vào message_log — cả chatter không nhắm agent lẫn tin nhắm agent", async () => {
+    const gw = makeGateway(ctx.deps);
+    await gw.handle(webhook(event({ msgId: "k1", uidFrom: "U1" })));
+    await gw.handle(webhook(event({ msgId: "k2", uidFrom: "U2", idTo: AGENT_UID })));
+
+    expect(ctx.logged.map((e) => e.msgId)).toEqual(["k1", "k2"]);
+    // Log là bản chụp Envelope: giữ nguyên cờ addressed để audit "agent có được gọi không".
+    expect(ctx.logged[0]?.addressedToAgent).toBe(false);
+    expect(ctx.logged[1]?.addressedToAgent).toBe(true);
+    expect(ctx.logged[0]?.conversationId).toBe("G1");
+  });
+
+  test("message_log hỏng → tin vẫn trọn lượt: 200, history + queue đủ, KHÔNG nhả dedupe", async () => {
+    const local = makeDeps({ failMessageLog: true });
+    const gw = makeGateway(local.deps);
+    const res = await gw.handle(webhook(event({ msgId: "k3", idTo: AGENT_UID })));
+
+    expect(res.status).toBe(200);
+    expect(local.history).toHaveLength(1);
+    expect(local.published).toHaveLength(1);
+    expect(local.released).toHaveLength(0);
   });
 
   test("tin NHẮM agent → không đẩy distill (cuối lượt agent tự chưng cất)", async () => {

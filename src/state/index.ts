@@ -6,6 +6,7 @@ import { commandOf, redis } from "../redis/client.ts";
 import { buildCompactorLlmProvider, buildEmbedder, buildMemoryLlmProvider } from "../llm/index.ts";
 import { PgMemoryStore } from "./memory.ts";
 import { RedisHistoryStore } from "./session.ts";
+import { SqlMessageLog } from "./message-log.ts";
 import { RedisDedupe } from "./dedupe.ts";
 import { RedisTurnMarker } from "./turn-marker.ts";
 import { LlmDistiller } from "./distiller.ts";
@@ -14,7 +15,7 @@ import { MemoryWriterRegistry, RedisDistillCursor, TurnoverMemoryWriter } from "
 import type { Distiller, DistillSpec, MemoryStore, MemoryWriter, SqlExecutor } from "./types.ts";
 
 /** Bọc Bun.sql thành SqlExecutor. `unsafe(text, params)`: text = hằng schema, params tham số hoá. */
-const sqlExecutor: SqlExecutor = {
+export const sqlExecutor: SqlExecutor = {
   query: (text, params) => sql.unsafe(text, [...params]),
 };
 
@@ -36,6 +37,11 @@ export function buildDedupe(): RedisDedupe {
 /** Vạch tin mới nhất phòng: ingest nâng, worker soi để gom tin gửi liên tiếp (worker/burst.ts). */
 export function buildTurnMarker(): RedisTurnMarker {
   return new RedisTurnMarker(commandOf(redis));
+}
+
+/** Raw log bền knowledge base: ingest append MỌI tin vào Postgres (message_log). */
+export function buildMessageLog(): SqlMessageLog {
+  return new SqlMessageLog(sqlExecutor);
 }
 
 /** Distiller chạy trên con nhẹ (CONFIG.memoryModel), theo policy `spec` của agent gọi. */
@@ -79,6 +85,7 @@ export {
   HISTORY_BUFFER_TURNS,
 } from "./session.ts";
 export { RedisDedupe } from "./dedupe.ts";
+export { SqlMessageLog } from "./message-log.ts";
 export { RedisTurnMarker } from "./turn-marker.ts";
 export { LlmDistiller, parseFacts, renderTranscript } from "./distiller.ts";
 export {
