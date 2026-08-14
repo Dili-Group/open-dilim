@@ -226,15 +226,22 @@ describe("gateway", () => {
     expect(local.published).toHaveLength(0);
   });
 
-  test("người KHÁC đáp lại → KHÔNG đẩy distill (hook chưng cất đã tháo)", async () => {
+  test("người KHÁC đáp lại → đẩy envelope distill (dù tin không nhắm agent)", async () => {
     const local = makeDeps({ speakers: new FakeSpeakerTracker() });
     const gw = makeGateway(local.deps);
     await gw.handle(webhook(event({ msgId: "s1", uidFrom: "U1" })));
     await gw.handle(webhook(event({ msgId: "s2", uidFrom: "U1" })));
     await gw.handle(webhook(event({ msgId: "s3", uidFrom: "U2" })));
 
-    // Tin chatter vẫn không vào queue agent, và cũng không còn envelope distill nào.
-    expect(local.published).toHaveLength(0);
+    expect(local.published).toHaveLength(1);
+    expect(local.published[0]).toMatchObject({
+      source: "distill",
+      msgId: "distill:s3",
+      conversationId: "G1",
+      addressedToAgent: false,
+      text: "",
+    });
+    // Tin chatter vẫn KHÔNG vào queue agent: chỉ có đúng envelope distill.
     expect(local.history).toHaveLength(3);
   });
 

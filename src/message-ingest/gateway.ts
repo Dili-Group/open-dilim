@@ -148,8 +148,7 @@ async function trackSpeakerTurnover(deps: IngestDeps, envelope: Envelope): Promi
     );
     if (envelope.addressedToAgent) return;
     if (previous === undefined || previous === envelope.senderId) return;
-    // ĐÃ THÁO hook chưng cất theo nhịp đổi người nói — muốn bật lại thì publish
-    // `distillEnvelope(envelope)` tại đây. Swap vẫn chạy để mốc người-nói-trước không đứt.
+    await deps.broker.publish(distillEnvelope(envelope));
   } catch (err) {
     console.error(`[ingest:${envelope.channel}] theo dõi đổi người nói lỗi:`, err);
   }
