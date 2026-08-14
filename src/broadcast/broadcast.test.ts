@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { BroadcastRouter } from "./router.ts";
 import { ZaloBroadcaster } from "./zalo.ts";
-import type { Broadcaster, BroadcastTarget } from "./types.ts";
+import type { Broadcaster, BroadcastTarget, OutboundMedia } from "./types.ts";
 
 const target: BroadcastTarget = {
   channel: "zalo",
@@ -15,8 +15,13 @@ const target: BroadcastTarget = {
 
 class RecordingBroadcaster implements Broadcaster {
   readonly sent: string[] = [];
+  readonly media: OutboundMedia[] = [];
   send(_target: BroadcastTarget, text: string): Promise<void> {
     this.sent.push(text);
+    return Promise.resolve();
+  }
+  sendMedia(_target: BroadcastTarget, media: OutboundMedia): Promise<void> {
+    this.media.push(media);
     return Promise.resolve();
   }
 }
@@ -40,6 +45,17 @@ describe("BroadcastRouter", () => {
     await router.send({ ...target, channel: "messenger" }, "hi");
 
     expect(fallback.sent).toEqual(["hi"]);
+  });
+
+  test("sendMedia cũng route theo channel", async () => {
+    const zalo = new RecordingBroadcaster();
+    const fallback = new RecordingBroadcaster();
+    const router = new BroadcastRouter(fallback).register("zalo", zalo);
+
+    await router.sendMedia(target, { type: "image", url: "https://cdn/x.jpg" });
+
+    expect(zalo.media).toEqual([{ type: "image", url: "https://cdn/x.jpg" }]);
+    expect(fallback.media).toEqual([]);
   });
 });
 
@@ -96,5 +112,51 @@ describe("ZaloBroadcaster", () => {
     stubFetch(Response.json({ ok: false, error: "zalo từ chối" }, { status: 500 }));
 
     await expect(new ZaloBroadcaster(config).send(target, "hi")).rejects.toThrow("500");
+  });
+
+  test("sendMedia image → POST /send-image với url + caption", async () => {
+    const stub = stubFetch(Response.json({ ok: true, msgId: "m2" }));
+
+    await new ZaloBroadcaster(config).sendMedia(target, {
+      type: "image",
+      url: "https://cdn/hoa-don.jpg",
+      caption: "Hóa đơn đơn 123",
+    });
+
+    const call = stub.calls[0];
+    expect(call?.url).toBe("http://localhost:2604/send-image");
+    const headers = call?.init?.headers as Record<string, string> | undefined;
+    expect(headers?.["x-dilim-zalo-bridge"]).toBe("s3cret");
+    expect(jsonBody(call?.init)).toEqual({
+      threadId: "group_777",
+      threadType: "group",
+      url: "https://cdn/hoa-don.jpg",
+      caption: "Hóa đơn đơn 123",
+    });
+  });
+
+  test("sendMedia file, không caption → POST /send-file, body không có key caption", async () => {
+    const stub = stubFetch(Response.json({ ok: true, msgId: "m3" }));
+
+    await new ZaloBroadcaster(config).sendMedia(
+      { ...target, isGroup: false },
+      { type: "file", url: "https://cdn/bao-cao.xlsx" },
+    );
+
+    const call = stub.calls[0];
+    expect(call?.url).toBe("http://localhost:2604/send-file");
+    expect(jsonBody(call?.init)).toEqual({
+      threadId: "group_777",
+      threadType: "user",
+      url: "https://cdn/bao-cao.xlsx",
+    });
+  });
+
+  test("sendMedia bridge lỗi → throw", async () => {
+    stubFetch(Response.json({ ok: false, error: "zalo từ chối" }, { status: 500 }));
+
+    await expect(
+      new ZaloBroadcaster(config).sendMedia(target, { type: "image", url: "https://cdn/x.jpg" }),
+    ).rejects.toThrow("500");
   });
 });

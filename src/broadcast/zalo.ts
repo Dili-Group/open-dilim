@@ -6,36 +6,56 @@
 // là câu trả lời — nuốt lỗi = người dùng ngồi chờ mãi mà worker báo "xong".
 
 import type { ZaloBridgeConfig } from "../config.ts";
-import type { Broadcaster, BroadcastTarget } from "./types.ts";
+import type { Broadcaster, BroadcastTarget, OutboundMedia } from "./types.ts";
 
 // Header auth service-to-service với bridge. Sai/thiếu → bridge trả 401.
 const BRIDGE_AUTH_HEADER = "x-dilim-zalo-bridge";
 const SEND_PATH = "/send";
+// Ảnh và file đi endpoint riêng — bridge gọi API Zalo khác nhau cho từng loại.
+const MEDIA_PATH: Record<OutboundMedia["type"], string> = {
+  image: "/send-image",
+  file: "/send-file",
+};
 // Gửi tin nặng hơn typing (bridge phải gọi Zalo) → cho rộng hơn, nhưng vẫn có trần để lượt hỏng
 // không giữ worker slot vô hạn.
 const TIMEOUT_MS = 15_000;
 
 export class ZaloBroadcaster implements Broadcaster {
-  private readonly endpoint: string;
+  private readonly baseUrl: string;
   private readonly secret: string;
 
   constructor(config: ZaloBridgeConfig) {
-    this.endpoint = `${config.baseUrl.replace(/\/$/, "")}${SEND_PATH}`;
+    this.baseUrl = config.baseUrl.replace(/\/$/, "");
     this.secret = config.secret;
   }
 
   async send(target: BroadcastTarget, text: string): Promise<void> {
-    const threadType = target.isGroup ? "group" : "user";
     // mentions/quote bỏ trống: mention chỉ highlight khi offset trỏ đúng token "@Tên hiển thị",
     // mà Envelope không mang tên hiển thị của người gửi. Sai offset thì Zalo gửi text trơn và
     // KHÔNG báo lỗi → thà gửi text trơn có chủ đích còn hơn đoán offset.
-    const res = await fetch(this.endpoint, {
+    await this.post(SEND_PATH, target, { message: text });
+  }
+
+  async sendMedia(target: BroadcastTarget, media: OutboundMedia): Promise<void> {
+    await this.post(MEDIA_PATH[media.type], target, {
+      url: media.url,
+      ...(media.caption === undefined ? {} : { caption: media.caption }),
+    });
+  }
+
+  private async post(
+    path: string,
+    target: BroadcastTarget,
+    body: Record<string, string>,
+  ): Promise<void> {
+    const threadType = target.isGroup ? "group" : "user";
+    const res = await fetch(`${this.baseUrl}${path}`, {
       method: "POST",
       headers: {
         [BRIDGE_AUTH_HEADER]: this.secret,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ threadId: target.conversationId, threadType, message: text }),
+      body: JSON.stringify({ threadId: target.conversationId, threadType, ...body }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!res.ok) {

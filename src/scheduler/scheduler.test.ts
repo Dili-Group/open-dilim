@@ -214,6 +214,7 @@ describe("envelope cron", () => {
           sent.push({ target, text });
           return Promise.resolve();
         },
+        sendMedia: () => Promise.resolve(),
       },
     };
 
@@ -231,6 +232,7 @@ describe("envelope cron", () => {
       ...fakeDeps(new FakeRepo([])),
       broadcaster: {
         send: () => Promise.reject(new Error("bridge chết")),
+        sendMedia: () => Promise.reject(new Error("bridge chết")),
       },
     };
     expect(await fireJob(deps, JOB, scheduled)).toBe(true);

@@ -4,7 +4,7 @@
 // Khác TypingFactory (`for(channel)` rồi bind sẵn cho agent loop) vì broadcast chỉ gọi 1 lần cuối
 // lượt — không có gì để bind trước.
 
-import type { Broadcaster, BroadcastTarget } from "./types.ts";
+import type { Broadcaster, BroadcastTarget, OutboundMedia } from "./types.ts";
 
 export class BroadcastRouter implements Broadcaster {
   private readonly byChannel = new Map<string, Broadcaster>();
@@ -18,6 +18,14 @@ export class BroadcastRouter implements Broadcaster {
   }
 
   send(target: BroadcastTarget, text: string): Promise<void> {
-    return (this.byChannel.get(target.channel) ?? this.fallback).send(target, text);
+    return this.resolve(target.channel).send(target, text);
+  }
+
+  sendMedia(target: BroadcastTarget, media: OutboundMedia): Promise<void> {
+    return this.resolve(target.channel).sendMedia(target, media);
+  }
+
+  private resolve(channel: string): Broadcaster {
+    return this.byChannel.get(channel) ?? this.fallback;
   }
 }

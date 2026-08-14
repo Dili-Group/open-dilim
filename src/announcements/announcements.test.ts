@@ -256,6 +256,9 @@ class FakeBroadcaster {
     this.sent.push({ target, text });
     return Promise.resolve();
   }
+  sendMedia(): Promise<void> {
+    return Promise.resolve();
+  }
 }
 
 class FakeHistory {

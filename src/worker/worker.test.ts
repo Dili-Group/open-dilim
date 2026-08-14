@@ -151,6 +151,9 @@ class CapturingBroadcaster implements Broadcaster {
     this.sent.push({ target, text });
     return Promise.resolve();
   }
+  sendMedia(): Promise<void> {
+    return Promise.resolve();
+  }
 }
 
 /** AUTH hỏng (vd Postgres chết) — phải phân biệt được với BROADCAST hỏng. */
@@ -162,6 +165,9 @@ class ThrowingResolver implements IdentityResolver {
 
 class ThrowingBroadcaster implements Broadcaster {
   send(): Promise<void> {
+    return Promise.reject(new Error("kênh chết"));
+  }
+  sendMedia(): Promise<void> {
     return Promise.reject(new Error("kênh chết"));
   }
 }

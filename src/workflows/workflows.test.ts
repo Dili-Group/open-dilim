@@ -210,6 +210,7 @@ function fakeDeps(store: PendingStore): Recorder {
         sent.push({ target, text });
         return Promise.resolve();
       },
+      sendMedia: () => Promise.resolve(),
     },
   };
 }
