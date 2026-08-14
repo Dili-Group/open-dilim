@@ -37,9 +37,11 @@ import type {
   OrderSearchPage,
   OrderSummary,
   OrderTransition,
+  PaymentBatch,
 } from "./types.ts";
 
 const ORDERS_PATH = "/agent/orders";
+const PAYMENT_BATCHES_PATH = "/agent/payment-batches";
 /** Trần backend cho page_size. Xin quá số này backend từ chối. */
 const MAX_PAGE_SIZE = 500;
 const DEFAULT_PAGE_SIZE = 20;
@@ -153,6 +155,55 @@ export class AgentApiOrderPort implements OrderPort {
       bank: readBank(record),
       transferContent: readString(record, "transfer_content"),
       qrUrl: readString(record, "qr_url"),
+    };
+  }
+
+  async createPaymentBatch(
+    p: OrderPrincipal & { trackingNumbers: readonly string[]; signal?: AbortSignal },
+  ): Promise<PaymentBatch | null> {
+    let body: unknown;
+    try {
+      body = await this.api.post(PAYMENT_BATCHES_PATH, {
+        principal: toPrincipal(p),
+        body: { tracking_numbers: p.trackingNumbers },
+        signal: p.signal,
+      });
+    } catch (err) {
+      // 404 = có mã không tồn tại HOẶC không thuộc đại lý này (backend cố ý gộp, chống dò mã)
+      // → phiếu chưa tạo, là câu trả lời hợp lệ chứ không phải sự cố.
+      if (err instanceof AgentApiError && err.status === 404) return null;
+      throw err;
+    }
+
+    const record = asRecord(readEnvelopeData(body, PAYMENT_BATCHES_PATH));
+    // Ba field này là BẰNG CHỨNG phiếu đã tạo + thứ đại lý PHẢI chuyển đúng. Thiếu chúng thì
+    // không dựng nổi hướng dẫn chuyển khoản an toàn → lỗi shape, KHÔNG báo thành công nửa vời.
+    const code = record === undefined ? undefined : readString(record, "code");
+    const transferContent = record === undefined ? undefined : readString(record, "transfer_content");
+    const totalAmount = record === undefined ? undefined : readMoney(record, "total_amount");
+    if (record === undefined || code === undefined || transferContent === undefined || totalAmount === undefined) {
+      throw new AgentApiError(
+        `POST ${PAYMENT_BATCHES_PATH} trả response thiếu code/transfer_content/total_amount`,
+        200,
+        AgentApiErrorCode.InvalidResponse,
+        PAYMENT_BATCHES_PATH,
+      );
+    }
+
+    return {
+      code,
+      transferContent,
+      totalAmount,
+      paidAmount: readMoney(record, "paid_amount"),
+      qrUrl: readString(record, "qr_url"),
+      uuid: readString(record, "uuid"),
+      status: readNumber(record, "status"),
+      orderIds: readList(record, "order_ids")
+        .map((id) => (typeof id === "string" ? id : typeof id === "number" ? String(id) : undefined))
+        .filter(isPresent),
+      orderCount: readNumber(record, "order_count"),
+      createdAt: readString(record, "created_at"),
+      bank: readBank(record),
     };
   }
 

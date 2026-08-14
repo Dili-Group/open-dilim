@@ -8,6 +8,7 @@ import {
   DEALER_TIER_TOOLS,
   DEALER_TOOLS,
   ORDER_TOOLS,
+  PAYMENT_BATCH_TOOLS,
   POSCAKE_TOOLS,
   VISION_TOOLS,
   WORKFLOW_LIST_TOOLS,
@@ -34,9 +35,12 @@ export const dealerProfile: RootAgentProfile = {
   //
   // VISION_TOOLS vì đại lý hay gửi ẢNH thay vì gõ: phiếu chuyển khoản, ảnh màn hình PosCake báo
   // lỗi, ảnh đơn in ra. Đọc lười — chỉ mở ảnh khi nội dung ảnh cần cho việc đang hỏi.
+  // PAYMENT_BATCH_TOOLS ghi PHIẾU THANH TOÁN GỘP (QR SePay cho nhiều đơn) — đại lý tự gõ được
+  // như PosCake: phiếu chỉ gom đơn của chính đại lý phòng, dealerId ép qua header.
   tools: [
     ...COMMON_TOOLS,
     ...ORDER_TOOLS,
+    ...PAYMENT_BATCH_TOOLS,
     ...DEALER_TOOLS,
     ...DEALER_TIER_TOOLS,
     ...DAILY_TOOLS,

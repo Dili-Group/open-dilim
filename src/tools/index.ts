@@ -11,6 +11,7 @@ import { buildUseSkillTool } from "./impl/use-skill.ts";
 import { buildUseReferenceTool } from "./impl/use-reference.ts";
 import { buildOrderStatusTool } from "./impl/order/status.ts";
 import { buildOrderPaymentTool } from "./impl/order/payment.ts";
+import { buildPaymentBatchCreateTool } from "./impl/order/payment-batch.ts";
 import { buildOrderVideoTool } from "./impl/order/video.ts";
 import { buildDealerProfileTool } from "./impl/dealer/profile.ts";
 import {
@@ -57,6 +58,18 @@ export const ORDER_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildOrderStatusTool(ctx),
   (ctx: ToolContext): Tool => buildOrderPaymentTool(ctx),
   (ctx: ToolContext): Tool => buildOrderVideoTool(ctx),
+];
+
+/**
+ * Tool PHIẾU THANH TOÁN GỘP: GHI một phiếu gom nhiều đơn chưa thanh toán của đại lý phòng này,
+ * trả QR SePay để chuyển một lần. Tách khỏi ORDER_TOOLS vì bộ đó CHỈ ĐỌC.
+ *
+ * Đường ghi này đại lý TỰ GÕ ĐƯỢC (như POSCAKE_TOOLS — ghi thứ của chính họ): phiếu chỉ gom đơn
+ * CỦA đại lý phòng, dealerId ép server-side qua header; mã lạ/đơn đại lý khác → backend 404, phiếu
+ * không tạo. Xác nhận ĐÃ thanh toán vẫn KHÔNG có đường nào — webhook SePay tự đối soát.
+ */
+export const PAYMENT_BATCH_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildPaymentBatchCreateTool(ctx),
 ];
 
 /**

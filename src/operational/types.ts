@@ -131,6 +131,40 @@ export interface OrderPayment {
   readonly qrUrl?: string;
 }
 
+/** Trạng thái phiếu thanh toán gộp. Mã lạ → in số, không bịa nhãn. */
+export const PAYMENT_BATCH_STATUS_LABEL: Readonly<Record<number, string>> = {
+  0: "chờ thanh toán",
+  1: "đã thanh toán",
+  2: "đã huỷ",
+  3: "đã đối soát một phần",
+};
+
+/**
+ * Phiếu thanh toán GỘP nhiều đơn (`POST /agent/payment-batches`). Khác khoản nạp ví của
+ * `OrderPayment`: nội dung chuyển khoản ở đây là `DH` + mã phiếu, webhook SePay khớp theo đúng
+ * chuỗi đó để mở khoá đơn — sai nội dung là tiền về nhưng đơn không đi.
+ */
+export interface PaymentBatch {
+  /** Mã phiếu hệ thống sinh — bằng chứng phiếu đã tạo. */
+  readonly code: string;
+  /** Nội dung CK bắt buộc = `DH` + code. In NGUYÊN VĂN. */
+  readonly transferContent: string;
+  /** Tổng tiền phiếu, chuỗi NUMERIC(15,2) do backend cộng. Tool chỉ in lại. */
+  readonly totalAmount: string;
+  /** Đã trả bao nhiêu. Phiếu mới luôn "0.00". */
+  readonly paidAmount?: string;
+  /** QR SePay — preset SỐ CÒN THIẾU (total − paid), không phải tổng phiếu. */
+  readonly qrUrl?: string;
+  readonly uuid?: string;
+  /** 0 OPEN · 1 PAID · 2 CANCELLED · 3 PARTIALLY_SETTLED. */
+  readonly status?: number;
+  /** `orders.id` bigint dạng chuỗi — id nội bộ, KHÔNG phải mã vận đơn. */
+  readonly orderIds: readonly string[];
+  readonly orderCount?: number;
+  readonly createdAt?: string;
+  readonly bank?: OrderPaymentBank;
+}
+
 /**
  * Hồ sơ đại lý đang hỏi (`GET /agent/profile`). Đại lý lấy từ header `x-dealer-id` đã resolve —
  * endpoint KHÔNG nhận param đại lý, nên agent không dò được hồ sơ đại lý khác.
@@ -508,6 +542,16 @@ export interface OrderPort {
   payment(
     p: OrderPrincipal & { readonly trackingNumber: string; readonly signal?: AbortSignal },
   ): Promise<OrderPayment | null>;
+  /**
+   * GHI: tạo phiếu thanh toán GỘP cho nhiều đơn chưa thanh toán, trả QR SePay. KHÔNG retry ở
+   * tầng HTTP — bắn lại là hai phiếu (xem AgentApiClient.post).
+   *
+   * null = có mã KHÔNG tồn tại hoặc không thuộc đại lý này (backend cố ý không phân biệt, chống
+   * dò mã) → phiếu CHƯA được tạo. Lỗi khác bubble lên.
+   */
+  createPaymentBatch(
+    p: OrderPrincipal & { readonly trackingNumbers: readonly string[]; readonly signal?: AbortSignal },
+  ): Promise<PaymentBatch | null>;
   /** [] = đơn chưa có lần quét nào gắn camera (chưa đóng gói / không quay), hoặc không phải đơn của đại lý này. */
   cameraLinks(
     p: OrderPrincipal & { readonly trackingNumber: string; readonly signal?: AbortSignal },

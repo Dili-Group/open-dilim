@@ -25,6 +25,24 @@ export function readBooleanField(input: unknown, key: string): boolean {
   return typeof value === "string" && value.trim().toLowerCase() === "true";
 }
 
+/**
+ * Field MẢNG chuỗi trong object input. Phần tử nào không phải chuỗi non-empty → loại cả mảng
+ * (undefined), KHÔNG lọc bỏ âm thầm: tool ghi dữ liệu phải thấy đúng danh sách model định gửi.
+ */
+export function readStringListField(input: unknown, key: string): readonly string[] | undefined {
+  if (typeof input !== "object" || input === null) return undefined;
+  const value = (input as Record<string, unknown>)[key];
+  if (!Array.isArray(value)) return undefined;
+  const items: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") return undefined;
+    const trimmed = item.trim();
+    if (trimmed === "") return undefined;
+    items.push(trimmed);
+  }
+  return items;
+}
+
 /** Field chuỗi non-empty trong object input. Không phải object / thiếu / sai kiểu → undefined. */
 export function readStringField(input: unknown, key: string): string | undefined {
   if (typeof input !== "object" || input === null) return undefined;

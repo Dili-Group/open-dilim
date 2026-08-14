@@ -19,6 +19,7 @@ import type {
   OrderPort,
   OrderPrincipal,
   OrderSearchPage,
+  PaymentBatch,
 } from "../operational/types.ts";
 import {
   COMMON_TOOLS,
@@ -233,6 +234,22 @@ class FakeOrders implements OrderPort {
     return Promise.resolve(this.links[p.trackingNumber] ?? []);
   }
 
+  createPaymentBatch(
+    p: OrderPrincipal & { trackingNumbers: readonly string[] },
+  ): Promise<PaymentBatch | null> {
+    this.seen.push({ dealerId: p.dealerId, staffId: p.staffId });
+    // Như backend: một mã không thuộc đại lý → cả phiếu không tạo (404 → null).
+    if (p.trackingNumbers.some((code) => this.find(p.dealerId, code) === undefined)) {
+      return Promise.resolve(null);
+    }
+    return Promise.resolve({
+      code: "000123",
+      transferContent: "DH000123",
+      totalAmount: "5000000.00",
+      orderIds: [],
+    });
+  }
+
   private mine(dealerId: string): OrderDetail[] {
     return this.owned.filter((o) => o.dealerId === dealerId).map((o) => o.order);
   }
@@ -263,6 +280,9 @@ class BrokenOrders implements OrderPort {
     this.fail();
   }
   payment(): Promise<OrderPayment | null> {
+    this.fail();
+  }
+  createPaymentBatch(): Promise<PaymentBatch | null> {
     this.fail();
   }
   cameraLinks(): Promise<readonly OrderCameraLink[]> {
