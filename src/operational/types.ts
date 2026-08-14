@@ -490,8 +490,45 @@ export interface InternalDailyQuery {
   readonly signal?: AbortSignal;
 }
 
+/** Một đơn bị TỪ CHỐI validate: đơn tồn tại nhưng trạng thái hiện tại không cho qua bước kho. */
+export interface InternalValidateRejectedLine {
+  readonly trackingNumber: string;
+  /** Mã trạng thái đang mắc — cùng bảng mã với `orders.status` bên tra đơn. */
+  readonly status?: number;
+}
+
+/** Một đơn bị LOẠI khỏi lô validate vì luật nghiệp vụ (vd `excluded_sku`), không phải vì trạng thái. */
+export interface InternalValidateExcludedLine {
+  readonly trackingNumber: string;
+  readonly reason?: string;
+}
+
 /**
- * Cổng ĐỌC sổ xuất kho / hoá đơn MISA của TOÀN HỆ THỐNG. CHỈ ĐỌC.
+ * Kết quả một lô validate. Bốn nhóm ngoài `validated` KHÔNG chồng lấn nhau — mỗi mã gửi lên rơi
+ * vào đúng một nhóm: mới validate / đã validate từ trước / từ chối / không tìm thấy / bị loại.
+ */
+export interface InternalValidateResult {
+  /** Số đơn validate MỚI trong lần gọi này. undefined = backend không trả số, đừng bịa 0. */
+  readonly validated?: number;
+  /** Số đơn đã validate từ TRƯỚC — gửi lại không sao, backend bỏ qua. */
+  readonly alreadyValidated?: number;
+  readonly rejected: readonly InternalValidateRejectedLine[];
+  readonly notFound: readonly string[];
+  readonly excluded: readonly InternalValidateExcludedLine[];
+}
+
+/** Tham số một lô validate. Danh sách mã do tool chặn trần 1..200 TRƯỚC khi tới đây. */
+export interface InternalValidateRequest {
+  /** `accounts.id` dạng chuỗi số — audit NGƯỜI GHI, tuỳ chọn (backend không đòi header này). */
+  readonly staffId?: string;
+  readonly trackingNumbers: readonly string[];
+  readonly signal?: AbortSignal;
+}
+
+/**
+ * Cổng sổ xuất kho / hoá đơn MISA của TOÀN HỆ THỐNG. Ba hàm sổ ngày CHỈ ĐỌC; `validateOrders`
+ * là đường GHI duy nhất — đẩy đơn qua bước kho, idempotent phía backend (đơn đã validate rơi
+ * vào `already_validated`, không ghi đôi).
  *
  * Ba tập khớp nhau: `invoicedOrders` + `uninvoicedOrders` = `shippedOrders`, hai tập con bù nhau,
  * không chồng lấn. Mốc thời gian là `orders.shipped_out_at` giờ ICT — cùng cửa sổ với file đối
@@ -504,6 +541,8 @@ export interface InternalOrdersPort {
   invoicedOrders(q: InternalDailyQuery): Promise<InternalDailyPage>;
   /** Đơn CHƯA tạo hoá đơn — hàng đợi cần xử lý (gồm cả đơn chưa có phiếu xuất kho). */
   uninvoicedOrders(q: InternalDailyQuery): Promise<InternalDailyPage>;
+  /** GHI: validate một lô đơn để đưa qua bước kho (`POST /agent/internal/orders/validate`). */
+  validateOrders(r: InternalValidateRequest): Promise<InternalValidateResult>;
 }
 
 /**

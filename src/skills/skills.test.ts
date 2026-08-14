@@ -21,6 +21,7 @@ describe("registry (defs thật)", () => {
       "chinh-sach-hoa-hong",
       "don-hang",
       "don-hoan",
+      "duyet-don-0d",
       "emoji",
       "giong-dieu",
       "giuc-don",

@@ -12,6 +12,7 @@ import { buildUseReferenceTool } from "./impl/use-reference.ts";
 import { buildOrderStatusTool } from "./impl/order/status.ts";
 import { buildOrderPaymentTool } from "./impl/order/payment.ts";
 import { buildPaymentBatchCreateTool } from "./impl/order/payment-batch.ts";
+import { buildValidatePaidOrdersTool } from "./impl/order/validate-paid.ts";
 import { buildOrderVideoTool } from "./impl/order/video.ts";
 import { buildDealerProfileTool } from "./impl/dealer/profile.ts";
 import {
@@ -24,6 +25,7 @@ import {
   buildInternalShippedOrdersTool,
   buildInternalUninvoicedOrdersTool,
 } from "./impl/internal/daily-orders.ts";
+import { buildValidateOrdersTool } from "./impl/internal/validate-orders.ts";
 import { buildPoscakeRegisterTool } from "./impl/dealer/poscake.ts";
 import { buildImageReadTool } from "./impl/vision/xem-anh.ts";
 import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
@@ -121,6 +123,31 @@ export const INTERNAL_DAILY_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildInternalShippedOrdersTool(ctx),
   (ctx: ToolContext): Tool => buildInternalInvoicedOrdersTool(ctx),
   (ctx: ToolContext): Tool => buildInternalUninvoicedOrdersTool(ctx),
+];
+
+/**
+ * Tool DUYỆT ĐƠN QUA KHO: GHI một lô mã vận đơn (1–200) vào `/agent/internal/orders/validate`
+ * để đơn được đưa qua bước kho. Tách khỏi INTERNAL_DAILY_TOOLS vì bộ đó CHỈ ĐỌC.
+ *
+ * Hàng rào theo VAI: chỉ nhân viên gọi được (role từ identity server-side). `x-staff-id` chỉ là
+ * audit tuỳ chọn — backend không đòi. Lệnh ghi KHÔNG retry — lỗi giữa chừng là trạng thái lửng,
+ * tool báo đúng như vậy thay vì xúi gửi lại.
+ */
+export const INTERNAL_VALIDATE_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildValidateOrdersTool(ctx),
+];
+
+/**
+ * Tool DUYỆT ĐƠN ĐÃ THANH TOÁN: đường GHI `validateOrders` mở cho NHÓM ĐẠI LÝ — đại lý gửi bill
+ * chuyển khoản (hoặc đơn COD 0đ) kèm mã vận đơn thì agent duyệt lô đó qua bước kho tại chỗ.
+ *
+ * Khác INTERNAL_VALIDATE_TOOLS (hàng rào theo VAI nhân viên, mọi đơn): hàng rào ở đây theo PHẠM
+ * VI — từng mã được tra qua cổng đọc đơn scoped đại lý chủ phòng (server-side) trước khi ghi,
+ * mã của đại lý khác bị loại khỏi lô. Guest bị chặn. Điều kiện 0đ/bill nằm ở skill `duyet-don-0d`
+ * (giai đoạn này chưa dựng gate đối chiếu số tiền).
+ */
+export const DEALER_VALIDATE_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildValidatePaidOrdersTool(ctx),
 ];
 
 /**

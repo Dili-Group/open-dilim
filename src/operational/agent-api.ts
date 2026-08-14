@@ -189,6 +189,27 @@ export class AgentApiClient {
     );
   }
 
+  /**
+   * POST một endpoint `/agent/internal/*` — endpoint GHI toàn hệ thống (validate đơn qua kho...).
+   *
+   * Không dealer header. `x-staff-id` là audit TUỲ CHỌN — backend không đòi; chỉ gắn khi có id
+   * số hợp lệ (`accounts.id` bigint), id rác thì bỏ hẳn header như `buildAgentHeaders`. Luật
+   * retry như `post`: KHÔNG RETRY kể cả 5xx/timeout — bắn lại một lệnh ghi là ghi hai lần.
+   */
+  async postAsStaff(
+    path: string,
+    request: Omit<AgentApiRequest, "principal"> & {
+      readonly staffId?: string;
+      readonly body: unknown;
+    },
+  ): Promise<unknown> {
+    const headers: Record<string, string> = { [SERVICE_TOKEN_HEADER]: this.serviceToken };
+    if (request.staffId !== undefined && /^\d+$/.test(request.staffId)) {
+      headers[STAFF_HEADER] = request.staffId;
+    }
+    return this.send(path, headers, request, { method: "POST", body: request.body });
+  }
+
   private async send(
     path: string,
     headers: Record<string, string>,

@@ -13,18 +13,23 @@ import {
   readEnvelopeMeta,
   type AgentApiClient,
 } from "./agent-api.ts";
-import { asRecord, isPresent, readBoolean, readNumber, readString } from "./read.ts";
+import { asRecord, isPresent, readBoolean, readList, readNumber, readString } from "./read.ts";
 import type {
   InternalDailyMeta,
   InternalDailyPage,
   InternalDailyQuery,
   InternalOrderLine,
   InternalOrdersPort,
+  InternalValidateExcludedLine,
+  InternalValidateRejectedLine,
+  InternalValidateRequest,
+  InternalValidateResult,
 } from "./types.ts";
 
 const SHIPPED_PATH = "/agent/internal/daily/shipped-orders";
 const INVOICED_PATH = "/agent/internal/daily/invoiced-orders";
 const UNINVOICED_PATH = "/agent/internal/daily/uninvoiced-orders";
+const VALIDATE_PATH = "/agent/internal/orders/validate";
 
 /** Khối tổng của envelope. `/agent/orders` dùng `meta`, cụm sổ ngày dùng `meta_data`. */
 const META_KEY = "meta_data";
@@ -46,6 +51,37 @@ export class AgentApiInternalOrdersPort implements InternalOrdersPort {
 
   uninvoicedOrders(q: InternalDailyQuery): Promise<InternalDailyPage> {
     return this.fetchPage(UNINVOICED_PATH, q);
+  }
+
+  /**
+   * GHI: validate lô đơn qua bước kho. Đi qua `postAsStaff` — không retry (client tự chặn:
+   * lệnh ghi bắn lại là ghi hai lần), lỗi để bubble cho tool phân loại và báo người dùng.
+   */
+  async validateOrders(r: InternalValidateRequest): Promise<InternalValidateResult> {
+    const body = await this.api.postAsStaff(VALIDATE_PATH, {
+      staffId: r.staffId,
+      body: { tracking_numbers: r.trackingNumbers },
+      signal: r.signal,
+    });
+
+    const data = asRecord(readEnvelopeData(body, VALIDATE_PATH));
+    if (data === undefined) {
+      throw new AgentApiError(
+        `POST ${VALIDATE_PATH} trả "data" không phải object`,
+        200,
+        AgentApiErrorCode.InvalidResponse,
+        VALIDATE_PATH,
+      );
+    }
+    return {
+      validated: readNumber(data, "validated"),
+      alreadyValidated: readNumber(data, "already_validated"),
+      rejected: readList(data, "rejected").map(readRejectedLine).filter(isPresent),
+      notFound: readList(data, "not_found")
+        .filter(isNonEmptyString)
+        .map((code) => code.trim()),
+      excluded: readList(data, "excluded").map(readExcludedLine).filter(isPresent),
+    };
   }
 
   private async fetchPage(path: string, q: InternalDailyQuery): Promise<InternalDailyPage> {
@@ -82,6 +118,27 @@ function readMeta(record: Record<string, unknown>): InternalDailyMeta {
     totalItems: readNumber(record, "total_items"),
     totalPages: readNumber(record, "total_pages"),
   };
+}
+
+/** Dòng từ chối/loại KHÔNG có mã vận đơn thì không báo lại được cho ai → bỏ, đừng in mã rỗng. */
+function readRejectedLine(value: unknown): InternalValidateRejectedLine | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const trackingNumber = readString(record, "tracking_number");
+  if (trackingNumber === undefined) return undefined;
+  return { trackingNumber, status: readNumber(record, "status") };
+}
+
+function readExcludedLine(value: unknown): InternalValidateExcludedLine | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const trackingNumber = readString(record, "tracking_number");
+  if (trackingNumber === undefined) return undefined;
+  return { trackingNumber, reason: readString(record, "reason") };
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "";
 }
 
 /** Dòng KHÔNG có mã vận đơn thì không đối chiếu được với sổ nào → bỏ, đừng in một mã rỗng. */

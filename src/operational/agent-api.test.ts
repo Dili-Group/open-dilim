@@ -11,6 +11,7 @@ import {
   type FetchInit,
   type FetchLike,
 } from "./agent-api.ts";
+import { AgentApiInternalOrdersPort } from "./internal-api.ts";
 import { AgentApiOrderPort } from "./order-api.ts";
 import { AgentApiDealerPort } from "./profile-api.ts";
 
@@ -404,5 +405,95 @@ describe("AgentApiDealerPort", () => {
     );
 
     expect(port.profile({ dealerId: "42" })).rejects.toThrow(AgentApiError);
+  });
+});
+
+describe("AgentApiClient.postAsStaff + AgentApiInternalOrdersPort.validateOrders", () => {
+  test("header chỉ có service-token + staff (KHÔNG dealer), body JSON snake_case", async () => {
+    const { fetchImpl, calls } = stubFetch(200, {
+      success: true,
+      data: { validated: 2, already_validated: 0, rejected: [], not_found: [], excluded: [] },
+    });
+    const port = new AgentApiInternalOrdersPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    const result = await port.validateOrders({
+      staffId: "77",
+      trackingNumbers: ["S12345678", "S12345679"],
+    });
+
+    const call = calls[0];
+    expect(call?.url).toBe(`${BASE_URL}/agent/internal/orders/validate`);
+    expect(call?.init.method).toBe("POST");
+    expect(call?.init.headers["x-staff-id"]).toBe("77");
+    expect(call?.init.headers["x-service-token"]).toBe(TOKEN);
+    expect("x-dealer-id" in (call?.init.headers ?? {})).toBe(false);
+    expect(JSON.parse(call?.init.body ?? "{}")).toEqual({
+      tracking_numbers: ["S12345678", "S12345679"],
+    });
+    expect(result.validated).toBe(2);
+  });
+
+  test("staffId thiếu/không phải số → BỎ HẲN header (audit tuỳ chọn), request vẫn đi", async () => {
+    const { fetchImpl, calls } = stubFetch(200, {
+      success: true,
+      data: { validated: 1, rejected: [], not_found: [], excluded: [] },
+    });
+    const port = new AgentApiInternalOrdersPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    await port.validateOrders({ trackingNumbers: ["S1"] });
+    await port.validateOrders({ staffId: "uuid-abc", trackingNumbers: ["S1"] });
+    for (const call of calls) {
+      expect("x-staff-id" in call.init.headers).toBe(false);
+      expect(call.init.headers["x-service-token"]).toBe(TOKEN);
+    }
+  });
+
+  test("parse đủ bốn nhóm ngoài validated; dòng thiếu tracking_number bị bỏ", async () => {
+    const { fetchImpl } = stubFetch(200, {
+      success: true,
+      data: {
+        validated: 1,
+        already_validated: 3,
+        rejected: [{ tracking_number: "S3", status: 5 }, { status: 9 }],
+        not_found: ["S404", ""],
+        excluded: [{ tracking_number: "S4", reason: "excluded_sku" }],
+      },
+    });
+    const port = new AgentApiInternalOrdersPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    const result = await port.validateOrders({ staffId: "77", trackingNumbers: ["S3"] });
+    expect(result.alreadyValidated).toBe(3);
+    expect(result.rejected).toEqual([{ trackingNumber: "S3", status: 5 }]);
+    expect(result.notFound).toEqual(["S404"]);
+    expect(result.excluded).toEqual([{ trackingNumber: "S4", reason: "excluded_sku" }]);
+  });
+
+  test("5xx → KHÔNG retry (lệnh ghi bắn lại là ghi hai lần), throw cho tool báo lửng", async () => {
+    const { fetchImpl, calls } = stubFetch(500, { code: "INTERNAL", message: "boom" });
+    const port = new AgentApiInternalOrdersPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    await expect(
+      port.validateOrders({ staffId: "77", trackingNumbers: ["S1"] }),
+    ).rejects.toThrow(AgentApiError);
+    expect(calls).toHaveLength(1);
+  });
+
+  test('data không phải object → AgentApiError shape, không trả kết quả bịa', async () => {
+    const { fetchImpl } = stubFetch(200, { success: true, data: [] });
+    const port = new AgentApiInternalOrdersPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    await expect(
+      port.validateOrders({ staffId: "77", trackingNumbers: ["S1"] }),
+    ).rejects.toThrow('không phải object');
   });
 });

@@ -7,6 +7,7 @@ import {
   DAILY_TOOLS,
   DEALER_TIER_TOOLS,
   DEALER_TOOLS,
+  DEALER_VALIDATE_TOOLS,
   ORDER_TOOLS,
   PAYMENT_BATCH_TOOLS,
   POSCAKE_TOOLS,
@@ -41,6 +42,9 @@ export const dealerProfile: RootAgentProfile = {
     ...COMMON_TOOLS,
     ...ORDER_TOOLS,
     ...PAYMENT_BATCH_TOOLS,
+    // Đường GHI duyệt đơn qua kho cho đơn ĐÃ THANH TOÁN (COD 0đ / có bill CK) — phạm vi tự chặn
+    // theo đại lý chủ phòng ngay trong tool, điều kiện nghiệp vụ ở skill `duyet-don-0d`.
+    ...DEALER_VALIDATE_TOOLS,
     ...DEALER_TOOLS,
     ...DEALER_TIER_TOOLS,
     ...DAILY_TOOLS,

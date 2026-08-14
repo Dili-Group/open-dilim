@@ -11,6 +11,8 @@ import type {
   InternalDailyPage,
   InternalDailyQuery,
   InternalOrdersPort,
+  InternalValidateRequest,
+  InternalValidateResult,
 } from "../operational/types.ts";
 import { buildSkillRegistry } from "../skills/index.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
@@ -20,6 +22,7 @@ import {
   buildInternalUninvoicedOrdersTool,
   parseDate,
 } from "./impl/internal/daily-orders.ts";
+import { buildValidateOrdersTool } from "./impl/internal/validate-orders.ts";
 import { todayInVietnam } from "./impl/order/scope.ts";
 import type { ToolContext } from "./types.ts";
 
@@ -53,12 +56,38 @@ const PAGE: InternalDailyPage = {
   ],
 };
 
+/** Kết quả validate đủ cả năm nhóm — mỗi test render chỉ cần soi phần nó quan tâm. */
+const VALIDATE_RESULT: InternalValidateResult = {
+  validated: 2,
+  alreadyValidated: 1,
+  rejected: [{ trackingNumber: "SPX000000005", status: 5 }],
+  notFound: ["SPX000000404"],
+  excluded: [{ trackingNumber: "SPX000000004", reason: "excluded_sku" }],
+};
+
 class FakeInternal implements InternalOrdersPort {
   readonly seen: InternalDailyQuery[] = [];
+  readonly validated: InternalValidateRequest[] = [];
   constructor(
     private readonly page: InternalDailyPage = PAGE,
     private readonly failCode?: string,
+    private readonly validateResult: InternalValidateResult = VALIDATE_RESULT,
   ) {}
+
+  validateOrders(r: InternalValidateRequest): Promise<InternalValidateResult> {
+    this.validated.push(r);
+    if (this.failCode !== undefined) {
+      return Promise.reject(
+        new AgentApiError(
+          "POST /agent/internal/orders/validate lỗi",
+          500,
+          this.failCode,
+          "/agent/internal/orders/validate",
+        ),
+      );
+    }
+    return Promise.resolve(this.validateResult);
+  }
 
   shippedOrders(q: InternalDailyQuery): Promise<InternalDailyPage> {
     return this.answer("shipped-orders", q);
@@ -213,5 +242,89 @@ describe("lỗi từ API vận hành", () => {
     const result = await buildInternalUninvoicedOrdersTool(ctxOf(STAFF, port)).run({});
     expect(result.isError).toBe(true);
     expect(result.content).toContain("không phản hồi");
+  });
+});
+
+describe("duyet_don_qua_kho — lệnh GHI validate đơn qua kho", () => {
+  test("đại lý/guest gọi > từ chối, KHÔNG chạm port", async () => {
+    const port = new FakeInternal();
+    for (const identity of [DEALER, GUEST]) {
+      const result = await buildValidateOrdersTool(ctxOf(identity, port)).run({
+        ma_van_don: ["SPX1"],
+      });
+      expect(result.isError).toBe(true);
+    }
+    expect(port.validated).toHaveLength(0);
+  });
+
+  test("nhân viên bind hỏng (userId không phải số) > VẪN gọi được, chỉ mất audit staffId", async () => {
+    const port = new FakeInternal();
+    const result = await buildValidateOrdersTool(ctxOf(STAFF_BAD_ID, port)).run({
+      ma_van_don: ["SPX1"],
+    });
+    expect(result.isError).toBeUndefined();
+    expect(port.validated[0]?.staffId).toBeUndefined();
+  });
+
+  test("chưa nối cổng > lỗi nghiệp vụ, không throw", async () => {
+    const result = await buildValidateOrdersTool(ctxOf(STAFF)).run({ ma_van_don: ["SPX1"] });
+    expect(result.isError).toBe(true);
+  });
+
+  test("staffId lên port là id từ identity, danh sách mã giữ nguyên văn", async () => {
+    const port = new FakeInternal();
+    const result = await buildValidateOrdersTool(ctxOf(STAFF, port)).run({
+      ma_van_don: ["S12345678", "S12345679"],
+    });
+    expect(result.isError).toBeUndefined();
+    expect(port.validated[0]).toMatchObject({
+      staffId: "77",
+      trackingNumbers: ["S12345678", "S12345679"],
+    });
+  });
+
+  test("danh sách thiếu / rỗng / có phần tử rác > isError, KHÔNG gọi port", async () => {
+    const port = new FakeInternal();
+    for (const input of [{}, { ma_van_don: [] }, { ma_van_don: ["SPX1", 7] }, { ma_van_don: "SPX1" }]) {
+      const result = await buildValidateOrdersTool(ctxOf(STAFF, port)).run(input);
+      expect(result.isError).toBe(true);
+    }
+    expect(port.validated).toHaveLength(0);
+  });
+
+  test("quá 200 mã > chặn ở tool, bảo chia lô, KHÔNG gọi port", async () => {
+    const port = new FakeInternal();
+    const result = await buildValidateOrdersTool(ctxOf(STAFF, port)).run({
+      ma_van_don: Array.from({ length: 201 }, (_, i) => `SPX${i}`),
+    });
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("tối đa 200");
+    expect(port.validated).toHaveLength(0);
+  });
+
+  test("render đủ năm nhóm: duyệt mới, duyệt trước, từ chối kèm trạng thái, không thấy, bị loại", async () => {
+    const result = await buildValidateOrdersTool(ctxOf(STAFF, new FakeInternal())).run({
+      ma_van_don: ["S1"],
+    });
+    expect(result.content).toContain("2 đơn");
+    expect(result.content).toContain("Đã duyệt từ trước");
+    expect(result.content).toContain("SPX000000005");
+    expect(result.content).toContain("SPX000000404");
+    expect(result.content).toContain("excluded_sku");
+  });
+
+  test("backend không trả số validated > nói hệ thống không trả số, KHÔNG bịa 0", async () => {
+    const noCount: InternalValidateResult = { rejected: [], notFound: [], excluded: [] };
+    const result = await buildValidateOrdersTool(
+      ctxOf(STAFF, new FakeInternal(PAGE, undefined, noCount)),
+    ).run({ ma_van_don: ["S1"] });
+    expect(result.content).toContain("hệ thống không trả số");
+  });
+
+  test("API lỗi > báo trạng thái LỬNG (không rõ đã ghi chưa), cấm tự gửi lại", async () => {
+    const port = new FakeInternal(PAGE, AgentApiErrorCode.Transport);
+    const result = await buildValidateOrdersTool(ctxOf(STAFF, port)).run({ ma_van_don: ["S1"] });
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("KHÔNG RÕ");
   });
 });

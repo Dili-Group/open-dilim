@@ -13,6 +13,10 @@ import { AgentApiError, AgentApiErrorCode } from "../operational/agent-api.ts";
 import type {
   DealerPort,
   DealerProfile,
+  InternalDailyPage,
+  InternalOrdersPort,
+  InternalValidateRequest,
+  InternalValidateResult,
   OrderCameraLink,
   OrderDetail,
   OrderPayment,
@@ -38,6 +42,7 @@ import { readIntegerField } from "./input.ts";
 import { buildUseSkillTool } from "./impl/use-skill.ts";
 import { buildUseReferenceTool } from "./impl/use-reference.ts";
 import { buildOrderStatusTool } from "./impl/order/status.ts";
+import { buildValidatePaidOrdersTool } from "./impl/order/validate-paid.ts";
 import { buildOrderPaymentTool } from "./impl/order/payment.ts";
 import { buildOrderVideoTool } from "./impl/order/video.ts";
 import { buildDealerProfileTool } from "./impl/dealer/profile.ts";
@@ -661,5 +666,126 @@ describe("tra_ho_so_dai_ly", () => {
     const result = await buildDealerProfileTool(ctx).run({});
     expect(result.isError).toBe(true);
     expect(result.content).toContain("KHÔNG nói là đại lý chưa có bậc");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// duyet_don_da_thanh_toan — lệnh GHI trong nhóm đại lý. Thứ phải chốt: PHẠM VI (chỉ đơn của
+// đại lý chủ phòng vào lô ghi, mã lạ bị loại), guest bị chặn, và lỗi hai bước khác nhau:
+// lỗi TRA (chưa ghi gì, thử lại được) ≠ lỗi GHI (lửng, cấm tự gửi lại).
+// ─────────────────────────────────────────────────────────────────────────────
+
+class StubInternal implements InternalOrdersPort {
+  readonly validated: InternalValidateRequest[] = [];
+  constructor(
+    private readonly result: InternalValidateResult = { rejected: [], notFound: [], excluded: [], validated: 1 },
+    private readonly fail = false,
+  ) {}
+
+  validateOrders(r: InternalValidateRequest): Promise<InternalValidateResult> {
+    this.validated.push(r);
+    if (this.fail) {
+      return Promise.reject(
+        new AgentApiError(
+          "POST /agent/internal/orders/validate lỗi",
+          500,
+          AgentApiErrorCode.Transport,
+          "/agent/internal/orders/validate",
+        ),
+      );
+    }
+    return Promise.resolve(this.result);
+  }
+
+  shippedOrders(): Promise<InternalDailyPage> {
+    throw new Error("không dùng trong test này");
+  }
+  invoicedOrders(): Promise<InternalDailyPage> {
+    throw new Error("không dùng trong test này");
+  }
+  uninvoicedOrders(): Promise<InternalDailyPage> {
+    throw new Error("không dùng trong test này");
+  }
+}
+
+describe("duyet_don_da_thanh_toan", () => {
+  const owned = [
+    { dealerId: "dealer-1", order: makeOrder({ codAmount: "0" }) },
+    { dealerId: "dealer-1", order: makeOrder({ trackingNumber: "VTP03", codAmount: "250000" }) },
+    { dealerId: "dealer-2", order: makeOrder({ trackingNumber: "VTP02" }) },
+  ];
+
+  test("đơn 0đ của đại lý phòng → duyệt, kết quả kèm COD từng đơn", async () => {
+    const internal = new StubInternal();
+    const ctx = { skills, identity: DEALER, roomCustomerId: "dealer-1", orders: new FakeOrders(owned), internal };
+    const result = await buildValidatePaidOrdersTool(ctx).run({ ma_van_don: ["VTP01"] });
+
+    expect(result.isError).toBeUndefined();
+    expect(internal.validated).toEqual([{ staffId: undefined, trackingNumbers: ["VTP01"], signal: undefined }]);
+    expect(result.content).toContain("Duyệt mới: 1 đơn");
+    expect(result.content).toContain("VTP01 · COD 0 ₫");
+  });
+
+  test("mã của đại lý khác bị LOẠI khỏi lô ghi, phần còn lại vẫn duyệt", async () => {
+    const internal = new StubInternal();
+    const ctx = { skills, identity: DEALER, roomCustomerId: "dealer-1", orders: new FakeOrders(owned), internal };
+    const result = await buildValidatePaidOrdersTool(ctx).run({ ma_van_don: ["VTP01", "VTP02"] });
+
+    expect(internal.validated[0]?.trackingNumbers).toEqual(["VTP01"]);
+    expect(result.content).toContain("KHÔNG PHẢI đơn của đại lý phòng này");
+    expect(result.content).toContain("- VTP02");
+  });
+
+  test("toàn mã lạ → isError, KHÔNG gọi đường ghi", async () => {
+    const internal = new StubInternal();
+    const ctx = { skills, identity: DEALER, roomCustomerId: "dealer-1", orders: new FakeOrders(owned), internal };
+    const result = await buildValidatePaidOrdersTool(ctx).run({ ma_van_don: ["VTP02", "LAZ99"] });
+
+    expect(result.isError).toBe(true);
+    expect(internal.validated).toHaveLength(0);
+  });
+
+  test("nhân viên gõ trong nhóm đại lý → lô neo theo đại lý phòng, kèm audit staffId", async () => {
+    const internal = new StubInternal();
+    const orders = new FakeOrders(owned);
+    const ctx = { skills, identity: STAFF, roomCustomerId: "dealer-1", orders, internal };
+    await buildValidatePaidOrdersTool(ctx).run({ ma_van_don: ["VTP03"] });
+
+    expect(orders.seen[0]?.dealerId).toBe("dealer-1");
+    expect(internal.validated[0]?.staffId).toBe("77");
+  });
+
+  test("guest → chặn; thiếu cổng → lỗi riêng; danh sách rác → lỗi nghiệp vụ", async () => {
+    const internal = new StubInternal();
+    const base = { skills, roomCustomerId: "dealer-1", orders: new FakeOrders(owned), internal };
+
+    const guest = await buildValidatePaidOrdersTool({ ...base, identity: GUEST }).run({ ma_van_don: ["VTP01"] });
+    expect(guest.isError).toBe(true);
+    expect(internal.validated).toHaveLength(0);
+
+    const noPort = await buildValidatePaidOrdersTool({ skills, identity: DEALER }).run({ ma_van_don: ["VTP01"] });
+    expect(noPort.isError).toBe(true);
+
+    const trash = await buildValidatePaidOrdersTool({ ...base, identity: DEALER }).run({ ma_van_don: "VTP01" });
+    expect(trash.isError).toBe(true);
+  });
+
+  test("lỗi bước TRA → 'chưa có gì được ghi', KHÔNG chạm đường ghi", async () => {
+    const internal = new StubInternal();
+    const ctx = { skills, identity: DEALER, roomCustomerId: "dealer-1", orders: new BrokenOrders(), internal };
+    const result = await buildValidatePaidOrdersTool(ctx).run({ ma_van_don: ["VTP01"] });
+
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("Chưa có gì được ghi");
+    expect(internal.validated).toHaveLength(0);
+  });
+
+  test("lỗi bước GHI → trạng thái lửng, cấm tự gửi lại", async () => {
+    const internal = new StubInternal(undefined, true);
+    const ctx = { skills, identity: DEALER, roomCustomerId: "dealer-1", orders: new FakeOrders(owned), internal };
+    const result = await buildValidatePaidOrdersTool(ctx).run({ ma_van_don: ["VTP01"] });
+
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("KHÔNG RÕ");
   });
 });
