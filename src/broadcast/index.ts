@@ -5,6 +5,7 @@ export { ZaloBroadcaster } from "./zalo.ts";
 export { BroadcastRouter } from "./router.ts";
 export type { Broadcaster, BroadcastTarget, OutboundMedia } from "./types.ts";
 export { capForChannel } from "./limits.ts";
+export { extractQrMedia } from "./qr.ts";
 export { ConsoleTypingSender } from "./typing-console.ts";
 export { ZaloTypingSender } from "./zalo-typing.ts";
 export { TypingFactory } from "./typing-factory.ts";

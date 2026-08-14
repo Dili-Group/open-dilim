@@ -13,7 +13,7 @@ import type {
   MemoryWriter,
   RecalledFact,
 } from "../state/types.ts";
-import type { Broadcaster, BroadcastTarget } from "../broadcast/types.ts";
+import type { Broadcaster, BroadcastTarget, OutboundMedia } from "../broadcast/types.ts";
 import { TypingFactory } from "../broadcast/typing-factory.ts";
 import { MemoryBroker, MemoryHistoryStore } from "../bootstrap/deps-memory.ts";
 import { HISTORY_WINDOW_TURNS } from "../state/session.ts";
@@ -147,11 +147,13 @@ class FakeResolver implements IdentityResolver {
 
 class CapturingBroadcaster implements Broadcaster {
   readonly sent: Array<{ target: BroadcastTarget; text: string }> = [];
+  readonly media: Array<{ target: BroadcastTarget; media: OutboundMedia }> = [];
   send(target: BroadcastTarget, text: string): Promise<void> {
     this.sent.push({ target, text });
     return Promise.resolve();
   }
-  sendMedia(): Promise<void> {
+  sendMedia(target: BroadcastTarget, media: OutboundMedia): Promise<void> {
+    this.media.push({ target, media });
     return Promise.resolve();
   }
 }
@@ -487,6 +489,43 @@ describe("handleEnvelope", () => {
     expect(broadcaster.sent).toHaveLength(1);
     expect(broadcaster.sent[0]!.text).toBe("xin chào bạn");
     expect(broadcaster.sent[0]!.target.conversationId).toBe("c1");
+  });
+
+  test("reply có link QR SePay → text rút link + QR gửi thành ảnh", async () => {
+    const history = new MemoryHistoryStore();
+    await history.append({
+      conversationId: "c1",
+      msgId: "m1",
+      senderId: "u1",
+      text: "cho em xin QR chuyển khoản đơn 123",
+      isGroup: false,
+      role: "user",
+      ts: 1,
+    });
+    const qrUrl = "https://qr.sepay.vn/img?acc=1&des=DH000123&amount=5000000";
+    const provider = new ScriptedProvider([
+      {
+        stopReason: "end_turn",
+        content: [
+          {
+            type: "text",
+            text: `Đơn 123 còn thiếu 5.000.000đ.\nLink QR: ${qrUrl}\nChuyển xong báo em nhé.`,
+          },
+        ],
+      },
+    ]);
+    const { ctx, broadcaster } = makeCtx(provider, { role: "guest", senderId: "u1" }, history);
+
+    const result = await handleEnvelope(ctx, makeEnvelope());
+
+    expect(result.status).toBe("reply");
+    // Text gửi đi KHÔNG còn link, cũng không còn dòng nhãn "Link QR:" mồ côi.
+    expect(broadcaster.sent).toHaveLength(1);
+    expect(broadcaster.sent[0]!.text).toBe("Đơn 123 còn thiếu 5.000.000đ.\nChuyển xong báo em nhé.");
+    // QR đi đường ảnh, cùng target với text.
+    expect(broadcaster.media).toHaveLength(1);
+    expect(broadcaster.media[0]!.media).toEqual({ type: "image", url: qrUrl });
+    expect(broadcaster.media[0]!.target.conversationId).toBe("c1");
   });
 
   // ─── ngân sách theo phòng (usage/) ───────────────────────────────────────

@@ -114,7 +114,7 @@ describe("ZaloBroadcaster", () => {
     await expect(new ZaloBroadcaster(config).send(target, "hi")).rejects.toThrow("500");
   });
 
-  test("sendMedia image → POST /send-image với url + caption", async () => {
+  test("sendMedia image → POST /send-image với imageUrl + caption", async () => {
     const stub = stubFetch(Response.json({ ok: true, msgId: "m2" }));
 
     await new ZaloBroadcaster(config).sendMedia(target, {
@@ -130,12 +130,12 @@ describe("ZaloBroadcaster", () => {
     expect(jsonBody(call?.init)).toEqual({
       threadId: "group_777",
       threadType: "group",
-      url: "https://cdn/hoa-don.jpg",
+      imageUrl: "https://cdn/hoa-don.jpg",
       caption: "Hóa đơn đơn 123",
     });
   });
 
-  test("sendMedia file, không caption → POST /send-file, body không có key caption", async () => {
+  test("sendMedia file, không caption → cũng POST /send-image (bridge không có /send-file), body không có key caption", async () => {
     const stub = stubFetch(Response.json({ ok: true, msgId: "m3" }));
 
     await new ZaloBroadcaster(config).sendMedia(
@@ -144,11 +144,11 @@ describe("ZaloBroadcaster", () => {
     );
 
     const call = stub.calls[0];
-    expect(call?.url).toBe("http://localhost:2604/send-file");
+    expect(call?.url).toBe("http://localhost:2604/send-image");
     expect(jsonBody(call?.init)).toEqual({
       threadId: "group_777",
       threadType: "user",
-      url: "https://cdn/bao-cao.xlsx",
+      imageUrl: "https://cdn/bao-cao.xlsx",
     });
   });
 

@@ -12,6 +12,7 @@ import type { Identity } from "../flash-command/types.ts";
 import { MemoryOwnerKind, type MemoryScope } from "../state/types.ts";
 import { HISTORY_BUFFER_TURNS, HISTORY_WINDOW_TURNS } from "../state/session.ts";
 import { capForChannel, type TypingTarget } from "../broadcast/index.ts";
+import { extractQrMedia } from "../broadcast/qr.ts";
 import type { PendingNotice } from "../context/pending-block.ts";
 import {
   AGENT_SENDER_ID,
@@ -188,22 +189,31 @@ export async function handleEnvelope(
 
     // 9. BROADCAST — direct → DM user; group → topic phòng, @ lại người hỏi.
     // Cap ở đây chứ không ở agent: trần là ràng buộc CỦA KÊNH, agent không cần biết.
+    // Link QR chuyển khoản trong câu trả lời → rút khỏi text, gửi thành ẢNH sau text: đại lý
+    // quét ngay trong chat thay vì bấm link. Text đi trước để ảnh có ngữ cảnh (số tiền, nội dung CK).
     step = "broadcast";
-    await ctx.broadcaster.send(
-      {
-        channel: envelope.channel,
-        conversationId: envelope.conversationId,
-        isGroup: envelope.isGroup,
-        replyToSenderId: envelope.senderId,
-      },
-      capForChannel(envelope.channel, result.text),
-    );
+    const { text: replyText, media: qrMedia } = extractQrMedia(result.text);
+    const target = {
+      channel: envelope.channel,
+      conversationId: envelope.conversationId,
+      isGroup: envelope.isGroup,
+      replyToSenderId: envelope.senderId,
+    };
+    if (replyText !== "") {
+      await ctx.broadcaster.send(target, capForChannel(envelope.channel, replyText));
+    }
+    for (const media of qrMedia) {
+      // Tuần tự, không Promise.all: giữ thứ tự hiển thị text → QR trên Zalo.
+      await ctx.broadcaster.sendMedia(target, media);
+    }
     timer.lap("broadcast");
 
     // 10. GHI NHỚ — reply agent vào buffer ngắn hạn, rồi đường dài hạn (agent vừa trả lời = đổi
     // người nói, writer tự quyết phần chưa chưng cất đã đủ dài chưa). Sau broadcast: khách đã nhận câu trả lời, hỏng ở đây chỉ
-    // mất trí nhớ chứ không được biến lượt thành failed.
-    await rememberTurn(ctx, envelope, agent, result.text, history, memoryScope, timer, signal);
+    // mất trí nhớ chứ không được biến lượt thành failed. Nhớ text ĐÃ RÚT link — history phải khớp
+    // cái đã gửi, đừng để model học lại thói dán link từ chính history của mình.
+    const remembered = replyText === "" ? result.text : replyText;
+    await rememberTurn(ctx, envelope, agent, remembered, history, memoryScope, timer, signal);
     return result;
   } catch (err) {
     return { status: "failed", step, error: err instanceof Error ? err : new Error(String(err)) };

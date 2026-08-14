@@ -11,11 +11,10 @@ import type { Broadcaster, BroadcastTarget, OutboundMedia } from "./types.ts";
 // Header auth service-to-service với bridge. Sai/thiếu → bridge trả 401.
 const BRIDGE_AUTH_HEADER = "x-dilim-zalo-bridge";
 const SEND_PATH = "/send";
-// Ảnh và file đi endpoint riêng — bridge gọi API Zalo khác nhau cho từng loại.
-const MEDIA_PATH: Record<OutboundMedia["type"], string> = {
-  image: "/send-image",
-  file: "/send-file",
-};
+// Bridge chỉ có MỘT endpoint media là /send-image (không có /send-file). Handler đó fetch URL
+// bất kỳ, đặt tên file theo đuôi URL rồi attach qua zca-js sendMessage — file thường (xlsx, pdf…)
+// đi qua vẫn được, miễn URL có đuôi file. URL không đuôi sẽ bị fallback thành image.png.
+const MEDIA_PATH = "/send-image";
 // Gửi tin nặng hơn typing (bridge phải gọi Zalo) → cho rộng hơn, nhưng vẫn có trần để lượt hỏng
 // không giữ worker slot vô hạn.
 const TIMEOUT_MS = 15_000;
@@ -37,8 +36,10 @@ export class ZaloBroadcaster implements Broadcaster {
   }
 
   async sendMedia(target: BroadcastTarget, media: OutboundMedia): Promise<void> {
-    await this.post(MEDIA_PATH[media.type], target, {
-      url: media.url,
+    // Bridge nhận `imageUrl` (không phải `url`) — tên field giữ theo hợp đồng /send-image
+    // dù nội dung có thể là file thường.
+    await this.post(MEDIA_PATH, target, {
+      imageUrl: media.url,
       ...(media.caption === undefined ? {} : { caption: media.caption }),
     });
   }
