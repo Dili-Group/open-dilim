@@ -29,7 +29,7 @@ import type {
 const SHIPPED_PATH = "/agent/internal/daily/shipped-orders";
 const INVOICED_PATH = "/agent/internal/daily/invoiced-orders";
 const UNINVOICED_PATH = "/agent/internal/daily/uninvoiced-orders";
-const VALIDATE_PATH = "/agent/internal/orders/validate";
+const VALIDATE_PATH = "/agent/orders/validate";
 
 /** Khối tổng của envelope. `/agent/orders` dùng `meta`, cụm sổ ngày dùng `meta_data`. */
 const META_KEY = "meta_data";

@@ -130,7 +130,7 @@ export const INTERNAL_DAILY_TOOLS: readonly ToolFactory[] = [
 ];
 
 /**
- * Tool DUYỆT ĐƠN QUA KHO: GHI một lô mã vận đơn (1–200) vào `/agent/internal/orders/validate`
+ * Tool DUYỆT ĐƠN QUA KHO: GHI một lô mã vận đơn (1–200) vào `/agent/orders/validate`
  * để đơn được đưa qua bước kho. Tách khỏi INTERNAL_DAILY_TOOLS vì bộ đó CHỈ ĐỌC.
  *
  * Hàng rào theo VAI: chỉ nhân viên gọi được (role từ identity server-side). `x-staff-id` chỉ là

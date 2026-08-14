@@ -424,7 +424,7 @@ describe("AgentApiClient.postAsStaff + AgentApiInternalOrdersPort.validateOrders
     });
 
     const call = calls[0];
-    expect(call?.url).toBe(`${BASE_URL}/agent/internal/orders/validate`);
+    expect(call?.url).toBe(`${BASE_URL}/agent/orders/validate`);
     expect(call?.init.method).toBe("POST");
     expect(call?.init.headers["x-staff-id"]).toBe("77");
     expect(call?.init.headers["x-service-token"]).toBe(TOKEN);

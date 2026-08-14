@@ -79,10 +79,10 @@ class FakeInternal implements InternalOrdersPort {
     if (this.failCode !== undefined) {
       return Promise.reject(
         new AgentApiError(
-          "POST /agent/internal/orders/validate lỗi",
+          "POST /agent/orders/validate lỗi",
           500,
           this.failCode,
-          "/agent/internal/orders/validate",
+          "/agent/orders/validate",
         ),
       );
     }

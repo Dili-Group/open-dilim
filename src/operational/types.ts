@@ -541,7 +541,7 @@ export interface InternalOrdersPort {
   invoicedOrders(q: InternalDailyQuery): Promise<InternalDailyPage>;
   /** Đơn CHƯA tạo hoá đơn — hàng đợi cần xử lý (gồm cả đơn chưa có phiếu xuất kho). */
   uninvoicedOrders(q: InternalDailyQuery): Promise<InternalDailyPage>;
-  /** GHI: validate một lô đơn để đưa qua bước kho (`POST /agent/internal/orders/validate`). */
+  /** GHI: validate một lô đơn để đưa qua bước kho (`POST /agent/orders/validate`). */
   validateOrders(r: InternalValidateRequest): Promise<InternalValidateResult>;
 }
 

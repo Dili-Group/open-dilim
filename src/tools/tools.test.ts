@@ -798,10 +798,10 @@ class StubInternal implements InternalOrdersPort {
     if (this.fail) {
       return Promise.reject(
         new AgentApiError(
-          "POST /agent/internal/orders/validate lỗi",
+          "POST /agent/orders/validate lỗi",
           500,
           AgentApiErrorCode.Transport,
-          "/agent/internal/orders/validate",
+          "/agent/orders/validate",
         ),
       );
     }

@@ -1,5 +1,5 @@
 // validate-orders.ts — tool GHI `duyet_don_qua_kho`: validate một lô đơn để đưa qua bước kho
-// (`POST /agent/internal/orders/validate`). Đường GHI DUY NHẤT của cụm sổ nội bộ.
+// (`POST /agent/orders/validate`). Đường GHI DUY NHẤT của cụm sổ nội bộ.
 //
 // Hàng rào theo VAI: chỉ nhân viên gọi được (role lấy từ identity server-side, không phải tham
 // số LLM sinh). `x-staff-id` chỉ là audit tuỳ chọn — backend không đòi, nên bind hỏng không chặn.
