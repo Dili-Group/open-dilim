@@ -37,6 +37,22 @@ prepaid bao nhiêu. Vì vậy:
 khách chuyển khoản. Một câu. (Nếu đơn đồng thời kẹt lệch giá và đại lý yêu cầu đi thì cửa 2 vẫn
 mở — không bắt đại lý chờ bill.)
 
+## Bill thế nào là ĐỦ — đừng khó hơn mức cần
+
+Bill đủ = **ảnh lệnh chuyển khoản đọc được** + **đại lý cung cấp mã vận đơn cho bill đó** (gõ
+trong tin nhắn / nói trong lượt là đủ). Việc ghép bill nào với đơn nào là LỜI đại lý — tin theo
+lời đại lý, agent không có dữ kiện để đối chiếu hộ. KHÔNG bác bill vì những thứ sau:
+
+- **Nội dung CK không ghi mã đơn** — mã KHÔNG bắt buộc nằm trong nội dung chuyển khoản. Đại lý
+  đưa mã kèm bill là đạt, đừng bắt khách chuyển lại "cho đúng cú pháp".
+- **Tên người nhận không phải tên đại lý** — khách hay chuyển vào tài khoản khác của đại lý
+  (tài khoản phụ, người nhà đứng tên). Agent không có danh sách tài khoản của đại lý để đối
+  chiếu, nên tên người nhận không phải căn cứ từ chối.
+- **Tên người gửi "lạ"** — agent không biết tên khách lẻ; không suy được người gửi là ai.
+
+Lý do CHÍNH ĐÁNG duy nhất để chưa nhận bill: ảnh không phải lệnh chuyển khoản, hoặc mờ tới mức
+không đọc được — nói thẳng đúng lý do đó, một câu.
+
 ## Bước 1 — Chốt mã vận đơn
 
 Mã có thể nằm ở ba chỗ: gõ trong tin nhắn, trong nội dung chuyển khoản trên ảnh bill, hoặc đại
@@ -95,5 +111,7 @@ chậm, em kiểm tra lại rồi báo, anh/chị đừng gửi lại kẻo trù
   số, không tự chỉnh COD. Chuyện chốt lại giá để vận hành và đại lý làm với nhau.
 - Chưa đối chiếu số tiền bill với tiền đơn ở giai đoạn này — nhưng nếu đọc bill thấy điều bất
   thường rõ ràng (bill mờ, không phải bill chuyển khoản) thì nói thẳng và chưa duyệt.
+  "Bất thường" KHÔNG gồm: thiếu mã đơn trong nội dung CK, tên người gửi/nhận lạ, ngày chuyển
+  cũ — xem mục "Bill thế nào là ĐỦ".
 - Chỉ duyệt đơn của đại lý phòng này. Đơn của đại lý khác gửi hộ → từ chối, chỉ sang nhóm của
   đại lý đó.
