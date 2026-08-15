@@ -25,6 +25,7 @@ import type {
   OrderPrincipal,
   OrderSearchPage,
   PaymentBatch,
+  WalletDepositQr,
 } from "../operational/types.ts";
 import {
   COMMON_TOOLS,
@@ -48,6 +49,7 @@ import { buildOrderPaymentTool } from "./impl/order/payment.ts";
 import { buildOrderVideoTool } from "./impl/order/video.ts";
 import { buildCodCheckTool } from "./impl/order/cod-check.ts";
 import { buildDealerProfileTool } from "./impl/dealer/profile.ts";
+import { buildDepositQrTool } from "./impl/dealer/deposit-qr.ts";
 
 const GUEST: Identity = { role: "guest", senderId: "u1" };
 const DEALER: Identity = { role: "dai_ly", senderId: "u2", customerId: "dealer-9" };
@@ -689,11 +691,20 @@ describe("buildToolRegistry", () => {
 
 class FakeDealer implements DealerPort {
   readonly seen: OrderPrincipal[] = [];
-  constructor(private readonly byDealer: Readonly<Record<string, DealerProfile>>) {}
+  readonly depositSeen: (OrderPrincipal & { amount?: number })[] = [];
+  constructor(
+    private readonly byDealer: Readonly<Record<string, DealerProfile>>,
+    private readonly qrByDealer: Readonly<Record<string, WalletDepositQr>> = {},
+  ) {}
 
   profile(p: OrderPrincipal): Promise<DealerProfile | null> {
     this.seen.push({ dealerId: p.dealerId, staffId: p.staffId });
     return Promise.resolve(this.byDealer[p.dealerId] ?? null);
+  }
+
+  depositQr(p: OrderPrincipal & { amount?: number }): Promise<WalletDepositQr | null> {
+    this.depositSeen.push({ dealerId: p.dealerId, staffId: p.staffId, amount: p.amount });
+    return Promise.resolve(this.qrByDealer[p.dealerId] ?? null);
   }
 }
 
@@ -704,6 +715,15 @@ class BrokenDealer implements DealerPort {
       500,
       AgentApiErrorCode.Transport,
       "/agent/profile",
+    );
+  }
+
+  depositQr(): Promise<WalletDepositQr | null> {
+    throw new AgentApiError(
+      "GET /agent/wallet/deposit-qr trả 500",
+      500,
+      AgentApiErrorCode.Transport,
+      "/agent/wallet/deposit-qr",
     );
   }
 }
@@ -777,6 +797,94 @@ describe("tra_ho_so_dai_ly", () => {
     const result = await buildDealerProfileTool(ctx).run({});
     expect(result.isError).toBe(true);
     expect(result.content).toContain("KHÔNG nói là đại lý chưa có bậc");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// lay_qr_nap_vi — QR nạp ví. Chốt: đại lý đi vào port là đại lý của PHÒNG, so_tien rác bị chặn
+// trước round-trip, và nội dung CK/QR không bao giờ được model tự chế khi API hỏng.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("lay_qr_nap_vi", () => {
+  const QR: WalletDepositQr = {
+    qrImageUrl: "https://qr.sepay.vn/img?acc=19869141319&des=DLM0123",
+    transferContent: "DLM0123",
+    bankName: "Techcombank",
+    accountNumber: "19869141319",
+    accountName: "CTY TNHH DILIM",
+    amount: "5000000",
+  };
+
+  test("in đủ khối chuyển khoản + số tiền đặt sẵn, amount đi xuống port", async () => {
+    const dealer = new FakeDealer({}, { "dealer-1": QR });
+    const ctx = { skills, identity: STAFF, roomCustomerId: "dealer-1", dealer };
+    const result = await buildDepositQrTool(ctx).run({ so_tien: 5000000 });
+
+    expect(result.isError).toBeFalsy();
+    expect(result.content).toContain("DLM0123");
+    expect(result.content).toContain("19869141319");
+    expect(result.content).toContain("https://qr.sepay.vn/img?acc=19869141319&des=DLM0123");
+    expect(result.content).toContain("5.000.000");
+    expect(result.content).toContain("NGUYÊN VĂN");
+    // Nhân viên gõ trong nhóm đại lý X → ví của X, staffId chỉ để audit.
+    expect(dealer.depositSeen.at(-1)).toEqual({
+      dealerId: "dealer-1",
+      staffId: "77",
+      amount: 5000000,
+    });
+  });
+
+  test("không truyền so_tien → hợp lệ, port nhận amount undefined, nói rõ QR trống tiền", async () => {
+    const noAmount: WalletDepositQr = { ...QR, amount: undefined };
+    const dealer = new FakeDealer({}, { "dealer-9": noAmount });
+    const result = await buildDepositQrTool({ skills, identity: DEALER, dealer }).run({});
+
+    expect(result.isError).toBeFalsy();
+    expect(result.content).toContain("KHÔNG đặt sẵn số tiền");
+    // Đại lý tự hỏi → ví của chính họ.
+    expect(dealer.depositSeen.at(-1)).toEqual({
+      dealerId: "dealer-9",
+      staffId: undefined,
+      amount: undefined,
+    });
+  });
+
+  test("so_tien rác / âm / số thực → chặn TRƯỚC khi gọi API", async () => {
+    const dealer = new FakeDealer({}, { "dealer-9": QR });
+    const ctx = { skills, identity: DEALER, dealer };
+    for (const bad of [{ so_tien: "abc" }, { so_tien: -5 }, { so_tien: 0 }, { so_tien: 1.5 }]) {
+      const result = await buildDepositQrTool(ctx).run(bad);
+      expect(result.isError).toBe(true);
+      expect(result.content).toContain("so_tien");
+    }
+    expect(dealer.depositSeen).toEqual([]);
+  });
+
+  test("chưa /ketnoi-daily → isError, không lấy QR bừa", async () => {
+    const dealer = new FakeDealer({}, {});
+    const result = await buildDepositQrTool({ skills, identity: GUEST, dealer }).run({});
+    expect(result.isError).toBe(true);
+    expect(dealer.depositSeen).toEqual([]);
+  });
+
+  test("chưa nối cổng → isError riêng", async () => {
+    const result = await buildDepositQrTool({ skills, identity: DEALER }).run({});
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("chưa sẵn sàng");
+  });
+
+  test("API hỏng → báo trục trặc, CẤM tự chế nội dung CK", async () => {
+    const ctx = { skills, identity: DEALER, dealer: new BrokenDealer() };
+    const result = await buildDepositQrTool(ctx).run({});
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("KHÔNG tự chế nội dung chuyển khoản");
+  });
+
+  test("backend trả data rỗng (không QR, không nội dung CK) → isError, không in nửa vời", async () => {
+    const dealer = new FakeDealer({}, { "dealer-9": {} });
+    const result = await buildDepositQrTool({ skills, identity: DEALER, dealer }).run({});
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("không trả được mã QR");
   });
 });
 

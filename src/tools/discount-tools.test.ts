@@ -15,6 +15,7 @@ import type {
   DiscountTier,
   OrderPrincipal,
   TierUpgradeResult,
+  WalletDepositQr,
 } from "../operational/types.ts";
 import { buildSkillRegistry } from "../skills/index.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
@@ -80,6 +81,10 @@ class FakeDealer implements DealerPort {
   constructor(private readonly value: DealerProfile | null) {}
   profile(): Promise<DealerProfile | null> {
     return Promise.resolve(this.value);
+  }
+  // Tool chiết khấu không đụng ví — có mặt chỉ để đủ interface.
+  depositQr(): Promise<WalletDepositQr | null> {
+    return Promise.resolve(null);
   }
 }
 

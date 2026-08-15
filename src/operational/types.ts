@@ -198,6 +198,22 @@ export interface DealerProfile {
 }
 
 /**
+ * QR nạp tiền vào VÍ đại lý (`GET /agent/wallet/deposit-qr`). Nội dung CK là `DLM` + mã đại lý —
+ * KHÁC nội dung phiếu thanh toán gộp (`DH` + mã phiếu, xem PaymentBatch): webhook SePay khớp theo
+ * đúng chuỗi, trộn hai nội dung là tiền vào nhầm chỗ.
+ */
+export interface WalletDepositQr {
+  /** URL ảnh QR SePay (PNG) — broadcast tự rút gửi dạng ảnh (broadcast/qr.ts). */
+  readonly qrImageUrl?: string;
+  readonly transferContent?: string;
+  readonly bankName?: string;
+  readonly accountNumber?: string;
+  readonly accountName?: string;
+  /** Số tiền đặt sẵn trên QR (VND, giữ nguyên chữ số). Không truyền amount → undefined. */
+  readonly amount?: string;
+}
+
+/**
  * Cổng ĐỌC hồ sơ đại lý. CHỈ ĐỌC: đường GHI bậc chiết khấu nằm ở `DiscountPort` (tách hẳn), để
  * tool đọc hồ sơ không bao giờ cầm được đường ghi.
  */
@@ -206,6 +222,14 @@ export interface DealerPort {
   profile(
     p: OrderPrincipal & { readonly signal?: AbortSignal },
   ): Promise<DealerProfile | null>;
+
+  /**
+   * QR nạp ví của đại lý phòng (header ép server-side, không nhận param đại lý). `amount` đặt sẵn
+   * số tiền trên QR (VND nguyên, ≥ 1) — bỏ trống thì đại lý tự nhập lúc chuyển. null = 404.
+   */
+  depositQr(
+    p: OrderPrincipal & { readonly amount?: number; readonly signal?: AbortSignal },
+  ): Promise<WalletDepositQr | null>;
 }
 
 /**

@@ -7,10 +7,11 @@
 // Đại lý KHÔNG đi qua query param: backend lấy từ header `x-dealer-id` (buildAgentHeaders).
 
 import { AgentApiError, readEnvelopeData, type AgentApiClient } from "./agent-api.ts";
-import { asRecord, numberAsString, readBoolean, readNumber, readString } from "./read.ts";
-import type { DealerPort, DealerProfile, OrderPrincipal } from "./types.ts";
+import { asRecord, numberAsString, readBoolean, readMoney, readNumber, readString } from "./read.ts";
+import type { DealerPort, DealerProfile, OrderPrincipal, WalletDepositQr } from "./types.ts";
 
 const PROFILE_PATH = "/agent/profile";
+const DEPOSIT_QR_PATH = "/agent/wallet/deposit-qr";
 
 export class AgentApiDealerPort implements DealerPort {
   constructor(private readonly api: AgentApiClient) {}
@@ -55,6 +56,35 @@ export class AgentApiDealerPort implements DealerPort {
       // discount_rate_min/max backend có trả — CỐ Ý bỏ: tỉ lệ khác nhau theo từng sản phẩm nên một
       // biên min–max chỉ làm model chốt đại một con số % cho đại lý.
       discountEffectiveFrom: readString(record, "discount_effective_from"),
+    };
+  }
+
+  async depositQr(
+    p: OrderPrincipal & { amount?: number; signal?: AbortSignal },
+  ): Promise<WalletDepositQr | null> {
+    let body: unknown;
+    try {
+      body = await this.api.get(DEPOSIT_QR_PATH, {
+        principal: { dealerId: p.dealerId, staffId: p.staffId },
+        // amount undefined → client tự bỏ khỏi query (buildUrl), backend trả QR không đặt sẵn tiền.
+        query: { amount: p.amount },
+        signal: p.signal,
+      });
+    } catch (err) {
+      if (err instanceof AgentApiError && err.status === 404) return null;
+      throw err;
+    }
+
+    const record = asRecord(readEnvelopeData(body, DEPOSIT_QR_PATH));
+    if (record === undefined) return null;
+    return {
+      // Khoá camelCase là CỐ Ý — backend trả `imageQRUrl`, không phải snake_case như phần còn lại.
+      qrImageUrl: readString(record, "imageQRUrl"),
+      transferContent: readString(record, "transfer_content"),
+      bankName: readString(record, "bank_name"),
+      accountNumber: readString(record, "account_number"),
+      accountName: readString(record, "account_name"),
+      amount: readMoney(record, "amount"),
     };
   }
 }

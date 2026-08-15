@@ -406,6 +406,69 @@ describe("AgentApiDealerPort", () => {
 
     expect(port.profile({ dealerId: "42" })).rejects.toThrow(AgentApiError);
   });
+
+  test("depositQr: bóc envelope (kể cả khoá camelCase imageQRUrl), amount đi qua query", async () => {
+    const { fetchImpl, calls } = stubFetch(200, {
+      success: true,
+      data: {
+        imageQRUrl: "https://qr.sepay.vn/img?acc=19869141319&des=DLM0123",
+        transfer_content: "DLM0123",
+        bank_name: "Techcombank",
+        account_number: "19869141319",
+        account_name: "CTY TNHH DILIM",
+        amount: 5000000,
+      },
+    });
+    const port = new AgentApiDealerPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    const qr = await port.depositQr({ dealerId: "42", staffId: "77", amount: 5000000 });
+    expect(qr?.qrImageUrl).toBe("https://qr.sepay.vn/img?acc=19869141319&des=DLM0123");
+    expect(qr?.transferContent).toBe("DLM0123");
+    expect(qr?.bankName).toBe("Techcombank");
+    expect(qr?.accountNumber).toBe("19869141319");
+    expect(qr?.accountName).toBe("CTY TNHH DILIM");
+    // amount trả dạng số vẫn về chuỗi, không tính toán gì lên nó.
+    expect(qr?.amount).toBe("5000000");
+    expect(calls[0]?.url).toBe(`${BASE_URL}/agent/wallet/deposit-qr?amount=5000000`);
+    expect(calls[0]?.init.headers["x-dealer-id"]).toBe("42");
+    expect(calls[0]?.init.headers["x-staff-id"]).toBe("77");
+  });
+
+  test("depositQr: không truyền amount → query KHÔNG có amount (không gửi 'undefined')", async () => {
+    const { fetchImpl, calls } = stubFetch(200, {
+      success: true,
+      data: { imageQRUrl: "https://qr.sepay.vn/img?des=DLM0123", transfer_content: "DLM0123" },
+    });
+    const port = new AgentApiDealerPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    const qr = await port.depositQr({ dealerId: "42" });
+    expect(qr?.amount).toBeUndefined();
+    expect(calls[0]?.url).toBe(`${BASE_URL}/agent/wallet/deposit-qr`);
+  });
+
+  test("depositQr: 404 → null, 500 → throw", async () => {
+    const notFound = new AgentApiDealerPort(
+      new AgentApiClient({
+        baseUrl: BASE_URL,
+        serviceToken: TOKEN,
+        fetchImpl: stubFetch(404, { code: "NOT_FOUND" }).fetchImpl,
+      }),
+    );
+    expect(await notFound.depositQr({ dealerId: "42" })).toBeNull();
+
+    const broken = new AgentApiDealerPort(
+      new AgentApiClient({
+        baseUrl: BASE_URL,
+        serviceToken: TOKEN,
+        fetchImpl: stubFetch(500, { code: "INTERNAL" }).fetchImpl,
+      }),
+    );
+    expect(broken.depositQr({ dealerId: "42" })).rejects.toThrow(AgentApiError);
+  });
 });
 
 describe("AgentApiClient.postAsStaff + AgentApiInternalOrdersPort.validateOrders", () => {
