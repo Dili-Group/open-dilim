@@ -10,6 +10,8 @@ import type { KbDigestExtraction, KbLoggedMessage } from "./types.ts";
 
 const EXTRACT_EFFORT: Effort = "medium";
 const EXTRACT_MAX_TOKENS = 2048;
+/** Đuôi raw output khi parse fail — đuôi lộ chỗ JSON đứt (truncation cắt ở cuối). */
+const RAW_LOG_TAIL_CHARS = 300;
 
 /**
  * Trần transcript đưa vào model, GIỮ ĐUÔI: cuối ngày thường là phần chốt vấn đề. Một ngày group
@@ -61,7 +63,17 @@ export class KbDigestExtractor {
         },
         signal,
       );
-      return parseExtraction(extractText(result.content));
+      const raw = extractText(result.content);
+      const extraction = parseExtraction(raw);
+      if (extraction === undefined) {
+        // Không log full raw — chỉ cần đủ để phân biệt JSON đứt vì trần token với model trả
+        // văn xuôi. stopReason "max_tokens" = output bị cắt, tăng EXTRACT_MAX_TOKENS.
+        console.error(
+          `[kb-digest] parse output fail (stopReason=${result.stopReason}, ${raw.length} chars): ` +
+            `…${raw.slice(-RAW_LOG_TAIL_CHARS)}`,
+        );
+      }
+      return extraction;
     } catch (err) {
       console.error("[kb-digest] rút vấn đề lỗi:", err);
       return undefined;
