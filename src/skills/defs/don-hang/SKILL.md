@@ -14,7 +14,8 @@ Năm việc khách hay hỏi, dùng chung 3 bước: **phân loại việc → c
 | Đơn hôm nay / trong khoảng ngày | `tra_don_hang` (`hom_nay`, `tu_ngay`/`den_ngay`) | mốc là NGÀY TẠO đơn — xem Bước 2 |
 | Báo huỷ đơn | KHÔNG có tool ghi | `references/huy-don.md` |
 | Tiền của đơn (tổng, COD, phí ship) | `tra_don_hang` (chi tiết đơn) | `references/thanh-toan.md` |
-| Cần chuyển bao nhiêu để đơn được đi | `tra_tien_can_chuyen` | `references/thanh-toan.md` |
+| Cần chuyển bao nhiêu để đơn được đi | `tra_tien_can_chuyen` (chỉ con số) | `references/thanh-toan.md` |
+| Thanh toán để đơn được đi (QR + nội dung CK) | `tao_phieu_thanh_toan` — kể cả 1 đơn | `references/thanh-toan.md` |
 | Xin video camera đóng gói | `video_don_hang` | `references/video.md` |
 | Hàng còn hay hết, đơn kẹt vì hết hàng | KHÔNG có tool tồn kho | skill `het-hang` |
 | Đơn 0đ / gửi bill CK / đơn kẹt lệch giá xin duyệt cho đơn đi | `duyet_don_da_thanh_toan` | skill `duyet-don-0d` |
@@ -58,11 +59,14 @@ khác, hoặc đơn đã quá 30 ngày. Đơn cũ hơn → chuyển nhân viên 
 
 ## Bước 3 — Ranh giới ĐỌC / GHI
 
-Cả ba tool đều CHỈ ĐỌC. Agent **không** huỷ đơn, không sửa đơn, không đổi địa chỉ, không xác nhận
-đã thanh toán, không hứa hoàn tiền. Mọi việc GHI: nói rõ sẽ chuyển nhân viên phụ trách, rồi dừng.
-NGOẠI LỆ duy nhất: duyệt đơn qua bước kho theo skill `duyet-don-0d` — hoặc đơn ĐÃ THANH TOÁN
-(đại lý gửi bill KHÁCH LẺ chuyển khoản cho đại lý kèm mã vận đơn; bill bắt buộc, kể cả đơn 0đ),
-hoặc đơn KẸT VÌ LỆCH GIÁ COD và đại lý yêu cầu cho đơn đi — nạp skill đó và làm theo.
+Các tool tra cứu đều CHỈ ĐỌC. Agent **không** huỷ đơn, không sửa đơn, không đổi địa chỉ, không xác
+nhận đã thanh toán, không hứa hoàn tiền. Mọi việc GHI khác: nói rõ sẽ chuyển nhân viên phụ trách,
+rồi dừng. HAI ngoại lệ:
+- **Tạo phiếu thanh toán gộp** (`tao_phieu_thanh_toan`) — đại lý tự yêu cầu được; phiếu chỉ gom
+  đơn của chính đại lý phòng, xem `references/thanh-toan.md`.
+- **Duyệt đơn qua bước kho** theo skill `duyet-don-0d` — hoặc đơn ĐÃ THANH TOÁN (đại lý gửi bill
+  KHÁCH LẺ chuyển khoản cho đại lý kèm mã vận đơn; bill bắt buộc, kể cả đơn 0đ), hoặc đơn KẸT VÌ
+  LỆCH GIÁ COD và đại lý yêu cầu cho đơn đi — nạp skill đó và làm theo.
 
 Chỉ nói dữ kiện tool trả về. Thiếu dữ liệu (chưa có ngày giao, chưa có video) → nói là chưa có,
 không ước lượng hộ hệ thống. Tiền hiển thị đúng như tool trả (`1.234.567 ₫`), **không tự cộng trừ**,

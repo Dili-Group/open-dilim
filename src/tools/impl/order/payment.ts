@@ -1,8 +1,14 @@
-// payment.ts — tool ĐỌC số tiền ĐẠI LÝ phải chuyển cho CÔNG TY để đơn được đi, kèm khối chuyển khoản.
+// payment.ts — tool ĐỌC số tiền ĐẠI LÝ phải chuyển cho CÔNG TY để đơn được đi. CHỈ con số —
+// KHÔNG in khối chuyển khoản.
 //
 // Tách khỏi tra_don_hang vì đây là con số KHÁC HẲN: `tra_don_hang` in tiền của đơn theo giá bán và
 // COD khách trả; tool này in giá đại lý (theo bậc chiết khấu) + phí hộp giấy. Trộn hai thứ vào một
 // câu trả lời là đại lý chuyển sai tiền.
+//
+// Backend endpoint này có trả kèm khối CK, nhưng nội dung là `DLM` + mã đại lý — tức NẠP VÍ:
+// tiền về chỉ vào ví (bù âm nếu ví âm), webhook KHÔNG mở khoá đơn nào. Đường thanh toán duy nhất
+// để đơn đi là phiếu gộp `tao_phieu_thanh_toan` (nội dung `DH` + mã phiếu). Vì thế render CỐ Ý
+// bỏ khối CK — in ra là đại lý chuyển theo, tiền kẹt trong ví mà đơn vẫn đứng im.
 //
 // BẮT BUỘC có `ma_van_don`: đây là số tiền sẽ được chuyển đi thật, trả nhầm đơn tệ hơn hỏi lại một câu.
 // Tool KHÔNG tự cộng trừ: `amount` do backend cộng sẵn, mọi trường tiền là chuỗi NUMERIC(15,2).
@@ -25,23 +31,25 @@ import {
 
 /**
  * Hai câu cảnh báo BẮT BUỘC kèm mọi kết quả: model rất dễ trả con số này cho câu hỏi "khách phải
- * trả bao nhiêu", và rất dễ tự viết tắt nội dung chuyển khoản cho gọn.
+ * trả bao nhiêu", và rất dễ tự bịa/nhớ lại một khối chuyển khoản để "cho tiện".
  */
 const SCOPE_NOTE =
   "Đây là tiền ĐẠI LÝ chuyển cho công ty (giá đại lý + phí hộp giấy), KHÔNG phải tiền COD khách " +
   "trả. Không tự cộng trừ, không xác nhận là đã nhận được tiền.";
-const TRANSFER_NOTE =
-  "Nội dung chuyển khoản phải gửi NGUYÊN VĂN: không viết tắt, không đổi hoa thường, không chèn " +
-  "thêm mã đơn — sai nội dung là tiền không vào ví đại lý.";
+const BATCH_NOTE =
+  "Muốn thanh toán để đơn được đi → tạo phiếu thanh toán gộp (tao_phieu_thanh_toan) rồi chuyển " +
+  "theo QR/nội dung của PHIẾU. KHÔNG đưa nội dung CK nạp ví (DLM…) cho việc này — tiền chỉ vào " +
+  "ví, đơn không được mở khoá. KHÔNG tự chế số tài khoản hay nội dung chuyển khoản.";
 
 export function buildOrderPaymentTool(ctx: ToolContext): Tool {
   return {
     name: "tra_tien_can_chuyen",
     description:
       "Tra số tiền đại lý cần chuyển cho công ty để MỘT đơn được đi (giá đại lý theo bậc chiết khấu " +
-      "+ phí hộp giấy), kèm ngân hàng, số tài khoản, nội dung chuyển khoản và link QR. Bắt buộc " +
-      "`ma_van_don` — chưa có mã thì gọi tra_don_hang trước. KHÔNG dùng để trả lời 'khách phải trả " +
-      "bao nhiêu' (đó là COD, xem tra_don_hang). CHỈ ĐỌC, không xác nhận đã thanh toán.",
+      "+ phí hộp giấy). CHỈ TRẢ CON SỐ — không có khối chuyển khoản; đại lý muốn thanh toán thật " +
+      "thì tạo phiếu gộp tao_phieu_thanh_toan (kể cả chỉ 1 đơn). Bắt buộc `ma_van_don` — chưa có " +
+      "mã thì gọi tra_don_hang trước. KHÔNG dùng để trả lời 'khách phải trả bao nhiêu' (đó là COD, " +
+      "xem tra_don_hang). CHỈ ĐỌC, không xác nhận đã thanh toán.",
     inputSchema: {
       type: "object",
       properties: {
@@ -86,7 +94,8 @@ async function runLookup(
 
 /**
  * Số cần chuyển đứng ĐẦU và đứng RIÊNG: đó là thứ đại lý hỏi. Phần tách giá đại lý / phí hộp giấy
- * chỉ để giải thích con số đó, không phải để model cộng lại.
+ * chỉ để giải thích con số đó, không phải để model cộng lại. Khối CK backend trả kèm bị BỎ CỐ Ý
+ * (nội dung DLM = nạp ví, không mở khoá đơn) — xem chú thích đầu file.
  */
 function render(payment: OrderPayment): string {
   const lines = [
@@ -102,18 +111,7 @@ function render(payment: OrderPayment): string {
     ),
   ].filter(isLine);
 
-  const bank = payment.bank;
-  const transfer = [
-    line("Ngân hàng", joinParts(bank?.bankName, bank?.bankCode)),
-    line("Số tài khoản", bank?.accountNumber),
-    line("Chủ tài khoản", bank?.accountName),
-    line("Nội dung chuyển khoản", payment.transferContent),
-    line("Link QR", payment.qrUrl),
-  ].filter(isLine);
-  if (transfer.length > 0) lines.push("Chuyển khoản:", ...transfer);
-
-  lines.push(SCOPE_NOTE);
-  if (payment.transferContent !== undefined) lines.push(TRANSFER_NOTE);
+  lines.push(SCOPE_NOTE, BATCH_NOTE);
   return lines.join("\n");
 }
 

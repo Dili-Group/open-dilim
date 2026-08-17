@@ -456,21 +456,23 @@ describe("tra_tien_can_chuyen", () => {
   );
   const ctx = { skills, identity: GUEST, roomCustomerId: "dealer-1", orders };
 
-  test("in số cần chuyển + tách giá đại lý/phí hộp + khối chuyển khoản", async () => {
+  test("in số cần chuyển + tách giá đại lý/phí hộp, CHỈ CON SỐ", async () => {
     const result = await buildOrderPaymentTool(ctx).run({ ma_van_don: "VTP01" });
     expect(result.isError).toBeFalsy();
     expect(result.content).toContain("SỐ TIỀN CẦN CHUYỂN: 1.005.000 ₫");
     expect(result.content).toContain("Giá đại lý: 1.000.000 ₫");
     expect(result.content).toContain("Phí hộp giấy: 5.000 ₫");
-    expect(result.content).toContain("0011000123456");
-    expect(result.content).toContain("Link QR: https://qr.example/abc");
+    expect(result.content).toContain("KHÔNG phải tiền COD");
   });
 
-  test("nội dung chuyển khoản in NGUYÊN VĂN + cấm hiểu nhầm thành COD", async () => {
+  test("KHÔNG in khối CK nạp ví — chỉ đường sang phiếu gộp", async () => {
+    // Nội dung CK backend trả là nạp ví (DLM/NAP theo mã đại lý): tiền về chỉ vào ví, đơn không
+    // được mở khoá. In ra là đại lý chuyển theo → render phải bỏ hẳn khối này.
     const result = await buildOrderPaymentTool(ctx).run({ ma_van_don: "VTP01" });
-    expect(result.content).toContain("Nội dung chuyển khoản: NAP DL001");
-    expect(result.content).toContain("NGUYÊN VĂN");
-    expect(result.content).toContain("KHÔNG phải tiền COD");
+    expect(result.content).not.toContain("NAP DL001");
+    expect(result.content).not.toContain("0011000123456");
+    expect(result.content).not.toContain("https://qr.example/abc");
+    expect(result.content).toContain("tao_phieu_thanh_toan");
   });
 
   test("đơn của đại lý khác → không thấy, KHÔNG rò số tiền", async () => {

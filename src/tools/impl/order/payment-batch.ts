@@ -1,9 +1,10 @@
 // payment-batch.ts — tool GHI: tạo PHIẾU THANH TOÁN GỘP cho nhiều đơn chưa thanh toán của đại lý
 // phòng này, trả mã QR SePay để đại lý chuyển một lần.
 //
-// Khác `tra_tien_can_chuyen` (ĐỌC, một đơn, nội dung CK nạp ví theo mã đại lý): phiếu gộp có nội
-// dung CK RIÊNG = `DH` + mã phiếu, webhook SePay khớp theo đúng chuỗi đó để mở khoá đơn. Trộn hai
-// nội dung CK là tiền về nhưng đơn không đi.
+// Khác `tra_tien_can_chuyen` (ĐỌC, một đơn, chỉ trả CON SỐ — không khối CK): đây là ĐƯỜNG THANH
+// TOÁN DUY NHẤT để đơn đi, kể cả khi chỉ có 1 đơn. Nội dung CK = `DH` + mã phiếu, webhook SePay
+// khớp theo đúng chuỗi đó để mở khoá đơn. Nội dung nạp ví (`DLM` + mã đại lý) chỉ cộng tiền vào
+// ví/bù ví âm — tiền về nhưng đơn không đi.
 //
 // Đường ghi này đại lý TỰ GÕ ĐƯỢC (như nạp PosCake): phiếu chỉ gom đơn CỦA CHÍNH đại lý phòng —
 // dealerId ép server-side qua header, model không có tham số chỉ định đại lý. POST không retry,
