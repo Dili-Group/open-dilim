@@ -8,6 +8,9 @@ agents: dealer
 
 Văn bản gốc: Công ty CP DiLi Supplement, số 001/CS-DLS.KT, ký 12/08/2026, **hiệu lực 26/08/2026**.
 
+Video giải thích chính sách mới: https://youtu.be/2CDjils_jco — đại lý hỏi về chính sách hoa hồng
+mới / chính sách 001 thì gửi kèm link này để họ xem giải thích đầy đủ.
+
 Chính sách này chia làm hai dòng tiền hoàn toàn khác nhau, đại lý rất hay gộp làm một:
 
 | Dòng tiền | Bản chất | Tính trên | Chi tiết |
