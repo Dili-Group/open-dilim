@@ -1,13 +1,13 @@
-# chinh-sach-hoa-hong / doi-soat-thanh-toan.md — Điều 12 & Điều 13
+# chinh-sach-hoa-hong / doi-soat-thanh-toan.md — Điều 14 & Điều 15
 
-## Kỳ ghi nhận (Điều 12.1)
+## Kỳ ghi nhận (Điều 14.1)
 
 Từ **00h00 ngày 26 tháng trước (n-1)** đến **23h59 ngày 25 tháng này (n)**, dương lịch.
 
 Đơn đi ngày 26 trở đi thuộc kỳ của tháng sau. Đại lý hay hỏi "đơn ngày 27 tính vào tháng nào" →
 tính vào kỳ tháng sau.
 
-## Lịch xuất báo cáo đối soát (Điều 12.2)
+## Lịch xuất báo cáo đối soát (Điều 14.2)
 
 Báo cáo ra trên **Dashboard cá nhân**:
 
@@ -22,7 +22,7 @@ qua **nhóm Zalo của đại lý**. Quá hạn mà không có ý kiến → s�
 
 Nhắc đại lý mốc 03 ngày này mỗi khi họ than số liệu sai — để họ khiếu nại kịp hạn, đừng để trôi.
 
-## Thanh toán (Điều 12.3 & 12.4)
+## Thanh toán (Điều 14.3 & 14.4)
 
 - Chuyển vào **tài khoản ngân hàng chính chủ** của đại lý.
 - Thời hạn: **trong vòng 05 ngày** sau ngày cuối cùng đại lý chốt số liệu đối soát — tức
@@ -30,7 +30,7 @@ Nhắc đại lý mốc 03 ngày này mỗi khi họ than số liệu sai — đ
 - **Hạn mức tối thiểu để chuyển khoản: 500.000 đ.** Dưới mức này, số tiền **cộng dồn** sang kỳ
   thanh toán tháng tiếp theo (không mất).
 
-## Thuế TNCN (Điều 13)
+## Thuế TNCN (Điều 15)
 
 Mọi mức hoa hồng công bố trên hệ thống là **Gross** — chưa gồm nghĩa vụ thuế. DiLiM khấu trừ
 **Thuế Thu nhập cá nhân** theo quy định pháp luật hiện hành **trước khi** chi trả số thực nhận

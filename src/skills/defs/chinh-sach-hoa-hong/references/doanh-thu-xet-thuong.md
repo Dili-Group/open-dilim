@@ -1,4 +1,4 @@
-# chinh-sach-hoa-hong / doanh-thu-xet-thuong.md — Điều 4 & Điều 5
+# chinh-sach-hoa-hong / doanh-thu-xet-thuong.md — Điều 4 & Điều 6
 
 ## Định nghĩa (Điều 4)
 
@@ -25,7 +25,14 @@ tầng, thăng hạng và các chương trình thưởng.
 Agent **không tra được** doanh thu xét thưởng và **không ước lượng** nó. Nêu ngưỡng cho đại lý tự
 ước, rồi chuyển kế toán.
 
-## Đổi / trả / hủy đơn (Điều 5)
+## Doanh thu xét thưởng ≠ doanh số nhóm
+
+Điều kiện tầng trong chính sách mới xét theo **doanh số nhóm** — gộp tuyến dưới chưa thành Leader,
+xem `leader-doanh-so-nhom.md` — còn bảng chiết khấu xét doanh thu xét thưởng **cá nhân** tích lũy.
+Văn bản ghi doanh thu nhóm "tính theo giá đại lý/giá sỉ thực thu về công ty"; quan hệ chính xác
+giữa hai khái niệm chưa được quy định rõ, không tự chốt (xem `cau-hoi-kho.md`).
+
+## Đổi / trả / hủy đơn (Điều 6)
 
 Nguyên tắc: đơn bị hoàn trả, hủy hoặc hoàn tiền **sau khi** đã ghi nhận doanh thu → hệ thống trừ
 phần doanh thu hoàn trả vào **kỳ đối soát hiện tại**. Nếu việc trừ làm thay đổi các mốc đã đạt của

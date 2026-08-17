@@ -70,14 +70,14 @@ export type UseSkillResult =
  * Vì sao có trần chứ không kèm hết: skill do non-dev soạn, một hôm ai thêm reference 200KB là nổ
  * cửa sổ context. Trần này là cái phanh, không phải cái van tiết kiệm.
  *
- * Vì sao trần RỘNG (24k ký tự ≈ 8k token): đo trên prod thì `llm_ms ≈ 800 + out_tokens × 6.3` —
+ * Vì sao trần RỘNG (40k ký tự ≈ 13k token): đo trên prod thì `llm_ms ≈ 800 + out_tokens × 6.3` —
  * token INPUT gần như không tính vào latency, còn mỗi lượt use_reference tiết kiệm được là bớt một
  * hop 2-13s (model phải dừng lượt, gọi tool, rồi soạn lại từ đầu). Đổi token vào lấy hop ra.
  *
- * Mốc chọn theo skill dày nhất hiện có (`huong-dan`: 9 tài liệu ≈ 21k ký tự) — cộng chỗ thở. Vượt
- * trần thì suy giảm mềm: tài liệu TO nhất rụng xuống use_reference, phần còn lại vẫn kèm đủ.
+ * Mốc chọn theo skill dày nhất hiện có (`chinh-sach-hoa-hong`: 7 tài liệu ≈ 32k ký tự) — cộng chỗ
+ * thở. Vượt trần thì suy giảm mềm: tài liệu TO nhất rụng xuống use_reference, phần còn lại vẫn kèm đủ.
  */
-const REFERENCE_BUDGET_CHARS = 24_000;
+const REFERENCE_BUDGET_CHARS = 40_000;
 
 /**
  * Model chọn skill theo `name` → nạp body + KÈM LUÔN nội dung reference (tầng 2 + 3 trong một lượt).

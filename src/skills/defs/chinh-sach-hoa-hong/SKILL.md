@@ -1,15 +1,18 @@
 ---
 name: chinh-sach-hoa-hong
-description: Đại lý hỏi về Chính sách hoa hồng & phát triển hệ thống số 001/CS-DLS.KT (hiệu lực 26/08/2026) — "doanh thu xét thưởng là gì", "mở khóa tầng F1 F2 F3 cần gì", "hoa hồng lãnh đạo bao nhiêu một sản phẩm", "duy trì tầng", "auto unlock 500 triệu", "ân hạn", "bao giờ được trả hoa hồng", "chốt sổ ngày 25", "đối soát ngày 06 16 26", "trả hàng có bị trừ hoa hồng không", "vợ chồng cùng tuyến", "trừ thuế TNCN". Load khi tin nhắn nhắc chính sách 001 / hoa hồng lãnh đạo / tầng / F1 F2 F3 / mở khóa / duy trì / đối soát / kỳ chốt sổ / doanh thu xét thưởng.
+description: Đại lý hỏi về Chính sách hoa hồng & phát triển hệ thống (bản mới thay thế 001/CS-DLS.KT, hiệu lực 26/08/2026) — "doanh thu xét thưởng là gì", "doanh số nhóm / gộp nhóm là gì", "Leader là gì", "tách nhánh", "mở khóa tầng F1 F2 F3 cần gì", "hoa hồng lãnh đạo bao nhiêu một sản phẩm", "duy trì tầng", "auto unlock 500 triệu", "hoán đổi F1 F2", "ân hạn", "bị khóa lấy lại hệ thống", "bao giờ được trả hoa hồng", "chốt sổ ngày 25", "đối soát ngày 06 16 26", "trả hàng có bị trừ hoa hồng không", "vợ chồng cùng tuyến", "trừ thuế TNCN". Load khi tin nhắn nhắc chính sách hoa hồng / chính sách 001 / chính sách mới / hoa hồng lãnh đạo / Leader / doanh số nhóm / tầng / F1 F2 F3 / mở khóa / duy trì / đối soát / kỳ chốt sổ / doanh thu xét thưởng.
 agents: dealer
 ---
 
-# Chính sách 001/CS-DLS.KT — hoa hồng & phát triển hệ thống
+# Chính sách hoa hồng & phát triển hệ thống — bản thay thế 001/CS-DLS.KT
 
-Văn bản gốc: Công ty CP DiLi Supplement, số 001/CS-DLS.KT, ký 12/08/2026, **hiệu lực 26/08/2026**.
+Văn bản gốc: Công ty CP DiLi Supplement, **hiệu lực 26/08/2026**, **thay thế thông báo số
+001/CS-DLS.KT** (Điều 18). Đại lý vẫn quen gọi "chính sách 001" — hiểu là đang hỏi chính sách này.
+Khi khác với thỏa thuận/thông báo ban hành trước đó về cùng nội dung, chính sách này ưu tiên áp
+dụng (Điều 2).
 
 Video giải thích chính sách mới: https://youtu.be/2CDjils_jco — đại lý hỏi về chính sách hoa hồng
-mới / chính sách 001 thì gửi kèm link này để họ xem giải thích đầy đủ.
+mới thì gửi kèm link này để họ xem giải thích đầy đủ.
 
 Chính sách này chia làm hai dòng tiền hoàn toàn khác nhau, đại lý rất hay gộp làm một:
 
@@ -23,13 +26,13 @@ lãnh đạo **không có phần trăm**.
 
 ## Luật 1 — Ngày 26/08/2026 là ranh giới, đừng trả lời trước mốc bằng bảng sau mốc
 
-Chính sách 001 chỉ áp **từ 26/08/2026**. Đơn và kỳ trước mốc đó vẫn theo văn bản cũ — bảng chiết
+Chính sách này chỉ áp **từ 26/08/2026**. Đơn và kỳ trước mốc đó vẫn theo văn bản cũ — bảng chiết
 khấu cũ nằm ở skill `chiet-khau`.
 
 Đại lý hỏi chuyện đang xảy ra hôm nay mà hôm nay còn trước 26/08 → trả lời theo bảng cũ, và nói
 thêm là từ 26/08 có chính sách mới. Đừng hứa mức mới cho đơn hiện tại.
 
-**Đại lý đã hợp tác trước 26/08/2026 thì GIỮ NGUYÊN mức chiết khấu đã ký** (Điều 6, ghi chú). Bảng
+**Đại lý đã hợp tác trước 26/08/2026 thì GIỮ NGUYÊN mức chiết khấu đã ký** (Điều 7, ghi chú). Bảng
 tích lũy mới không tự động kéo mức của họ xuống 30%. Đại lý cũ hỏi "vậy em có bị tính lại từ đầu
 không" → trả lời: theo văn bản thì giữ nguyên mức đã ký, phần áp dụng cụ thể cho từng mã số do vận
 hành xác nhận.
@@ -47,27 +50,47 @@ Agent **không có** con số này. Không cộng tiền trong `tra_don_hang` đ
 chưa" → nêu ngưỡng để họ tự ước, rồi chuyển kế toán đối soát. Chi tiết:
 `references/doanh-thu-xet-thuong.md`.
 
-## Luật 3 — Con số hoa hồng lãnh đạo trong văn bản là VÍ DỤ, không phải mức thật
+## Luật 3 — Doanh số CÁ NHÂN và doanh số NHÓM là hai con số khác nhau, hỏi rõ đang nói cái nào
 
-Điều 7 viết "Sản phẩm A có hoa hồng lãnh đạo 50.000 VNĐ/sản phẩm" — đó là câu **ví dụ minh họa**.
+Chính sách mới xét mọi điều kiện tầng theo **doanh số nhóm (Group)** — tổng doanh số của đại lý
+CỘNG toàn bộ tuyến dưới **chưa** thành Leader, gộp không giới hạn tầng sâu cho tới khi gặp một
+nhánh đã tách thành Leader (Điều 5). Trong doanh số nhóm đó luôn có yêu cầu **tối thiểu 30 triệu/
+tháng là doanh số cá nhân** của chính đại lý.
+
+- Chiết khấu bán lẻ → xét doanh thu **cá nhân** tích lũy.
+- Mở khóa / duy trì / auto unlock tầng → xét doanh số **nhóm** + sàn 30 triệu cá nhân.
+
+Thành viên tuyến dưới thành Leader thì doanh số nhánh đó **tách khỏi** nhóm của cấp trên — từ đó
+cấp trên nhận hoa hồng lãnh đạo từ nhánh đó thay vì cộng gộp doanh số. Chi tiết cơ chế gộp, tách
+nhánh, danh hiệu Leader: `references/leader-doanh-so-nhom.md`.
+
+## Luật 4 — Con số hoa hồng lãnh đạo trong văn bản là VÍ DỤ, không phải mức thật
+
+Điều 8 viết "Sản phẩm A có hoa hồng lãnh đạo 50.000 VNĐ/sản phẩm" — đó là câu **ví dụ minh họa**.
 Mức thật do **Thông báo riêng theo từng giai đoạn** quy định, thay đổi theo thời kỳ và theo sản phẩm.
 
 Agent **không cầm bảng mức đó** → tuyệt đối không nói "mỗi sản phẩm chị được 50 nghìn". Đại lý tự
 trích câu 50.000 ra hỏi → nói rõ đó là ví dụ trong văn bản, mức áp dụng thật xem Thông báo hiện
 hành, em nhờ vận hành gửi bản mới nhất.
 
-## Luật 4 — Mở khóa và duy trì là HAI điều kiện khác nhau, hỏi rõ đại lý đang hỏi cái nào
+## Luật 5 — Mở khóa và duy trì là HAI điều kiện khác nhau, hỏi rõ đại lý đang hỏi cái nào
 
-- **Mở khóa** (Điều 8-9): làm **một lần**, để có quyền nhận hoa hồng tầng đó.
-- **Duy trì** (Điều 10): xét **lại mỗi tháng**, để tháng đó thực sự được trả tiền.
+- **Mở khóa** (Điều 9-10): làm **một lần**, để có quyền nhận hoa hồng tầng đó.
+- **Duy trì** (Điều 11): xét **lại mỗi tháng**, để tháng đó thực sự được trả tiền.
 
-Mở khóa xong không có nghĩa là tháng nào cũng có tiền. Ngược lại, tháng nào rớt duy trì thì tầng
-**không bị xóa** — tự mở lại vào tháng đạt chuẩn trở lại, không phải làm lại từ đầu.
+Mở khóa xong không có nghĩa là tháng nào cũng có tiền. Rớt duy trì thì đi theo lộ trình Điều 13:
+tháng đầu **ân hạn** (vẫn được trả, có cảnh báo); tháng thứ hai liên tiếp → **khóa** quyền lợi tầng
+đó, hoa hồng chuyển cho tuyến trên gần nhất. Lấy lại: trong **06 tháng** đạt lại mốc 100 triệu
+doanh số tích lũy như Điều 9 khoản 1 → nhận lại toàn bộ hệ thống, hưởng từ tháng nhận lại,
+**không truy lãnh** các tháng bị khóa. Đừng nói "rớt là mất vĩnh viễn", cũng đừng nói "đạt lại
+tháng nào là tự có tiền tháng đó" khi đã sang trạng thái khóa.
 
-Auto Unlock (Điều 9: cá nhân 500 triệu/tháng → Tầng 2; 1 tỷ/tháng → Tầng 3) chỉ giải quyết vế **mở
-khóa**, không miễn vế duy trì. Bảng đầy đủ cả hai vế: `references/tang-va-hoa-hong.md`.
+Auto Unlock (Điều 10: doanh số **nhóm** ≥ 500 triệu/tháng → Tầng 2; ≥ 1 tỷ/tháng → Tầng 3, kèm
+30 triệu cá nhân) chỉ giải quyết vế **mở khóa**, không miễn vế duy trì. Điều kiện cấu trúc F1/F2
+được phép **hoán đổi** theo Điều 12 (sàn cứng: luôn phải có tối thiểu 02 F1 trực tiếp đạt chuẩn).
+Bảng đầy đủ: `references/tang-va-hoa-hong.md`.
 
-## Luật 5 — "Năm thứ 1" tính theo ngày ký hợp đồng của TỪNG đại lý, không phải năm dương lịch
+## Luật 6 — "Năm thứ 1" tính theo ngày ký hợp đồng của TỪNG đại lý, không phải năm dương lịch
 
 Điều kiện Tầng 2 và Tầng 3 chặt hơn từ năm thứ 2. Năm thứ 1 = 12 tháng liên tục kể từ **ngày ký Hợp
 đồng Đại lý** của chính người đó; từ tháng thứ 13 áp bộ điều kiện năm thứ 2.
@@ -76,47 +99,48 @@ Agent không tự tính mốc này nếu không chắc ngày ký. `tra_ho_so_dai
 để định hướng, nhưng ngày ký hợp đồng chính thức do vận hành xác nhận. Đừng chốt "chị đang năm thứ
 nhất nên chỉ cần 2 F1" khi chưa chắc mốc.
 
-## Luật 6 — Trả hàng thì trừ lùi, và có thể làm MẤT mốc đã đạt
+## Luật 7 — Trả hàng thì trừ lùi, và có thể làm MẤT mốc đã đạt
 
 Đơn bị trả/hủy/hoàn tiền sau khi đã ghi nhận doanh thu → phần doanh thu đó bị trừ vào **kỳ đối soát
-hiện tại**. Nếu việc trừ làm tụt mốc của tháng đã chốt, phần hoa hồng và chiết khấu đã trả dư sẽ bị
-khấu trừ vào kỳ hiện tại.
+hiện tại** (Điều 6). Nếu việc trừ làm tụt mốc của tháng đã chốt, phần hoa hồng và chiết khấu đã trả
+dư sẽ bị khấu trừ vào kỳ hiện tại.
 
 Nói thẳng điều này khi đại lý hỏi về trả hàng — đừng để họ bất ngờ lúc thấy kỳ sau bị trừ tiền. Ví
 dụ tính đầy đủ theo văn bản: `references/doanh-thu-xet-thuong.md`.
 
-## Luật 7 — Mốc đối soát và thanh toán là ngày cứng, khiếu nại có hạn 03 ngày làm việc
+## Luật 8 — Mốc đối soát và thanh toán là ngày cứng, khiếu nại có hạn 03 ngày làm việc
 
-Kỳ ghi nhận: **00h00 ngày 26 tháng trước → 23h59 ngày 25 tháng này**. Báo cáo đối soát ra ngày
-**06, 16, 26** trên Dashboard cá nhân. Đại lý có **03 ngày làm việc** để khiếu nại qua Sales Admin
-trong nhóm Zalo; quá hạn không phản hồi thì số liệu hệ thống được xem là đã đồng ý.
+Kỳ ghi nhận: **00h00 ngày 26 tháng trước → 23h59 ngày 25 tháng này** (Điều 14). Báo cáo đối soát ra
+ngày **06, 16, 26** trên Dashboard cá nhân. Đại lý có **03 ngày làm việc** để khiếu nại qua Sales
+Admin trong nhóm Zalo; quá hạn không phản hồi thì số liệu hệ thống được xem là đã đồng ý.
 
 Hoa hồng dưới **500.000 đ** không chuyển khoản, cộng dồn sang kỳ sau. Hoa hồng công bố là **Gross**,
-công ty khấu trừ thuế TNCN trước khi chi trả. Bảng mốc ngày đầy đủ: `references/doi-soat-thanh-toan.md`.
+công ty khấu trừ thuế TNCN trước khi chi trả (Điều 15). Bảng mốc ngày đầy đủ:
+`references/doi-soat-thanh-toan.md`.
 
-## Luật 8 — Vợ/chồng, cha mẹ/con cùng tuyến: tuyến trên cần 100 triệu/tháng
+## Luật 9 — Vợ/chồng, cha mẹ/con cùng tuyến: tuyến trên cần 100 triệu/tháng
 
 Mã số có quan hệ lợi ích mật thiết nằm cùng tuyến bảo trợ → để nhận hoa hồng phát sinh từ mã số đó,
-mã số tuyến trên phải đạt **Doanh thu xét thưởng riêng từ 100 triệu/tháng** (Điều 14). Các nhánh
+mã số tuyến trên phải đạt **Doanh thu xét thưởng riêng từ 100 triệu/tháng** (Điều 16). Các nhánh
 kinh doanh độc lập khác vẫn tính bình thường.
 
 Đây là quy định nhạy cảm — nói bằng giọng quy định chung, không suy đoán quan hệ gia đình của ai.
 Chi tiết + ví dụ: `references/quan-he-loi-ich.md`.
 
-## Luật 9 — Agent giải thích quy định, KHÔNG chốt số tiền và KHÔNG hứa duyệt
+## Luật 10 — Agent giải thích quy định, KHÔNG chốt số tiền và KHÔNG hứa duyệt
 
 Được phép: nêu ngưỡng, giải thích cơ chế, đọc lại điều khoản, hướng dẫn nộp khiếu nại.
 
 Không được: tính hộ tiền hoa hồng đại lý sẽ nhận, khẳng định đại lý đã đủ/chưa đủ mốc, hứa ngày
-duyệt, hứa mức chiết khấu, nói tầng đã mở khóa. Toàn bộ những cái đó do hệ thống đối soát và bên
-duyệt chốt.
+duyệt, hứa mức chiết khấu, nói tầng đã mở khóa, xác nhận ai là Leader hay đã tách nhánh. Toàn bộ
+những cái đó do hệ thống đối soát và bên duyệt chốt.
 
-## Luật 10 — Văn bản có chỗ chưa quy định rõ: chuyển, đừng suy diễn
+## Luật 11 — Văn bản có chỗ chưa quy định rõ: chuyển, đừng suy diễn
 
-Một số câu hỏi rất hay gặp mà văn bản 001 **không trả lời dứt khoát** (chu kỳ 06 tháng tính trượt
+Một số câu hỏi rất hay gặp mà văn bản **không trả lời dứt khoát** (chu kỳ 06 tháng tính trượt
 hay cố định, tiền cọc trước 500 triệu có tính vào doanh thu xét thưởng không, hoa hồng lãnh đạo
-mỗi tầng nhận đủ hay chia nhau...). Danh sách và câu trả lời an toàn cho từng cái:
-`references/cau-hoi-kho.md`.
+mỗi tầng nhận đủ hay chia nhau, doanh số nhóm có trùng định nghĩa doanh thu xét thưởng không...).
+Danh sách và câu trả lời an toàn cho từng cái: `references/cau-hoi-kho.md`.
 
 Gặp câu trong danh sách đó → đọc nguyên tắc chung, nói rõ phần chi tiết do vận hành/kế toán xác
 nhận, chuyển lên. **Không tự chọn một cách hiểu.** Chọn sai một lần là đại lý lấy hàng sai giá hoặc

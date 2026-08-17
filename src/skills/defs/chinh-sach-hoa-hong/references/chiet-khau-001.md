@@ -1,9 +1,9 @@
-# chinh-sach-hoa-hong / chiet-khau-001.md — Điều 6, chiết khấu bán lẻ theo chính sách 001
+# chinh-sach-hoa-hong / chiet-khau-001.md — Điều 7, chiết khấu bán lẻ (chính sách mới thay thế 001)
 
 **Áp dụng từ 26/08/2026.** Trước mốc đó dùng bảng cũ ở skill `chiet-khau`. Đại lý đã hợp tác
 trước 26/08/2026 **giữ nguyên mức đã ký với công ty**.
 
-## Bảng mức lũy tiến (Điều 6.1)
+## Bảng mức lũy tiến (Điều 7.1)
 
 Xét theo **tổng doanh thu xét thưởng cá nhân TÍCH LŨY trong chu kỳ 06 tháng** (khác hẳn bảng cũ,
 vốn xét doanh thu từng kỳ đối soát).
@@ -29,14 +29,14 @@ Không hồi tố cho các đơn đã đi trước khi chạm mốc. Ví dụ tr
 Đại lý hay hỏi "em vừa đủ 100 triệu, mấy đơn tháng trước có được tính lại 40% không" → **không**,
 mức mới chỉ áp cho đơn phát sinh từ thời điểm đạt mốc.
 
-## Điều kiện duy trì mức (Điều 6.2)
+## Điều kiện duy trì mức (Điều 7.2)
 
 Mỗi chu kỳ **06 tháng gần nhất**, đại lý phải đạt tổng doanh thu xét thưởng cá nhân tối thiểu
 **180.000.000 đ**. Thời gian tính bắt đầu từ ngày chính sách có hiệu lực (26/08/2026).
 
 Không đạt → mức chiết khấu hiện tại **bị tạm khóa**, đại lý về **30%** cho tới khi được khôi phục.
 
-## Khôi phục (Điều 6.3)
+## Khôi phục (Điều 7.3)
 
 Làm **một trong** các việc sau:
 
@@ -46,10 +46,10 @@ Làm **một trong** các việc sau:
 
 Hoàn thành → hệ thống khôi phục **đúng mức trước khi bị khóa**, không phải tích lũy lại từ đầu.
 
-## Bốn ghi chú của Điều 6 — đọc đủ, đừng bỏ
+## Bốn ghi chú của Điều 7 — đọc đủ, đừng bỏ
 
 1. Đại lý hợp tác **trước** ngày chính sách có hiệu lực: **giữ nguyên mức chiết khấu đã ký**.
-2. Thời gian "tích lũy doanh thu xét thưởng" tại Điều 6.1 là **06 tháng**.
+2. Thời gian "tích lũy doanh thu xét thưởng" tại Điều 7.1 là **06 tháng**.
 3. Các chương trình hưởng **50%** khi tham gia Khóa Thiền, Khóa đào tạo... thực hiện theo **các
    Thông báo đã ban hành** — không nằm trong văn bản 001, agent không cầm bảng đó.
 4. Đại lý **chưa** đạt 500 triệu nhưng **thanh toán trước 500 triệu** để trừ dần khi đi đơn:
@@ -70,7 +70,7 @@ Hoàn thành → hệ thống khôi phục **đúng mức trước khi bị khó
 
 ### Hỏi vì sao bị tụt về 30%
 
-> Theo Điều 6, mỗi chu kỳ 06 tháng gần nhất cần tối thiểu 180 triệu doanh thu xét thưởng cá nhân
+> Theo Điều 7, mỗi chu kỳ 06 tháng gần nhất cần tối thiểu 180 triệu doanh thu xét thưởng cá nhân
 > để giữ mức. Không đạt thì mức hiện tại bị tạm khóa và áp 30%. Khôi phục thì tham gia khóa Thiền
 > hoặc khóa đào tạo của DiLiM, hoặc đạt 50 triệu/tháng — xong là về đúng mức cũ, không phải tích
 > lũy lại từ đầu ạ.

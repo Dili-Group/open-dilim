@@ -1,6 +1,6 @@
-# chinh-sach-hoa-hong / quan-he-loi-ich.md — Điều 14, 15, 16
+# chinh-sach-hoa-hong / quan-he-loi-ich.md — Điều 16, 17, 18
 
-## Mã số có quan hệ lợi ích (Điều 14)
+## Mã số có quan hệ lợi ích (Điều 16)
 
 **Nguyên tắc:** DiLiM khuyến khích mỗi hộ gia đình tập trung phát triển **01 mã số kinh doanh** —
 để tăng sức mạnh doanh số, xây Leader mạnh, tránh phân tán nguồn lực.
@@ -38,15 +38,15 @@ Mức doanh thu áp dụng cụ thể có thể được **Ban Giám đốc đi�
   đang lách chính sách.
 - **Không** xác nhận một mã số cụ thể có bị xếp vào diện quan hệ lợi ích hay không — việc xác định
   do vận hành làm.
-- Đại lý hỏi cách sắp xếp tuyến để tối ưu → không tư vấn lách; nêu nguyên tắc Điều 14 và chuyển
+- Đại lý hỏi cách sắp xếp tuyến để tối ưu → không tư vấn lách; nêu nguyên tắc Điều 16 và chuyển
   vận hành.
 
-> Dạ theo Điều 14, hai mã số có quan hệ mật thiết mà nằm cùng một tuyến bảo trợ thì mã số tuyến trên
+> Dạ theo Điều 16, hai mã số có quan hệ mật thiết mà nằm cùng một tuyến bảo trợ thì mã số tuyến trên
 > cần đạt doanh thu xét thưởng riêng từ 100 triệu/tháng mới nhận hoa hồng phát sinh từ nhánh đó ạ.
 > Các nhánh kinh doanh độc lập khác vẫn tính bình thường. Trường hợp cụ thể của mình em chuyển vận
 > hành xác nhận giúp anh/chị.
 
-## Thu hồi quyền lợi (Điều 15)
+## Thu hồi quyền lợi (Điều 17)
 
 Công ty có quyền **thu hồi toàn bộ quyền lợi, đóng mã số vĩnh viễn và không thanh toán hoa hồng
 chưa chi trả** với đại lý vi phạm:
@@ -59,15 +59,15 @@ chưa chi trả** với đại lý vi phạm:
 Agent **không cảnh cáo, không quy kết, không dọa** đại lý bằng điều này. Chỉ nêu lại nội dung khi
 đại lý hỏi thẳng chế tài. Nghi ngờ có vi phạm → không xử lý trong nhóm chat, chuyển vận hành.
 
-## Hiệu lực (Điều 16)
+## Hiệu lực (Điều 18)
 
-- Chính sách 001/CS-DLS.KT có hiệu lực **từ 26/08/2026**.
+- Chính sách này có hiệu lực **từ 26/08/2026**, **thay thế thông báo số 001/CS-DLS.KT**.
 - Công ty bảo lưu quyền sửa đổi, bổ sung cho phù hợp thực tế kinh doanh. Mọi thay đổi được thông báo
   chính thức bằng văn bản qua hệ thống, **trước ít nhất 15 ngày**.
 - Các văn bản, Thông báo do Ban Giám đốc ban hành theo từng thời kỳ (gồm **mức hoa hồng lãnh đạo**
-  tại Điều 7) là **bộ phận không tách rời** của chính sách này.
-- Khi chính sách 001 khác với thỏa thuận/thông báo đã ban hành **trước đó** về cùng một nội dung →
-  **chính sách 001 được ưu tiên áp dụng** (Điều 2).
+  tại Điều 8) là **bộ phận không tách rời** của chính sách này.
+- Khi chính sách này khác với thỏa thuận/thông báo đã ban hành **trước đó** về cùng một nội dung →
+  **chính sách này được ưu tiên áp dụng** (Điều 2).
 
 Đại lý lo bị đổi luật giữa chừng → nói được: mọi thay đổi phải báo trước ít nhất 15 ngày bằng văn
 bản.
