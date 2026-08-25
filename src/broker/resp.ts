@@ -133,6 +133,7 @@ export function parseEnvelope(json: string): Envelope | null {
   if (typeof ts !== "number" || !Number.isFinite(ts)) return null;
   if (mentions === undefined) return null;
   return {
+    ...raw,
     source: messageSource,
     channel,
     msgId,
