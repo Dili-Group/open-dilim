@@ -1,7 +1,7 @@
 # chinh-sach-hoa-hong / cau-hoi-kho.md — câu hỏi văn bản CHƯA chốt
 
-Đây là các câu hỏi đại lý hay hỏi mà chính sách (bản thay thế 001/CS-DLS.KT) **không quy định dứt
-khoát**, hoặc có hai chỗ trong văn bản đọc ra hai kết quả khác nhau.
+Đây là các câu hỏi đại lý hay hỏi mà chính sách (03/2026/CS-KD, thay thế 002/CS-DLS.KT) **không
+quy định dứt khoát**, hoặc có hai chỗ trong văn bản đọc ra hai kết quả khác nhau.
 
 **Luật chung cho cả file này: agent KHÔNG chọn giúp một cách hiểu.** Đọc lại phần văn bản có nói,
 nói rõ phần chưa quy định, chuyển vận hành/kế toán. Chọn sai một lần là đại lý lấy hàng sai giá
@@ -54,12 +54,14 @@ không.
 
 ## 5. "Vậy các diện cũ — Thương Hiệu Cá Nhân, quảng cáo 1 triệu/ngày, Vipassana — còn không?"
 
-Ghi chú Điều 7 chỉ nhắc **các chương trình 50% khi tham gia Khóa Thiền / Khóa đào tạo** là "thực
-hiện theo các Thông báo đã ban hành". Các nhánh cũ khác (Thương Hiệu Cá Nhân 3 giai đoạn 40/45/50%,
-bù 20% khi chạy quảng cáo 1 triệu/ngày × 30 ngày, Tích Sản Dòng Tiền) **không được nhắc tên**,
+Ghi chú Điều 7 chỉ nhắc **các chương trình 40%–50% khi tham gia Khóa Thiền / Khóa đào tạo** là
+"thực hiện theo các Thông báo đã ban hành". Điều 7.7 nay có lộ trình đào tạo lên 40% và nêu tên
+"lớp Thương hiệu cá nhân" làm **ví dụ** — nhưng bảng mức riêng của diện cũ (3 giai đoạn 40/45/50%,
+bù 20% khi chạy quảng cáo 1 triệu/ngày × 30 ngày, Tích Sản Dòng Tiền) **không được nhắc lại**,
 trong khi Điều 2 nói chính sách này ưu tiên áp dụng khi khác với văn bản trước đó.
 
-**Nói được:** các chương trình khóa Thiền/khóa đào tạo vẫn theo Thông báo đã ban hành.
+**Nói được:** các chương trình khóa Thiền/khóa đào tạo vẫn theo Thông báo đã ban hành; lộ trình
+đào tạo lên 40% theo Điều 7.7 (xem `chiet-khau-001.md`).
 **Không nói:** diện cũ của đại lý đó còn hiệu lực hay đã bị thay thế → chuyển vận hành xác nhận,
 và **không hứa mức**.
 
@@ -142,6 +144,26 @@ chuyển có dừng ngay từ tháng nhận lại không.
 
 **Nói được:** nguyên tắc hoa hồng tầng bị khóa chuyển cho tuyến trên gần nhất, không truy lãnh.
 **Không nói:** điều kiện của tuyến trên nhận thay, hay số tiền cụ thể đã chuyển.
+
+## 14. "Em vừa hưởng chênh lệch chiết khấu, vừa nhận hoa hồng lãnh đạo trên cùng đơn của F1 à?"
+
+Điều 7.4 cho tuyến trên hưởng chênh lệch chiết khấu trên doanh số tuyến dưới liền kề; Điều 8 lại
+trả hoa hồng lãnh đạo cố định trên mỗi sản phẩm tuyến dưới bán. Văn bản **không nói** hai khoản
+này cộng dồn hay loại trừ nhau trên cùng một đơn hàng.
+
+**Nói được:** hai cơ chế riêng — chênh lệch chiết khấu (Điều 7.4, điều kiện Leader + duy trì) và
+hoa hồng lãnh đạo (Điều 8, số cố định theo Thông báo).
+**Không nói:** có được nhận cả hai trên cùng đơn hay không, và không tính hộ tổng tiền.
+
+## 15. "Rớt 3 tháng đầu, học xong khóa đào tạo thì em được mức bao nhiêu?"
+
+Điều 7.6 (diện KHÔNG ĐẠT) nói sau khi hoàn thành khóa đào tạo, đại lý "hưởng mức chiết khấu theo
+**Thông báo của khóa đào tạo đó**" — mức cụ thể không nằm trong chính sách. Văn bản cũng dẫn chiếu
+"khóa đào tạo tại **khoản 5** Điều này" trong khi nội dung đào tạo nằm ở **khoản 7** — lỗi dẫn
+chiếu nội bộ, không tự suy ra khoản nào đúng.
+
+**Nói được:** cơ chế ĐẠT/KHÔNG ĐẠT của 3 tháng đầu, và việc học khóa đào tạo là đường lấy lại mức.
+**Không nói:** mức chiết khấu cụ thể sau đào tạo → xin Thông báo của khóa từ vận hành.
 
 ---
 

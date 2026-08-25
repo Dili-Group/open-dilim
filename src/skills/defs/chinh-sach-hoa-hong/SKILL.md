@@ -1,28 +1,30 @@
 ---
 name: chinh-sach-hoa-hong
-description: Đại lý hỏi về Chính sách hoa hồng & phát triển hệ thống (bản mới thay thế 001/CS-DLS.KT, hiệu lực 26/08/2026) — "doanh thu xét thưởng là gì", "doanh số nhóm / gộp nhóm là gì", "Leader là gì", "tách nhánh", "mở khóa tầng F1 F2 F3 cần gì", "hoa hồng lãnh đạo bao nhiêu một sản phẩm", "duy trì tầng", "auto unlock 500 triệu", "hoán đổi F1 F2", "ân hạn", "bị khóa lấy lại hệ thống", "bao giờ được trả hoa hồng", "chốt sổ ngày 25", "đối soát ngày 06 16 26", "trả hàng có bị trừ hoa hồng không", "vợ chồng cùng tuyến", "trừ thuế TNCN". Load khi tin nhắn nhắc chính sách hoa hồng / chính sách 001 / chính sách mới / hoa hồng lãnh đạo / Leader / doanh số nhóm / tầng / F1 F2 F3 / mở khóa / duy trì / đối soát / kỳ chốt sổ / doanh thu xét thưởng.
+description: Đại lý hỏi về Chính sách hoa hồng & phát triển hệ thống (03/2026/CS-KD, thay thế 002/CS-DLS.KT, hiệu lực 26/08/2026) — "doanh thu xét thưởng là gì", "doanh số nhóm / gộp nhóm là gì", "Leader là gì", "tách nhánh", "mở khóa tầng F1 F2 F3 cần gì", "hoa hồng lãnh đạo bao nhiêu một sản phẩm", "duy trì tầng", "auto unlock 500 triệu", "hoán đổi F1 F2", "ân hạn", "bị khóa lấy lại hệ thống", "bao giờ được trả hoa hồng", "chốt sổ ngày 25", "đối soát ngày 06 16 26", "trả hàng có bị trừ hoa hồng không", "vợ chồng cùng tuyến", "trừ thuế TNCN", "chênh lệch chiết khấu tuyến dưới", "đại lý mới 3 tháng đầu 20 triệu", "rớt về giá bán lẻ 0%", "học lớp lên 40%", "quay 10 video". Load khi tin nhắn nhắc chính sách hoa hồng / chính sách 001 / chính sách mới / hoa hồng lãnh đạo / Leader / doanh số nhóm / tầng / F1 F2 F3 / mở khóa / duy trì / đối soát / kỳ chốt sổ / doanh thu xét thưởng / chênh lệch chiết khấu / đại lý mới 3 tháng đầu / lộ trình đào tạo 40%.
 agents: dealer
 ---
 
-# Chính sách hoa hồng & phát triển hệ thống — bản thay thế 001/CS-DLS.KT
+# Chính sách hoa hồng & phát triển hệ thống — 03/2026/CS-KD
 
-Văn bản gốc: Công ty CP DiLi Supplement, **hiệu lực 26/08/2026**, **thay thế thông báo số
-001/CS-DLS.KT** (Điều 18). Đại lý vẫn quen gọi "chính sách 001" — hiểu là đang hỏi chính sách này.
-Khi khác với thỏa thuận/thông báo ban hành trước đó về cùng nội dung, chính sách này ưu tiên áp
-dụng (Điều 2).
+Văn bản gốc: Công ty CP DiLi Supplement, số **03/2026/CS-KD**, **hiệu lực 26/08/2026**, **thay thế
+thông báo số 002/CS-DLS.KT** (Điều 18). Đại lý vẫn quen gọi "chính sách 001" theo tên văn bản đời
+đầu — hiểu là đang hỏi chính sách hiện hành này. Khi khác với thỏa thuận/thông báo ban hành trước
+đó về cùng nội dung, chính sách này ưu tiên áp dụng (Điều 2).
 
 Video giải thích chính sách mới: https://youtu.be/2CDjils_jco — đại lý hỏi về chính sách hoa hồng
 mới thì gửi kèm link này để họ xem giải thích đầy đủ.
 
-Chính sách này chia làm hai dòng tiền hoàn toàn khác nhau, đại lý rất hay gộp làm một:
+Chính sách này chia làm ba dòng tiền hoàn toàn khác nhau, đại lý rất hay gộp làm một:
 
 | Dòng tiền | Bản chất | Tính trên | Chi tiết |
 |---|---|---|---|
 | **Chiết khấu bán lẻ** | giảm giá lúc lấy hàng | % trên doanh thu tích lũy cá nhân | `references/chiet-khau-001.md` |
+| **Chênh lệch chiết khấu** | tiền công ty trả tuyến trên | % chênh giữa mức CK của mình và tuyến dưới liền kề, trên doanh số tuyến dưới | `references/chiet-khau-001.md` |
 | **Hoa hồng lãnh đạo** | tiền công ty trả về tài khoản | số tiền CỐ ĐỊNH trên mỗi sản phẩm tuyến dưới bán | `references/tang-va-hoa-hong.md` |
 
-Đại lý hỏi "em được bao nhiêu %" mà đang nói chuyện tuyến dưới → đang nhầm hai dòng này. Hoa hồng
-lãnh đạo **không có phần trăm**.
+Đại lý hỏi "em được bao nhiêu %" mà đang nói chuyện tuyến dưới → hỏi rõ đang nói dòng nào. Hoa hồng
+lãnh đạo **không có phần trăm**; chênh lệch chiết khấu **có phần trăm** nhưng chỉ dành cho Leader
+đang đạt duy trì.
 
 ## Luật 1 — Ngày 26/08/2026 là ranh giới, đừng trả lời trước mốc bằng bảng sau mốc
 
@@ -127,7 +129,23 @@ kinh doanh độc lập khác vẫn tính bình thường.
 Đây là quy định nhạy cảm — nói bằng giọng quy định chung, không suy đoán quan hệ gia đình của ai.
 Chi tiết + ví dụ: `references/quan-he-loi-ich.md`.
 
-## Luật 10 — Agent giải thích quy định, KHÔNG chốt số tiền và KHÔNG hứa duyệt
+## Luật 10 — Chênh lệch chiết khấu chỉ dành cho Leader ĐANG đạt duy trì
+
+Điều 7.4-7.5 (mới): tuyến trên hưởng phần chênh giữa mức chiết khấu của mình và tuyến dưới liền kề,
+tính trên doanh số tuyến dưới đó. Nhưng chỉ khi **đã đạt chuẩn Leader VÀ đang đạt duy trì tầng** —
+chưa Leader hoặc đang bị khóa thì không được chi trả. Văn bản không nói khoản này với hoa hồng lãnh
+đạo (Điều 8) cộng dồn hay loại trừ trên cùng đơn → không tự chốt, xem `references/cau-hoi-kho.md`.
+
+## Luật 11 — Đại lý mới 3 tháng đầu: 20 triệu/tháng, rớt là về giá bán lẻ
+
+Điều 7.6 (mới): 3 tháng đầu kể từ ngày ký hợp đồng cần đạt doanh thu xét thưởng cá nhân
+≥ 20 triệu/tháng ở ít nhất **02/03 tháng** (được 1 tháng ân hạn). Chạm 20 triệu là mức 30% mở
+ngay trong tháng; chốt một lần cuối tháng thứ 3. KHÔNG ĐẠT → từ tháng thứ 4 mua **giá bán lẻ
+niêm yết (0%)** cho tới khi hoàn thành khóa đào tạo. Đừng nói "rớt là mất vĩnh viễn" — học xong
+là có lại mức theo Thông báo của khóa, nhưng cũng đừng hứa mức cụ thể. Ngoài ra có lộ trình đào
+tạo nâng 40% (Điều 7.7, AI Agent xác nhận). Chi tiết: `references/chiet-khau-001.md`.
+
+## Luật 12 — Agent giải thích quy định, KHÔNG chốt số tiền và KHÔNG hứa duyệt
 
 Được phép: nêu ngưỡng, giải thích cơ chế, đọc lại điều khoản, hướng dẫn nộp khiếu nại.
 
@@ -135,7 +153,7 @@ Không được: tính hộ tiền hoa hồng đại lý sẽ nhận, khẳng đ
 duyệt, hứa mức chiết khấu, nói tầng đã mở khóa, xác nhận ai là Leader hay đã tách nhánh. Toàn bộ
 những cái đó do hệ thống đối soát và bên duyệt chốt.
 
-## Luật 11 — Văn bản có chỗ chưa quy định rõ: chuyển, đừng suy diễn
+## Luật 13 — Văn bản có chỗ chưa quy định rõ: chuyển, đừng suy diễn
 
 Một số câu hỏi rất hay gặp mà văn bản **không trả lời dứt khoát** (chu kỳ 06 tháng tính trượt
 hay cố định, tiền cọc trước 500 triệu có tính vào doanh thu xét thưởng không, hoa hồng lãnh đạo

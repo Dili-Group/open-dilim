@@ -25,8 +25,8 @@ Nhắc đại lý mốc 03 ngày này mỗi khi họ than số liệu sai — đ
 ## Thanh toán (Điều 14.3 & 14.4)
 
 - Chuyển vào **tài khoản ngân hàng chính chủ** của đại lý.
-- Thời hạn: **trong vòng 05 ngày** sau ngày cuối cùng đại lý chốt số liệu đối soát — tức
-  **ngày xuất báo cáo + 03 ngày khiếu nại + 05 ngày**.
+- Thời hạn: **trong vòng 05 ngày làm việc** sau ngày cuối cùng đại lý chốt số liệu đối soát — tức
+  **ngày xuất báo cáo + 03 ngày khiếu nại + 05 ngày làm việc**.
 - **Hạn mức tối thiểu để chuyển khoản: 500.000 đ.** Dưới mức này, số tiền **cộng dồn** sang kỳ
   thanh toán tháng tiếp theo (không mất).
 
@@ -45,7 +45,7 @@ Mọi mức hoa hồng công bố trên hệ thống là **Gross** — chưa g�
 
 > Dạ báo cáo đối soát ra ngày 06, 16 và 26 trên Dashboard cá nhân ạ. Sau khi báo cáo ra, mình có
 > 03 ngày làm việc để kiểm tra và khiếu nại, hết hạn đó là chốt số; công ty chuyển khoản trong
-> vòng 05 ngày sau khi chốt.
+> vòng 05 ngày làm việc sau khi chốt.
 
 ### Số liệu sai
 

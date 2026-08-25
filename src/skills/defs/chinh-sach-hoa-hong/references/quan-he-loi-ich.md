@@ -61,7 +61,9 @@ Agent **không cảnh cáo, không quy kết, không dọa** đại lý bằng �
 
 ## Hiệu lực (Điều 18)
 
-- Chính sách này có hiệu lực **từ 26/08/2026**, **thay thế thông báo số 001/CS-DLS.KT**.
+- Chính sách này (văn bản số **03/2026/CS-KD**) có hiệu lực **từ 26/08/2026**, **thay thế thông
+  báo số 002/CS-DLS.KT**. Đại lý vẫn hay gọi chung là "chính sách 001" theo tên văn bản đời đầu —
+  hiểu là đang hỏi chính sách hiện hành này.
 - Công ty bảo lưu quyền sửa đổi, bổ sung cho phù hợp thực tế kinh doanh. Mọi thay đổi được thông báo
   chính thức bằng văn bản qua hệ thống, **trước ít nhất 15 ngày**.
 - Các văn bản, Thông báo do Ban Giám đốc ban hành theo từng thời kỳ (gồm **mức hoa hồng lãnh đạo**
