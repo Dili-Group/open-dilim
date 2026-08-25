@@ -22,7 +22,30 @@ export interface LlmToolResultBlock {
   readonly content: string;
   readonly isError?: boolean;
 }
-export type LlmContentBlock = LlmTextBlock | LlmToolUseBlock | LlmToolResultBlock;
+/**
+ * Khối SUY NGHĨ của model reasoning (DeepSeek v4, Claude bật thinking…). Với loop đây là HỘP
+ * ĐEN: nhận về giữ nguyên, echo lại Y NGUYÊN trong cùng vòng tool-use — API của các model này
+ * bắt buộc gửi lại, thiếu là 400 ("thinking must be passed back"). Không render cho người dùng,
+ * không ghi vào history phòng (history là text). `signature` do provider ký để verify khi nhận
+ * lại — không được đụng.
+ */
+export interface LlmThinkingBlock {
+  readonly type: "thinking";
+  readonly thinking: string;
+  /** Optional: endpoint Anthropic-compatible (DeepSeek…) có thể không trả chữ ký. */
+  readonly signature?: string;
+}
+/** Thinking bị provider che (safety). Cùng luật echo y nguyên như LlmThinkingBlock. */
+export interface LlmRedactedThinkingBlock {
+  readonly type: "redacted_thinking";
+  readonly data: string;
+}
+export type LlmContentBlock =
+  | LlmTextBlock
+  | LlmToolUseBlock
+  | LlmToolResultBlock
+  | LlmThinkingBlock
+  | LlmRedactedThinkingBlock;
 
 export interface LlmMessage {
   readonly role: LlmRole;
@@ -89,7 +112,11 @@ export interface LlmUsage {
 export const EMPTY_USAGE: LlmUsage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
 
 export interface ChatResult {
-  /** Block assistant sinh ra (text + tool_use). Dùng để append vào history + chạy tool. */
+  /**
+   * Block assistant sinh ra (text + tool_use + thinking nếu model reasoning). Append NGUYÊN
+   * VẸN vào messages của loop (thinking phải được echo lại); render/trích text thì lọc theo
+   * type, đừng assume chỉ có text.
+   */
   readonly content: readonly LlmContentBlock[];
   readonly stopReason: StopReason;
   /** Bắt buộc: bỏ sót một lần gọi là hụt tiền âm thầm, không có cách nào phát hiện sau. */

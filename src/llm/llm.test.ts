@@ -4,9 +4,9 @@
 // nhưng không cache, im lặng, và mỗi lượt trả full giá cho prompt + tool schema.
 
 import { describe, expect, test } from "bun:test";
-import { toApiSystem } from "./providers/anthropic.ts";
+import { fromApiContent, toApiMessage, toApiSystem } from "./providers/anthropic.ts";
 import { parseChatResult, toGeminiBody } from "./providers/gemini.ts";
-import { LLMError, type ChatRequest } from "./types.ts";
+import { LLMError, type ChatRequest, type LlmMessage } from "./types.ts";
 
 describe("toApiSystem", () => {
   test("khối cache → có cache_control ephemeral; khối thường → KHÔNG có field đó", () => {
@@ -29,6 +29,54 @@ describe("toApiSystem", () => {
 
 // Lớp dịch Gemini (nén hội thoại ngắn hạn). Cùng lý do đáng test với toApiSystem: sai shape thì
 // hoặc 400, hoặc tệ hơn — API nhận nhưng hiểu sai (system rơi vào contents, usage đếm trượt).
+describe("thinking pass-through (model reasoning sau endpoint Anthropic-compatible)", () => {
+  test("fromApiContent giữ thinking + redacted_thinking nguyên vẹn, đúng thứ tự", () => {
+    const content = fromApiContent([
+      { type: "thinking", thinking: "suy nghĩ", signature: "sig-1" },
+      { type: "redacted_thinking", data: "opaque" },
+      { type: "text", text: "trả lời", citations: null },
+      { type: "tool_use", id: "t1", name: "whoami", input: {}, caller: { type: "direct" } },
+    ]);
+    expect(content).toEqual([
+      { type: "thinking", thinking: "suy nghĩ", signature: "sig-1" },
+      { type: "redacted_thinking", data: "opaque" },
+      { type: "text", text: "trả lời" },
+      { type: "tool_use", id: "t1", name: "whoami", input: {} },
+    ]);
+  });
+
+  test("endpoint compat không trả signature → không crash, serialize lại signature rỗng", () => {
+    // Response runtime từ endpoint compat có thể thiếu field dù SDK khai string — mô phỏng
+    // bằng cách bỏ signature khỏi object rồi đi qua đúng đường parse thật.
+    const raw = JSON.parse('[{"type":"thinking","thinking":"suy nghĩ"}]') as never;
+    const content = fromApiContent(raw);
+    expect(content).toEqual([{ type: "thinking", thinking: "suy nghĩ" }]);
+
+    expect(toApiMessage({ role: "assistant", content }).content).toEqual([
+      { type: "thinking", thinking: "suy nghĩ", signature: "" },
+    ]);
+  });
+
+  test("toApiMessage serialize lại đúng shape API — round-trip không mất field nào", () => {
+    const msg: LlmMessage = {
+      role: "assistant",
+      content: [
+        { type: "thinking", thinking: "suy nghĩ", signature: "sig-1" },
+        { type: "redacted_thinking", data: "opaque" },
+        { type: "tool_use", id: "t1", name: "whoami", input: {} },
+      ],
+    };
+    expect(toApiMessage(msg)).toEqual({
+      role: "assistant",
+      content: [
+        { type: "thinking", thinking: "suy nghĩ", signature: "sig-1" },
+        { type: "redacted_thinking", data: "opaque" },
+        { type: "tool_use", id: "t1", name: "whoami", input: {} },
+      ],
+    });
+  });
+});
+
 describe("toGeminiBody", () => {
   const base: ChatRequest = {
     system: [{ text: "bạn là bộ nén" }],

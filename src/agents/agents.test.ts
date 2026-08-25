@@ -100,6 +100,32 @@ describe("runAgentLoop", () => {
     }
   });
 
+  test("model reasoning: block thinking được echo Y NGUYÊN ở turn sau, không lọt vào text trả lời", async () => {
+    const thinking = { type: "thinking", thinking: "khách hỏi danh tính", signature: "sig-abc" } as const;
+    const provider = new ScriptedProvider([
+      {
+        stopReason: "tool_use",
+        content: [thinking, { type: "tool_use", id: "t1", name: "whoami", input: {} }],
+      },
+      {
+        stopReason: "end_turn",
+        content: [
+          { type: "redacted_thinking", data: "opaque" },
+          { type: "text", text: "bạn là khách" },
+        ],
+      },
+    ]);
+    // Thinking không được rò vào câu trả lời cho người dùng.
+    expect(await loop(provider)).toBe("bạn là khách");
+
+    // Turn 2: assistant message trước tool_result phải mang NGUYÊN block thinking (API model
+    // reasoning bắt buộc echo — thiếu là 400 "thinking must be passed back").
+    const secondTurn = provider.seen[1]!.messages;
+    const assistantMsg = secondTurn[secondTurn.length - 2]!;
+    expect(assistantMsg.role).toBe("assistant");
+    expect(assistantMsg.content[0]).toEqual(thinking);
+  });
+
   test("tool lạ → tool_result isError, loop tiếp tục không crash", async () => {
     const provider = new ScriptedProvider([
       { stopReason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "khong_co", input: {} }] },

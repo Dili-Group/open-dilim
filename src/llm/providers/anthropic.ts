@@ -1,6 +1,10 @@
 // anthropic.ts — impl LLMProvider bằng @anthropic-ai/sdk. Dịch type trung lập ⇄ Messages API.
-// Non-streaming (đủ cho loop tối thiểu; stream để sau). thinking omit → opus-4-8 chạy không
-// thinking, khỏi phải echo thinking block qua từng turn. KHÔNG gửi temperature (400 trên 4.8).
+// Non-streaming (đủ cho loop tối thiểu; stream để sau). KHÔNG gửi temperature (400 trên 4.8).
+//
+// Thinking: không bật param nào, nhưng model reasoning sau endpoint Anthropic-compatible
+// (DeepSeek v4…) TỰ trả block thinking và bắt buộc echo lại trong vòng tool-use — thiếu là 400
+// "thinking must be passed back". Vì vậy block thinking đi QUA nguyên vẹn (fromApiContent giữ,
+// toApiBlock trả lại y nguyên); model không think thì không có block nào, hành vi như cũ.
 
 import Anthropic from "@anthropic-ai/sdk";
 import type {
@@ -97,7 +101,7 @@ function fromApiUsage(usage: Anthropic.Usage): LlmUsage {
   };
 }
 
-function toApiMessage(msg: LlmMessage): Anthropic.MessageParam {
+export function toApiMessage(msg: LlmMessage): Anthropic.MessageParam {
   return { role: msg.role, content: msg.content.map(toApiBlock) };
 }
 
@@ -114,17 +118,33 @@ function toApiBlock(block: LlmContentBlock): Anthropic.ContentBlockParam {
         content: block.content,
         is_error: block.isError,
       };
+    // Echo y nguyên (kể cả signature) — provider verify chữ ký của chính nó, đụng field là 400.
+    // Endpoint compat không trả signature → gửi chuỗi rỗng (shape SDK bắt buộc field).
+    case "thinking":
+      return { type: "thinking", thinking: block.thinking, signature: block.signature ?? "" };
+    case "redacted_thinking":
+      return { type: "redacted_thinking", data: block.data };
   }
 }
 
-/** Chỉ giữ text + tool_use (bỏ thinking/khác). Đây là block model SINH ra. */
-function fromApiContent(content: readonly Anthropic.ContentBlock[]): LlmContentBlock[] {
+/** Giữ text + tool_use + thinking (echo bắt buộc với model reasoning). Block model SINH ra. */
+export function fromApiContent(content: readonly Anthropic.ContentBlock[]): LlmContentBlock[] {
   const out: LlmContentBlock[] = [];
   for (const block of content) {
     if (block.type === "text") {
       out.push({ type: "text", text: block.text });
     } else if (block.type === "tool_use") {
       out.push({ type: "tool_use", id: block.id, name: block.name, input: block.input });
+    } else if (block.type === "thinking") {
+      // SDK khai các field là string, nhưng response đến từ endpoint COMPAT (DeepSeek…) là
+      // untrusted — field có thể vắng ở runtime. `??` để không lưu undefined vào messages.
+      out.push({
+        type: "thinking",
+        thinking: block.thinking ?? "",
+        ...(block.signature === undefined ? {} : { signature: block.signature }),
+      });
+    } else if (block.type === "redacted_thinking") {
+      out.push({ type: "redacted_thinking", data: block.data ?? "" });
     }
   }
   return out;
