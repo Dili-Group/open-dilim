@@ -33,6 +33,7 @@ import type {
 } from "../announcements/types.ts";
 import type { KbDigestService } from "../kb-digest/service.ts";
 import type { KbDigestStore, KbReviewPort } from "../kb-digest/types.ts";
+import type { ProactivePendingStore } from "../proactive/index.ts";
 
 /** Mọi service dựng lúc boot, share cho các tầng downstream (worker/gateway). */
 export interface Services {
@@ -111,6 +112,11 @@ export interface Services {
   readonly kbDigestStore: KbDigestStore;
   readonly kbDigest: KbDigestService;
   readonly kbReview: KbReviewPort;
+  /**
+   * Hàng chờ phễu proactive (proactive/): ingest đặt lịch, poller nhặt. undefined = phễu tắt
+   * toàn cục (không agent nào khai spec, hay muốn tắt hẳn) → không dựng poller.
+   */
+  readonly proactivePending?: ProactivePendingStore;
 }
 
 /** Hệ thống ĐANG CHẠY: service + HTTP server + hook shutdown sạch. */

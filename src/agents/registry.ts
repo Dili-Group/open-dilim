@@ -11,8 +11,12 @@ import { warehouseProfile } from "./roots/warehouse.ts";
 import { personalProfile } from "./roots/personal.ts";
 import type { AgentDeps, RootAgent, RootAgentProfile } from "./types.ts";
 
-/** Thêm root agent = thêm 1 file ở roots/ + 1 dòng ở đây. Không đụng bộ máy chạy lượt. */
-const PROFILES: readonly RootAgentProfile[] = [
+/**
+ * Thêm root agent = thêm 1 file ở roots/ + 1 dòng ở đây. Không đụng bộ máy chạy lượt.
+ * Export cho src/proactive/spec.ts tra `profile.proactive` theo channel — profiles là data
+ * thuần nên đọc thẳng, không cần dựng agent.
+ */
+export const PROFILES: readonly RootAgentProfile[] = [
   operationsProfile,
   dealerProfile,
   personalProfile,

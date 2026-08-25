@@ -53,6 +53,39 @@ export const dealerProfile: RootAgentProfile = {
     ...WORKFLOW_REPLY_TOOLS,
     ...WORKFLOW_LIST_TOOLS,
   ],
+  // Phễu proactive: đại lý phần lớn KHÔNG mention agent khi cần giúp (đo trên message_log
+  // 25/08/2026: 818 tin group không nhắm agent, ~20% là câu nhờ vả/hỏi thật). Trigger bám theo
+  // intent hay gặp nhất trong data đó — không phải danh sách "mọi từ có thể", tầng 1-2 lọc tiếp.
+  proactive: {
+    triggers: [
+      // Nhờ vả trực tiếp: "hủy giúo c nhé", "nhờ hỗ trợ in đơn này giúp c" (78/818 tin).
+      /giúp|giùm|hộ (em|chị|anh|c|a|mình)|nhờ.{0,12}hỗ trợ/i,
+      // Hủy / lên lại đơn, đổi thông tin giao.
+      /hủy|huỷ|lên lại|đổi địa chỉ/i,
+      // Check tình trạng đơn.
+      /check|kiểm tra|xem (lại|giúp|hộ)/i,
+      // Vận đơn / in đơn.
+      /vận đơn|in đơn|mã vận/i,
+      // Tiền: thanh toán, công nợ, nạp ví.
+      /thanh toán|chuyển khoản|công nợ|nạp (ví|tiền)/i,
+      // Chiết khấu / đối soát / hoàn.
+      /chiết khấu|hoa hồng|đối soát|hoàn (tiền|hàng|lại)/i,
+      // Giục: "sao đơn này vẫn chưa gửi cho ĐVVC".
+      /(vẫn |)chưa (được|thấy|có|về|nhận|gửi)/i,
+      // Câu hỏi mở: thời gian, lý do, hoặc kết bằng dấu hỏi.
+      /khi nào|bao giờ|bao lâu|vì sao|tại sao|\bsao\b/i,
+      /\?\s*$/m,
+    ],
+    waitMs: 4 * 60 * 1000,
+    turnNote: [
+      "LƯỢT PROACTIVE: đại lý hỏi trong nhóm nhưng KHÔNG tag em, và sau vài phút chưa ai trả lời",
+      "nên em chủ động nhảy vào giúp. Chỉ trả lời khi câu hỏi cuối của người này đúng việc em làm",
+      "được bằng tool/kiến thức sẵn có; không chắc chắn thì im lặng tuyệt đối (trả lời chuỗi rỗng),",
+      "KHÔNG đoán, không hỏi lại lan man. Trả lời NGẮN hơn bình thường, đi thẳng vào việc, và kết",
+      "bằng một dòng nhắc nhẹ: lần sau anh/chị tag em để em thấy ngay ạ.",
+    ].join(" "),
+    maxPerRoomPerHour: 6,
+  },
   // ⚠️ THỬ NGHIỆM (dev) — tool ngoài qua MCP, xem docs/architecture/10-mcp.md.
   //
   // KHÁC MỌI TOOL Ở TRÊN: tool MCP KHÔNG bind danh tính server-side. `tra_don_hang` ép

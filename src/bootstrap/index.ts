@@ -73,6 +73,12 @@ import {
   type MemoryStore,
 } from "../state/index.ts";
 import { startWorkers } from "../worker/index.ts";
+import {
+  ProactiveIngest,
+  RedisProactivePending,
+  proactiveSpecFor,
+  startProactivePoller,
+} from "../proactive/index.ts";
 import { SqlJobRepo, startScheduler } from "../scheduler/index.ts";
 import { checkInfra, loadConfig } from "./env.ts";
 import { OPERATIONS_CHANNEL } from "../config.ts";
@@ -99,7 +105,38 @@ export async function bootstrap(): Promise<Services> {
   const turns = buildTurnMarker();
   // Raw log bền knowledge base: mọi tin qua ingest vào Postgres, best-effort (gateway tự nuốt lỗi).
   const messageLog = buildMessageLog();
-  const ingestDeps: IngestDeps = { broker, history, dedupe, speakers, turns, messageLog };
+  // Phễu proactive (proactive/): tin group không mention agent → gate + hàng chờ Redis; poller
+  // (khởi động ở start()) nhặt câu không ai trả lời. Id "chính mình" tra theo config kênh để
+  // agent không tự trigger trên tin nó gửi vọng lại webhook.
+  const selfIdsByChannel = new Map<string, readonly string[]>(
+    Object.entries(config.channels).flatMap(([channel, channelConfig]) =>
+      channelConfig === undefined
+        ? []
+        : [
+            [
+              channel,
+              channelConfig.selfUid === undefined
+                ? [channelConfig.agentUid]
+                : [channelConfig.agentUid, channelConfig.selfUid],
+            ] as const,
+          ],
+    ),
+  );
+  const proactivePending = new RedisProactivePending(commandOf(redis));
+  const proactive = new ProactiveIngest({
+    pending: proactivePending,
+    specFor: proactiveSpecFor,
+    selfIdsFor: (channel) => selfIdsByChannel.get(channel) ?? [],
+  });
+  const ingestDeps: IngestDeps = {
+    broker,
+    history,
+    dedupe,
+    speakers,
+    turns,
+    messageLog,
+    proactive,
+  };
 
   const llm = buildLlmProvider(config);
   // Memory dài hạn cần embedder Gemini (buildEmbedder throw nếu thiếu key). Không có key → chạy
@@ -291,6 +328,7 @@ export async function bootstrap(): Promise<Services> {
     kbDigestStore,
     kbDigest,
     kbReview,
+    proactivePending,
   };
 }
 
@@ -367,7 +405,25 @@ export async function start(): Promise<RunningSystem> {
     services.config.schedulerTickMs,
   );
 
+  // Nguồn phát thứ năm: phễu proactive — câu hỏi trong nhóm không ai trả lời, đến hạn chờ thì
+  // publish envelope `proactive` vào chung queue tin thường. Tầng 2 (classifier) CHƯA nối:
+  // deps.classify vắng → mọi câu qua tầng 1 đi thẳng tới agent, đã có trần maxPerRoomPerHour đỡ.
+  const proactivePoller =
+    services.proactivePending === undefined
+      ? undefined
+      : startProactivePoller(
+          {
+            pending: services.proactivePending,
+            history: services.historyReader,
+            broker: services.ingestDeps.broker,
+            send: commandOf(redis),
+            specFor: proactiveSpecFor,
+          },
+          services.config.schedulerTickMs,
+        );
+
   async function stop(): Promise<void> {
+    await proactivePoller?.stop(); // ngừng nhặt câu hỏi mới TRƯỚC khi drain worker
     await kbDigestPoller.stop(); // ngừng digest KB (có thể đang giữa call LLM)
     await announcePoller.stop(); // ngừng phát tin đại lý
     await workflowPoller.stop(); // ngừng nhắc việc treo

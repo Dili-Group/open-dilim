@@ -19,7 +19,7 @@ export interface PendingEntry {
 }
 
 // Khai string[] (không MessageSource[]) để `includes(unknown-narrowed-string)` không cần ép kiểu.
-const SOURCES: readonly string[] = ["channel", "cron", "distill"];
+const SOURCES: readonly string[] = ["channel", "cron", "distill", "proactive"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

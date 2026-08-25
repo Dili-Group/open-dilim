@@ -34,4 +34,4 @@ export { ChannelFactory } from "./factory.ts";
 export { createGateway } from "./gateway.ts";
 export { isAddressed } from "./ingestor.ts";
 export type { Ingestor, ParsedMessage } from "./ingestor.ts";
-export type { Broker, HistoryStore, Dedupe, IngestDeps } from "./deps.ts";
+export type { Broker, HistoryStore, Dedupe, IngestDeps, ProactivePort } from "./deps.ts";

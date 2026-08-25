@@ -42,9 +42,15 @@ class ProfileRootAgent implements RootAgent {
       // Chọn sub TRƯỚC khi lắp ngữ cảnh: sub đổi prompt nền, mà assemble xong mới đổi thì phải
       // recall memory (một lần gọi embed) hai lần cho cùng một lượt.
       const handler = await this.pickHandler(input);
+      // Lượt proactive: đổi giọng theo note của CHÍNH profile (worker chỉ đưa cờ). Gắn vào prompt
+      // nền — kể cả khi sub-agent cầm lượt, vì "đây là lượt nhảy vào giúp" là tính chất cả lượt.
+      const basePrompt =
+        input.proactive === true && this.profile.proactive !== undefined
+          ? `${handler.prompt}\n\n${this.profile.proactive.turnNote}`
+          : handler.prompt;
       const context = await assembleTurnContext(
         {
-          basePrompt: handler.prompt,
+          basePrompt,
           skills: this.deps.skills,
           memory: this.deps.memory,
           agentType: this.agentType,

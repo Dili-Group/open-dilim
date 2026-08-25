@@ -79,6 +79,7 @@ async function processMessage(deps: IngestDeps, msg: ParsedMessage): Promise<boo
       }
       await trackSpeakerTurnover(deps, envelope);
       await logMessage(deps, envelope);
+      await considerProactive(deps, envelope);
     } catch (err) {
       // Trả lại mark để retry của channel reprocess (không mất tin).
       await deps.dedupe.release(msg.channel, msg.msgId);
@@ -151,6 +152,23 @@ async function trackSpeakerTurnover(deps: IngestDeps, envelope: Envelope): Promi
     await deps.broker.publish(distillEnvelope(envelope));
   } catch (err) {
     console.error(`[ingest:${envelope.channel}] theo dõi đổi người nói lỗi:`, err);
+  }
+}
+
+/**
+ * Đầu vào phễu proactive: tin group không nhắm agent → xét đặt lịch nhặt nếu không ai trả lời
+ * (src/proactive/). Chỉ gọi cho đúng loại tin đó — tin nhắm agent đã có lượt riêng.
+ *
+ * Best-effort: hỏng thì log rồi thôi — mất một cơ hội chủ động giúp, không được làm rớt tin
+ * (throw ở đây sẽ nhả dedupe và bắt channel gửi lại nguyên tin).
+ */
+async function considerProactive(deps: IngestDeps, envelope: Envelope): Promise<void> {
+  if (deps.proactive === undefined || envelope.addressedToAgent || !envelope.isGroup) return;
+  try {
+    await deps.proactive.consider(envelope);
+  } catch (err) {
+    console.error(`[ingest:${envelope.channel}] xét phễu proactive lỗi:`, err);
+    captureError(err, "ingest.proactive", { channel: envelope.channel, msgId: envelope.msgId });
   }
 }
 

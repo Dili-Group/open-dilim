@@ -59,6 +59,16 @@ export interface TurnMarker {
   mark(channel: string, conversationId: string, ts: number): Promise<void>;
 }
 
+/**
+ * Đầu vào phễu proactive (src/proactive/): tin group KHÔNG nhắm agent được đưa qua đây để xét
+ * "có phải câu hỏi đáng nhặt nếu không ai trả lời". Ingest là nơi duy nhất thấy loại tin đó
+ * (cùng lý do với SpeakerTracker). Impl tự tra spec theo channel — channel không bật phễu thì
+ * consider là no-op.
+ */
+export interface ProactivePort {
+  consider(envelope: Envelope): Promise<void>;
+}
+
 /** Bó port cấp cho gateway. */
 export interface IngestDeps {
   readonly broker: Broker;
@@ -79,4 +89,9 @@ export interface IngestDeps {
    * liệu kiểm duyệt, tin của khách vẫn xử lý đủ.
    */
   readonly messageLog?: MessageLogStore;
+  /**
+   * undefined = phễu proactive tắt toàn cục. Không chặn boot: agent vẫn trả lời tin mention
+   * như cũ, chỉ không chủ động nhặt câu hỏi bị bỏ rơi.
+   */
+  readonly proactive?: ProactivePort;
 }

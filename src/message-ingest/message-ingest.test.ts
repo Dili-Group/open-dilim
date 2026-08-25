@@ -39,6 +39,7 @@ function makeDeps(
   opts: {
     failPublish?: boolean;
     failMessageLog?: boolean;
+    failProactive?: boolean;
     speakers?: FakeSpeakerTracker;
     turns?: IngestDeps["turns"];
   } = {},
@@ -46,10 +47,17 @@ function makeDeps(
   const published: Envelope[] = [];
   const history: HistoryEntry[] = [];
   const logged: Envelope[] = [];
+  const considered: Envelope[] = [];
   const seen = new Set<string>();
   const released: string[] = [];
   const deps: IngestDeps = {
     turns: opts.turns,
+    proactive: {
+      async consider(e) {
+        if (opts.failProactive) throw new Error("Redis chết");
+        considered.push(e);
+      },
+    },
     messageLog: {
       async append(e) {
         if (opts.failMessageLog) throw new Error("Postgres chết");
@@ -82,7 +90,7 @@ function makeDeps(
       },
     },
   };
-  return { deps, published, history, logged, released };
+  return { deps, published, history, logged, considered, released };
 }
 
 function makeGateway(deps: IngestDeps) {
@@ -276,6 +284,27 @@ describe("gateway", () => {
       webhook(event({ msgId: "s2", uidFrom: "U2", mentions: [{ uid: AGENT_UID }] })),
     );
     expect(local.published.map((e) => e.source)).toEqual(["channel"]);
+  });
+
+  test("tin group KHÔNG nhắm agent → đưa qua phễu proactive; tin nhắm agent / direct thì không", async () => {
+    const local = makeDeps();
+    const gw = makeGateway(local.deps);
+    await gw.handle(webhook(event({ msgId: "p1", uidFrom: "U1" }))); // group chatter
+    await gw.handle(webhook(event({ msgId: "p2", uidFrom: "U2", mentions: [{ uid: AGENT_UID }] })));
+    await gw.handle(webhook(event({ msgId: "p3", uidFrom: "U3", idTo: AGENT_UID }))); // direct
+
+    expect(local.considered.map((e) => e.msgId)).toEqual(["p1"]);
+    expect(local.considered[0]?.addressedToAgent).toBe(false);
+  });
+
+  test("phễu proactive hỏng → tin vẫn trọn lượt: 200, history đủ, KHÔNG nhả dedupe", async () => {
+    const local = makeDeps({ failProactive: true });
+    const gw = makeGateway(local.deps);
+    const res = await gw.handle(webhook(event({ msgId: "p4", uidFrom: "U1" })));
+
+    expect(res.status).toBe(200);
+    expect(local.history).toHaveLength(1);
+    expect(local.released).toHaveLength(0);
   });
 
   test("vạch người nói hỏng → tin vẫn xử lý bình thường (200, history đủ)", async () => {

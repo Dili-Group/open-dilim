@@ -178,6 +178,7 @@ export async function handleEnvelope(
         ? { channel: envelope.channel, groupId: envelope.conversationId }
         : undefined,
       pending,
+      proactive: envelope.source === "proactive",
       onStep,
       onAnnounce,
       meter,

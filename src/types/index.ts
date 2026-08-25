@@ -5,8 +5,11 @@
  * Nguồn sinh Envelope. `cron` KHÔNG qua gateway/ACK (scheduler dựng thẳng Envelope).
  * `distill` KHÔNG phải tin nhắn: worker nhận nó thì chỉ chạy chưng cất trí nhớ cho phòng rồi
  * thoát (worker/handler.ts) — ingest dựng khi thấy đổi người nói.
+ * `proactive` = câu hỏi trong nhóm KHÔNG mention agent nhưng qua phễu proactive (src/proactive/):
+ * không ai trả lời sau thời gian chờ → agent chủ động nhặt. Worker xử lý như tin thường
+ * (senderId = người hỏi thật), chỉ khác agent được báo để trả lời kiểu "nhảy vào giúp".
  */
-export type MessageSource = "channel" | "cron" | "distill";
+export type MessageSource = "channel" | "cron" | "distill" | "proactive";
 
 /**
  * Mention entity từ payload channel (vd Zalo `mentions[]`). `uid` = id người/agent được nhắc.

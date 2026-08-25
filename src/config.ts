@@ -41,6 +41,12 @@ function oneOf<T extends string>(
 // tự sở hữu. Gateway KHÔNG đọc config kênh; wiring (buildChannelFactory) cấp cho từng adapter.
 export interface BaseChannelConfig {
   readonly agentUid: string;
+  /**
+   * Id TÀI KHOẢN của chính agent khi tin nó gửi vọng lại webhook — trên Zalo id này KHÁC
+   * `agentUid` (id mention). Phễu proactive (src/proactive/) cần nó để không tự trigger trên
+   * câu trả lời của mình. undefined = chưa đo được id → phễu chỉ guard bằng agentUid.
+   */
+  readonly selfUid?: string;
 }
 
 /**
@@ -57,7 +63,7 @@ export interface ZaloChannelConfig extends BaseChannelConfig {
 
 /**
  * Đọc config 1 kênh Zalo theo tiền tố env: `<PREFIX>_AGENT_UID`, `<PREFIX>_WEBHOOK_SECRET`,
- * `<PREFIX>_BRIDGE_URL`, `<PREFIX>_BRIDGE_SECRET`.
+ * `<PREFIX>_BRIDGE_URL`, `<PREFIX>_BRIDGE_SECRET`, `<PREFIX>_SELF_UID` (tuỳ chọn).
  *
  * Thiếu uid/secret → undefined = kênh KHÔNG đăng ký: webhook trả 404, không có agent nào phục vụ.
  * Đó là mặc định đóng, không phải lỗi boot — 4 kênh khai sẵn nhưng chỉ kênh đã mở tài khoản chạy.
@@ -66,7 +72,13 @@ function zaloChannel(prefix: string): ZaloChannelConfig | undefined {
   const agentUid = optional(`${prefix}_AGENT_UID`);
   const webhookSecret = optional(`${prefix}_WEBHOOK_SECRET`);
   if (agentUid === undefined || webhookSecret === undefined) return undefined;
-  return { agentUid, webhookSecret, bridge: zaloBridge(prefix) };
+  const selfUid = optional(`${prefix}_SELF_UID`);
+  return {
+    agentUid,
+    ...(selfUid === undefined ? {} : { selfUid }),
+    webhookSecret,
+    bridge: zaloBridge(prefix),
+  };
 }
 
 // Mỗi key = 1 kênh = 1 tài khoản Zalo riêng, và là KHOÁ ĐỊNH TUYẾN root agent (agents/router.ts).

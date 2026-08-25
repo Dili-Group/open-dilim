@@ -115,6 +115,12 @@ export interface AgentRunInput {
    * context/pending-block.ts).
    */
   readonly pending?: readonly PendingNotice[];
+  /**
+   * Lượt này do PHỄU PROACTIVE đánh thức (Envelope source `proactive`): người hỏi không mention
+   * agent, không ai trả lời. Agent gắn `profile.proactive.turnNote` vào prompt nền để đổi giọng
+   * "nhảy vào giúp". Worker chỉ chuyển cờ — nội dung note thuộc về profile của agent.
+   */
+  readonly proactive?: boolean;
   /** Nhịp báo "đang xử lý" về kênh mỗi bước loop. Worker bind sẵn target; agent chỉ gọi. */
   readonly onStep?: () => Promise<void>;
   /**
@@ -190,4 +196,31 @@ export interface RootAgentProfile {
   readonly mcpServers?: readonly string[];
   /** Rỗng/thiếu = root tự xử lý mọi lượt, KHÔNG tốn lượt LLM định tuyến nào. */
   readonly subAgents?: readonly SubAgent[];
+  /**
+   * Phễu PROACTIVE (src/proactive/): nhặt câu hỏi trong nhóm không mention agent mà không ai
+   * trả lời. Thiếu = agent KHÔNG dùng phễu — mặc định đóng, giống `mcpServers`. Mỗi agent tự
+   * khai trigger/tiêu chí/giọng của mình; engine phễu dùng chung, không rẽ nhánh theo agentType.
+   */
+  readonly proactive?: ProactiveSpec;
+}
+
+/**
+ * Config phễu proactive CỦA MỘT agent — DATA thuần, engine đọc ở hai chỗ: ingest (tầng 0) và
+ * poller (tầng 1-3). Xem docs thiết kế phễu trong src/proactive/.
+ */
+export interface ProactiveSpec {
+  /** Tầng 0: tin group không mention agent phải khớp ÍT NHẤT MỘT pattern mới vào phễu. */
+  readonly triggers: readonly RegExp[];
+  /**
+   * Tầng 1: chờ người thật trả lời bao lâu trước khi agent nhặt. Đến hạn mà trong phòng đã có
+   * NGƯỜI KHÁC lên tiếng sau câu hỏi → coi như có người lo, agent đứng ngoài.
+   */
+  readonly waitMs: number;
+  /**
+   * Tầng 3: chỉ dẫn gắn thêm vào system prompt của LƯỢT proactive (giọng "nhảy vào giúp",
+   * trả lời ngắn, nhắc @mention lần sau). Lượt thường không mang khối này.
+   */
+  readonly turnNote: string;
+  /** Trần lượt proactive mỗi phòng mỗi giờ — chống spam khi nhóm bàn tán sôi nổi. */
+  readonly maxPerRoomPerHour: number;
 }
