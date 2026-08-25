@@ -76,6 +76,7 @@ import { startWorkers } from "../worker/index.ts";
 import {
   ProactiveIngest,
   RedisProactivePending,
+  buildProactiveVerify,
   proactiveSpecFor,
   startProactivePoller,
 } from "../proactive/index.ts";
@@ -123,20 +124,8 @@ export async function bootstrap(): Promise<Services> {
     ),
   );
   const proactivePending = new RedisProactivePending(commandOf(redis));
-  const proactive = new ProactiveIngest({
-    pending: proactivePending,
-    specFor: proactiveSpecFor,
-    selfIdsFor: (channel) => selfIdsByChannel.get(channel) ?? [],
-  });
-  const ingestDeps: IngestDeps = {
-    broker,
-    history,
-    dedupe,
-    speakers,
-    turns,
-    messageLog,
-    proactive,
-  };
+  // ProactiveIngest + ingestDeps lắp Ở DƯỚI, sau khi có groupCustomer + usage: bước verify của
+  // phễu cần hai cổng đó (phòng đã xác thực, ngân sách còn) trước khi cho câu hỏi vào hàng chờ.
 
   const llm = buildLlmProvider(config);
   // Memory dài hạn cần embedder Gemini (buildEmbedder throw nếu thiếu key). Không có key → chạy
@@ -291,6 +280,31 @@ export async function bootstrap(): Promise<Services> {
   });
   const kbReview = new KbReviewService({ store: kbDigestStore, memory });
 
+  // Sổ cái ở Postgres (nguồn sự thật), bộ đếm ở Redis (cache) — mất Redis thì hạn mức trong
+  // ngày dựng lại từ sổ, không reset về 0. Hoist khỏi return vì verify của phễu cũng cần.
+  const usage = {
+    port: new SqlUsageStore(sql, commandOf(redis)),
+    usdVndRate: config.usdVndRate,
+    enforce: config.enforceBudget,
+  };
+
+  const proactive = new ProactiveIngest({
+    pending: proactivePending,
+    specFor: proactiveSpecFor,
+    selfIdsFor: (channel) => selfIdsByChannel.get(channel) ?? [],
+    // Verify trước khi vào hàng chờ: phòng đã /ketnoi-daily (spec đòi) + ngân sách phòng còn.
+    verify: buildProactiveVerify({ groups: groupCustomer, usage }),
+  });
+  const ingestDeps: IngestDeps = {
+    broker,
+    history,
+    dedupe,
+    speakers,
+    turns,
+    messageLog,
+    proactive,
+  };
+
   return {
     config,
     ingestDeps,
@@ -318,13 +332,7 @@ export async function bootstrap(): Promise<Services> {
     memoryWriters,
     compactor,
     summaries,
-    // Sổ cái ở Postgres (nguồn sự thật), bộ đếm ở Redis (cache) — mất Redis thì hạn mức trong
-    // ngày dựng lại từ sổ, không reset về 0.
-    usage: {
-      port: new SqlUsageStore(sql, commandOf(redis)),
-      usdVndRate: config.usdVndRate,
-      enforce: config.enforceBudget,
-    },
+    usage,
     kbDigestStore,
     kbDigest,
     kbReview,

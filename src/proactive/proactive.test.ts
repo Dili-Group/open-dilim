@@ -14,6 +14,7 @@ import {
 } from "./pending.ts";
 import { proactiveTick, type ProactivePollerDeps } from "./poller.ts";
 import { proactiveSpecFor } from "./spec.ts";
+import { buildProactiveVerify } from "./verify.ts";
 
 const AGENT_UID = "AGENT";
 const SELF_UID = "SELF";
@@ -291,6 +292,50 @@ describe("proactiveTick (tầng 1-3)", () => {
   });
 });
 
+describe("buildProactiveVerify (xác minh trước khi vào hàng chờ)", () => {
+  const boundSpec: ProactiveSpec = { ...dealerSpec, requireBoundGroup: true };
+  const usageOf = (spentPicoUsd: number, enforce = true) => ({
+    port: {
+      spentTodayPicoUsd: () => Promise.resolve(spentPicoUsd),
+      record: () => Promise.resolve(),
+    },
+    usdVndRate: 25_000,
+    enforce,
+  });
+
+  test("spec đòi phòng xác thực: chưa bind → chặn, đã bind → qua", async () => {
+    const unbound = buildProactiveVerify({ groups: { customerIdOf: () => Promise.resolve(undefined) } });
+    expect(await unbound(envelope(), boundSpec)).toBe(false);
+
+    const bound = buildProactiveVerify({ groups: { customerIdOf: () => Promise.resolve("DL01") } });
+    expect(await bound(envelope(), boundSpec)).toBe(true);
+  });
+
+  test("spec KHÔNG đòi bind → phòng chưa bind vẫn qua", async () => {
+    const spec: ProactiveSpec = { ...dealerSpec, requireBoundGroup: false };
+    const verify = buildProactiveVerify({ groups: { customerIdOf: () => Promise.resolve(undefined) } });
+    expect(await verify(envelope(), spec)).toBe(true);
+  });
+
+  test("phòng vượt trần ngân sách ngày → chặn; còn ngân sách → qua", async () => {
+    const groups = { customerIdOf: () => Promise.resolve("DL01") };
+    // Trần dealer hữu hạn → tiêu cực lớn là vượt chắc chắn.
+    const over = buildProactiveVerify({ groups, usage: usageOf(Number.MAX_SAFE_INTEGER) });
+    expect(await over(envelope(), boundSpec)).toBe(false);
+
+    const under = buildProactiveVerify({ groups, usage: usageOf(0) });
+    expect(await under(envelope(), boundSpec)).toBe(true);
+  });
+
+  test("shadow mode (enforce=false) → chỉ đo, không chặn", async () => {
+    const verify = buildProactiveVerify({
+      groups: { customerIdOf: () => Promise.resolve("DL01") },
+      usage: usageOf(Number.MAX_SAFE_INTEGER, false),
+    });
+    expect(await verify(envelope(), boundSpec)).toBe(true);
+  });
+});
+
 describe("ProactiveIngest (đầu vào phễu)", () => {
   test("tin qua gate → đặt lịch chờ đúng waitMs với payload đủ để dựng envelope", async () => {
     const scheduled: Array<{ q: PendingQuestion; fireAt: number }> = [];
@@ -313,6 +358,24 @@ describe("ProactiveIngest (đầu vào phễu)", () => {
     if (first === undefined) throw new Error("unreachable");
     expect(first.q).toMatchObject({ msgId: "m1", senderName: "Chị Phượng", text: envelope().text });
     expect(first.fireAt).toBeGreaterThanOrEqual(before + dealerSpec.waitMs);
+  });
+
+  test("verify chặn (phòng chưa xác thực / hết ngân sách) → không đặt lịch", async () => {
+    const scheduled: PendingQuestion[] = [];
+    const ingest = new ProactiveIngest({
+      pending: {
+        schedule: (q) => {
+          scheduled.push(q);
+          return Promise.resolve();
+        },
+        claimDue: () => Promise.resolve([]),
+      },
+      specFor: () => dealerSpec,
+      selfIdsFor: () => SELF_IDS,
+      verify: () => Promise.resolve(false),
+    });
+    await ingest.consider(envelope());
+    expect(scheduled).toEqual([]);
   });
 
   test("channel không bật phễu / tin không qua gate → không đặt lịch", async () => {

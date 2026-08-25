@@ -3,6 +3,7 @@
 
 import { passesProactiveGate } from "./gate.ts";
 import type { ProactivePendingStore } from "./pending.ts";
+import type { ProactiveVerify } from "./verify.ts";
 import type { ProactiveSpec } from "../agents/types.ts";
 import type { Envelope } from "../types/index.ts";
 
@@ -11,6 +12,11 @@ export interface ProactiveIngestDeps {
   readonly specFor: (channel: string) => ProactiveSpec | undefined;
   /** Id "chính mình" theo kênh (agentUid + selfUid) — xem ProactiveGateInput.selfIds. */
   readonly selfIdsFor: (channel: string) => readonly string[];
+  /**
+   * Xác minh TRẠNG THÁI trước khi vào hàng chờ (phòng đã xác thực, ngân sách còn — verify.ts).
+   * undefined = không xác minh (test / hệ tối giản), gate text vẫn chạy đủ.
+   */
+  readonly verify?: ProactiveVerify;
 }
 
 export class ProactiveIngest {
@@ -22,6 +28,8 @@ export class ProactiveIngest {
     if (spec === undefined) return;
     const selfIds = this.deps.selfIdsFor(envelope.channel);
     if (!passesProactiveGate({ envelope, spec, selfIds })) return;
+    // Gate (rẻ, thuần) TRƯỚC verify (có I/O): chỉ tin trúng trigger mới tốn query trạng thái.
+    if (this.deps.verify !== undefined && !(await this.deps.verify(envelope, spec))) return;
 
     await this.deps.pending.schedule(
       {

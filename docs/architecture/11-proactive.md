@@ -19,6 +19,13 @@ tin group !addressedToAgent (gateway.ts → considerProactive, best-effort)
   │          Giữ (~20%): giúp/giùm, hủy, check, vận đơn, thanh toán, chiết khấu,
   │          "chưa thấy…", khi nào/sao, câu kết "?".
   │
+  ├─ VERIFY  verify.ts — xác minh TRẠNG THÁI trước khi vào hàng chờ (chỉ tin đã qua gate):
+  │          phòng đã xác thực (`requireBoundGroup` trong spec — dealer cần /ketnoi-daily,
+  │          chưa bind thì tool không có phạm vi dữ liệu) + ngân sách ngày của phòng còn
+  │          (cùng gate với worker §6d, nhưng chặn TRƯỚC — để tới worker thì lượt vượt trần
+  │          bị báo "hết ngân sách" vào phòng không ai hỏi; worker vẫn giữ backstop im lặng
+  │          `budget_proactive` cho ca ngân sách cạn giữa lúc chờ và lúc nhặt).
+  │
   ├─ TẦNG 1  pending.ts + poller.ts — chờ `waitMs` (dealer: 4 phút). 0 token.
   │          Hàng chờ Redis: ZSET (giờ đến hạn) + HASH (payload), key theo
   │          (channel, phòng, người hỏi) → câu mới của cùng người ĐÈ câu cũ, đồng hồ reset.

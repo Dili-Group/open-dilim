@@ -23,3 +23,4 @@ export {
   type RunningProactivePoller,
 } from "./poller.ts";
 export { proactiveSpecFor } from "./spec.ts";
+export { buildProactiveVerify, type ProactiveVerify, type ProactiveVerifyDeps } from "./verify.ts";

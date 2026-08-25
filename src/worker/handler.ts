@@ -132,6 +132,12 @@ export async function handleEnvelope(
           `[usage] phòng ${envelope.conversationId} (${agent.agentType}) vượt ngưỡng: ` +
             `${Math.round(decision.spentVnd)}đ / ${decision.limitVnd}đ — bỏ lượt`,
         );
+        // Lượt proactive: không ai gọi agent — báo "hết ngân sách" vào phòng là spam. Im lặng
+        // bỏ (verify của phễu đã chặn trước khi vào hàng chờ; đây là backstop khi ngân sách
+        // cạn giữa lúc chờ và lúc nhặt).
+        if (envelope.source === "proactive") {
+          return { status: "ignored", reason: "budget_proactive" };
+        }
         step = "broadcast";
         return await noticeBudgetExceeded(ctx, envelope, timer);
       }

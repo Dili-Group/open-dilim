@@ -223,4 +223,10 @@ export interface ProactiveSpec {
   readonly turnNote: string;
   /** Trần lượt proactive mỗi phòng mỗi giờ — chống spam khi nhóm bàn tán sôi nổi. */
   readonly maxPerRoomPerHour: number;
+  /**
+   * Chỉ nhặt trong phòng ĐÃ XÁC THỰC (đã bind chủ phòng, vd `/ketnoi-daily`). Agent phục vụ
+   * theo phòng-của-khách (dealer) bật cờ này: phòng chưa bind thì tool nghiệp vụ không có phạm
+   * vi dữ liệu, agent nhảy vào cũng không giúp được gì. Thiếu/false = không đòi.
+   */
+  readonly requireBoundGroup?: boolean;
 }

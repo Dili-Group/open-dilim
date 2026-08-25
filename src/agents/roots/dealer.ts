@@ -85,6 +85,8 @@ export const dealerProfile: RootAgentProfile = {
       "bằng một dòng nhắc nhẹ: lần sau anh/chị tag em để em thấy ngay ạ.",
     ].join(" "),
     maxPerRoomPerHour: 10,
+    // Phòng chưa /ketnoi-daily: tool đơn/hồ sơ không có phạm vi đại lý → nhặt cũng bó tay.
+    requireBoundGroup: true,
   },
   // ⚠️ THỬ NGHIỆM (dev) — tool ngoài qua MCP, xem docs/architecture/10-mcp.md.
   //
