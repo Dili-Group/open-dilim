@@ -76,7 +76,7 @@ export const dealerProfile: RootAgentProfile = {
       /khi nào|bao giờ|bao lâu|vì sao|tại sao|\bsao\b/i,
       /\?\s*$/m,
     ],
-    waitMs: 4 * 60 * 1000,
+    waitMs: 30 * 1000,
     turnNote: [
       "LƯỢT PROACTIVE: đại lý hỏi trong nhóm nhưng KHÔNG tag em, và sau vài phút chưa ai trả lời",
       "nên em chủ động nhảy vào giúp. Chỉ trả lời khi câu hỏi cuối của người này đúng việc em làm",
@@ -84,7 +84,7 @@ export const dealerProfile: RootAgentProfile = {
       "KHÔNG đoán, không hỏi lại lan man. Trả lời NGẮN hơn bình thường, đi thẳng vào việc, và kết",
       "bằng một dòng nhắc nhẹ: lần sau anh/chị tag em để em thấy ngay ạ.",
     ].join(" "),
-    maxPerRoomPerHour: 6,
+    maxPerRoomPerHour: 10,
   },
   // ⚠️ THỬ NGHIỆM (dev) — tool ngoài qua MCP, xem docs/architecture/10-mcp.md.
   //
