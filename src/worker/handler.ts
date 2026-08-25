@@ -95,6 +95,7 @@ export async function handleEnvelope(
           conversationId: envelope.conversationId,
           isGroup: envelope.isGroup,
           replyToSenderId: envelope.senderId,
+          replyToSenderName: envelope.senderName,
         },
         capForChannel(envelope.channel, flash.reply),
       );
@@ -198,6 +199,7 @@ export async function handleEnvelope(
       conversationId: envelope.conversationId,
       isGroup: envelope.isGroup,
       replyToSenderId: envelope.senderId,
+      replyToSenderName: envelope.senderName,
     };
     if (replyText !== "") {
       await ctx.broadcaster.send(target, capForChannel(envelope.channel, replyText));
@@ -258,6 +260,7 @@ async function noticeBudgetExceeded(
       conversationId: envelope.conversationId,
       isGroup: envelope.isGroup,
       replyToSenderId: envelope.senderId,
+      replyToSenderName: envelope.senderName,
     },
     capForChannel(envelope.channel, BUDGET_NOTICE),
   );
@@ -495,6 +498,7 @@ function buildAnnouncer(ctx: WorkerContext, envelope: Envelope): (text: string) 
     conversationId: envelope.conversationId,
     isGroup: envelope.isGroup,
     replyToSenderId: envelope.senderId,
+    replyToSenderName: envelope.senderName,
   };
   return (text: string) => ctx.broadcaster.send(target, capForChannel(envelope.channel, text));
 }

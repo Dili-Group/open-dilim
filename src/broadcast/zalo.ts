@@ -29,10 +29,20 @@ export class ZaloBroadcaster implements Broadcaster {
   }
 
   async send(target: BroadcastTarget, text: string): Promise<void> {
-    // mentions/quote bỏ trống: mention chỉ highlight khi offset trỏ đúng token "@Tên hiển thị",
-    // mà Envelope không mang tên hiển thị của người gửi. Sai offset thì Zalo gửi text trơn và
-    // KHÔNG báo lỗi → thà gửi text trơn có chủ đích còn hơn đoán offset.
-    await this.post(SEND_PATH, target, { message: text });
+    // Group + có tên hiển thị → prepend "@Tên " và gửi mention trỏ đúng token đó. Mention chỉ
+    // highlight khi offset khớp "@Tên hiển thị" — sai offset thì Zalo gửi text trơn và KHÔNG báo
+    // lỗi → thiếu tên (announcement, cron cũ, payload không mang dName) thì gửi text trơn có
+    // chủ đích thay vì đoán. Quote vẫn bỏ trống.
+    const name = target.replyToSenderName;
+    if (!target.isGroup || name === undefined || name === "") {
+      await this.post(SEND_PATH, target, { message: text });
+      return;
+    }
+    const tag = `@${name}`;
+    await this.post(SEND_PATH, target, {
+      message: `${tag} ${text}`,
+      mentions: [{ pos: 0, len: tag.length, uid: target.replyToSenderId }],
+    });
   }
 
   async sendMedia(target: BroadcastTarget, media: OutboundMedia): Promise<void> {
@@ -47,7 +57,7 @@ export class ZaloBroadcaster implements Broadcaster {
   private async post(
     path: string,
     target: BroadcastTarget,
-    body: Record<string, string>,
+    body: Record<string, unknown>,
   ): Promise<void> {
     const threadType = target.isGroup ? "group" : "user";
     const res = await fetch(`${this.baseUrl}${path}`, {

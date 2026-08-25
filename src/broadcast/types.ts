@@ -7,6 +7,11 @@ export interface BroadcastTarget {
   readonly isGroup: boolean;
   /** senderId người vừa hỏi — group thì @ lại họ. */
   readonly replyToSenderId: string;
+  /**
+   * Tên hiển thị người vừa hỏi (Zalo `dName`, đã sanitize ở ingest). Mention chỉ highlight khi
+   * text chứa đúng token "@Tên hiển thị" — thiếu tên thì broadcaster gửi text trơn, không đoán.
+   */
+  readonly replyToSenderName?: string;
 }
 
 /** Nội dung media gửi đi — `type` quyết định endpoint bridge (ảnh vs file khác nhau). */

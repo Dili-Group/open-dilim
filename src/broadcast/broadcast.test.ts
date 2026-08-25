@@ -100,6 +100,49 @@ describe("ZaloBroadcaster", () => {
     });
   });
 
+  test("group + replyToSenderName → prepend @Tên và gửi mentions trỏ đúng token", async () => {
+    const stub = stubFetch(Response.json({ ok: true, msgId: "m3" }));
+
+    await new ZaloBroadcaster(config).send(
+      { ...target, replyToSenderName: "Chị Lan" },
+      "Đơn 123 đã giao.",
+    );
+
+    expect(jsonBody(stub.calls[0]?.init)).toEqual({
+      threadId: "group_777",
+      threadType: "group",
+      message: "@Chị Lan Đơn 123 đã giao.",
+      mentions: [{ pos: 0, len: "@Chị Lan".length, uid: "user_555" }],
+    });
+  });
+
+  test("chat 1-1 có tên → KHÔNG mention (mention chỉ có nghĩa trong group)", async () => {
+    const stub = stubFetch(Response.json({ ok: true, msgId: "m4" }));
+
+    await new ZaloBroadcaster(config).send(
+      { ...target, isGroup: false, replyToSenderName: "Chị Lan" },
+      "hi",
+    );
+
+    expect(jsonBody(stub.calls[0]?.init)).toEqual({
+      threadId: "group_777",
+      threadType: "user",
+      message: "hi",
+    });
+  });
+
+  test("group thiếu tên → text trơn, không mentions", async () => {
+    const stub = stubFetch(Response.json({ ok: true, msgId: "m5" }));
+
+    await new ZaloBroadcaster(config).send(target, "hi");
+
+    expect(jsonBody(stub.calls[0]?.init)).toEqual({
+      threadId: "group_777",
+      threadType: "group",
+      message: "hi",
+    });
+  });
+
   test("chat 1-1 → threadType user", async () => {
     const stub = stubFetch(Response.json({ ok: true, msgId: "m1" }));
 

@@ -100,7 +100,7 @@ async function announceFiring(
   try {
     await deps.typing?.for(envelope.channel).typing(target);
     await deps.broadcaster?.send(
-      { ...target, replyToSenderId: envelope.senderId },
+      { ...target, replyToSenderId: envelope.senderId, replyToSenderName: envelope.senderName },
       `${ANNOUNCE_PREFIX}${job.task}`,
     );
   } catch (err) {
