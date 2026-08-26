@@ -29,21 +29,34 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   async chat(req: ChatRequest, signal?: AbortSignal): Promise<ChatResult> {
-    const message = await this.client.messages.create(
-      {
-        model: this.model,
-        max_tokens: req.maxTokens,
-        system: toApiSystem(req.system),
-        output_config: { effort: req.effort },
-        messages: req.messages.map(toApiMessage),
-        tools: req.tools.map((t) => ({
-          name: t.name,
-          description: t.description,
-          input_schema: { type: "object" as const, ...t.inputSchema },
-        })),
-      },
-      { signal },
-    );
+    let message: Anthropic.Message;
+    try {
+      message = await this.client.messages.create(
+        {
+          model: this.model,
+          max_tokens: req.maxTokens,
+          system: toApiSystem(req.system),
+          output_config: { effort: req.effort },
+          messages: req.messages.map(toApiMessage),
+          tools: req.tools.map((t) => ({
+            name: t.name,
+            description: t.description,
+            input_schema: { type: "object" as const, ...t.inputSchema },
+          })),
+        },
+        { signal },
+      );
+    } catch (err) {
+      // 400 từ endpoint compat (DeepSeek…) không nói request sai chỗ nào. In SHAPE của messages
+      // (role + loại block, không nội dung — không rò PII) để lần sau khỏi đoán mù, rồi rethrow.
+      if (err instanceof Anthropic.BadRequestError) {
+        const shape = req.messages
+          .map((m) => `${m.role}[${m.content.map((b) => b.type).join(",")}]`)
+          .join(" ");
+        console.error(`[llm] 400 từ ${this.model} — shape messages: ${shape}`);
+      }
+      throw err;
+    }
 
     const usage = fromApiUsage(message.usage);
     logCacheUsage(usage);
