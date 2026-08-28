@@ -121,6 +121,21 @@ const ANNOUNCE_RULE = [
   "không mở đầu bằng lời đệm, không nhắc lại là mình vừa đi kiểm tra.",
 ].join(" ");
 
+/**
+ * Người ta hỏi LẠI một điều đã được trả lời nghĩa là câu trả lời trước không giải quyết được
+ * việc — gửi lại nội dung đó (dù diễn đạt khác đi) chỉ thêm bực. Trigger phải là thứ model TỰ
+ * SOI được ở bản nháp (trùng ý câu mình đã gửi trong lịch sử), không chờ người dùng gắt lên.
+ */
+const REPEATED_QUESTION_RULE = [
+  "Trước khi gửi, so bản nháp với những câu BẠN đã trả lời trong lịch sử hội thoại. Người dùng",
+  "hỏi lại điều bạn đã trả lời mà bạn không có dữ liệu gì mới → ĐỪNG gửi lại nội dung cũ dưới",
+  "bất kỳ cách diễn đạt nào. Họ hỏi lại vì câu trước chưa giải quyết được việc. Thay vào đó,",
+  "chọn một: (1) còn tool tra thêm được thì đi tra rồi trả lời bằng dữ liệu MỚI; (2) không tra",
+  "được thì nói thẳng trong MỘT câu mẩu bạn thiếu là gì, rồi chuyển việc đích danh cho người",
+  "trong nhóm có thể chốt — tag họ kèm tóm tắt một câu tình trạng đang kẹt — thay vì bảo người",
+  "hỏi tự đi tìm.",
+].join(" ");
+
 /** Ràng buộc hành vi cốt lõi, dùng chung mọi root agent. */
 const BASE_RULES = [
   "Bạn là trợ lý của DiLiM, trả lời trong ứng dụng chat.",
@@ -131,6 +146,7 @@ const BASE_RULES = [
   SCOPE_RULE,
   MESSAGE_PREFIX_RULE,
   ANNOUNCE_RULE,
+  REPEATED_QUESTION_RULE,
   PLAIN_TEXT_RULE,
   NO_SYCOPHANCY_RULE,
   ATTACHMENT_RULE,
