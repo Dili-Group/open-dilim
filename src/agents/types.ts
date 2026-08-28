@@ -205,6 +205,14 @@ export interface RootAgentProfile {
 }
 
 /**
+ * Sentinel model trả về để TỪ CHỐI một lượt proactive. Trước đây turnNote bảo "im lặng = trả
+ * lời chuỗi rỗng" — model tuân thủ nửa vời, viết literal "Chuỗi rỗng — [giải thích]" và câu đó
+ * lọt ra phòng thật. Bắt trả đúng chuỗi cố định thì model theo được, và worker nuốt trọn cả khi
+ * model lỡ kèm giải thích phía sau sentinel.
+ */
+export const PROACTIVE_DECLINE = "[BO-QUA]";
+
+/**
  * Config phễu proactive CỦA MỘT agent — DATA thuần, engine đọc ở hai chỗ: ingest (tầng 0) và
  * poller (tầng 1-3). Xem docs thiết kế phễu trong src/proactive/.
  */

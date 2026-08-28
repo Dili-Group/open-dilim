@@ -528,6 +528,37 @@ describe("handleEnvelope", () => {
     expect(broadcaster.media[0]!.target.conversationId).toBe("c1");
   });
 
+  test("lượt proactive model từ chối bằng sentinel → nuốt trọn, không broadcast", async () => {
+    const history = new MemoryHistoryStore();
+    await history.append({
+      conversationId: "c1",
+      msgId: "m1",
+      senderId: "u1",
+      text: "@Huyền em chuyển hoa hồng qua tài khoản cá nhân chị nha",
+      isGroup: true,
+      role: "user",
+      ts: 1,
+    });
+    // Model lỡ kèm giải thích sau sentinel — vẫn phải nuốt, không để lọt ra phòng.
+    const provider = new ScriptedProvider([
+      {
+        stopReason: "end_turn",
+        content: [
+          { type: "text", text: "[BO-QUA] — việc này đang nhờ nhân viên, không thuộc việc em." },
+        ],
+      },
+    ]);
+    const { ctx, broadcaster } = makeCtx(provider, { role: "guest", senderId: "u1" }, history);
+
+    const result = await handleEnvelope(
+      ctx,
+      makeEnvelope({ source: "proactive", msgId: "proactive:m1", isGroup: true }),
+    );
+
+    expect(result).toEqual({ status: "ignored", reason: "proactive_decline" });
+    expect(broadcaster.sent).toHaveLength(0);
+  });
+
   // ─── ngân sách theo phòng (usage/) ───────────────────────────────────────
   //
   // Kênh "zalo" → agent dealer → trần 10.000đ/ngày (usage/budget.ts).

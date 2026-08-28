@@ -33,6 +33,9 @@ export function passesProactiveGate({ envelope, spec, selfIds }: ProactiveGateIn
   // mention agent đã có lượt riêng; envelope tổng hợp (cron/distill/proactive) không phải tin.
   if (!envelope.isGroup || envelope.addressedToAgent || envelope.source !== "channel") return false;
   if (selfIds.includes(envelope.senderId)) return false;
+  // Tin đã tag ĐÍCH DANH người khác (tag agent thì addressedToAgent đã true, không rơi vào đây):
+  // người hỏi đang nhờ đúng người đó làm — việc của NGƯỜI, không phải câu bơ vơ cần agent nhặt.
+  if (envelope.mentions.length > 0) return false;
 
   const meaningful = envelope.text
     .replace(ATTACHMENT_PLACEHOLDER, " ")

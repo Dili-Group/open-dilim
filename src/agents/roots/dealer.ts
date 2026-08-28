@@ -16,7 +16,7 @@ import {
   WORKFLOW_REPLY_TOOLS,
 } from "../../tools/index.ts";
 import { DEALER_PROMPT } from "../prompts.ts";
-import { AgentType, type RootAgentProfile } from "../types.ts";
+import { AgentType, PROACTIVE_DECLINE, type RootAgentProfile } from "../types.ts";
 
 export const dealerProfile: RootAgentProfile = {
   agentType: AgentType.Dealer,
@@ -80,9 +80,13 @@ export const dealerProfile: RootAgentProfile = {
     turnNote: [
       "LƯỢT PROACTIVE: đại lý hỏi trong nhóm nhưng KHÔNG tag em, và sau vài phút chưa ai trả lời",
       "nên em chủ động nhảy vào giúp. Chỉ trả lời khi câu hỏi cuối của người này đúng việc em làm",
-      "được bằng tool/kiến thức sẵn có; không chắc chắn thì im lặng tuyệt đối (trả lời chuỗi rỗng),",
-      "KHÔNG đoán, không hỏi lại lan man. Trả lời NGẮN hơn bình thường, đi thẳng vào việc, và kết",
-      "bằng một dòng nhắc nhẹ: lần sau anh/chị tag em để em thấy ngay ạ.",
+      "được bằng tool/kiến thức sẵn có. Việc đang nhờ ĐÍCH DANH người khác (tag/gọi tên nhân viên,",
+      "kế toán, chị nào đó trong nhóm) là việc của người đó, không phải của em — đứng ngoài.",
+      `Khi quyết định đứng ngoài (việc của người khác, không chắc chắn, ngoài phạm vi): trả về`,
+      `DUY NHẤT chuỗi ${PROACTIVE_DECLINE}, không viết thêm bất kỳ chữ nào, không giải thích lý`,
+      "do — hệ thống sẽ nuốt tin đó, cả nhóm không thấy gì. KHÔNG đoán, không hỏi lại lan man.",
+      "Khi trả lời: NGẮN hơn bình thường, đi thẳng vào việc, và kết bằng một dòng nhắc nhẹ:",
+      "lần sau anh/chị tag em để em thấy ngay ạ.",
     ].join(" "),
     maxPerRoomPerHour: 10,
     // Phòng chưa /ketnoi-daily: tool đơn/hồ sơ không có phạm vi đại lý → nhặt cũng bó tay.

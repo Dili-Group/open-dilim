@@ -6,7 +6,7 @@
 import { resolveAgentType } from "../agents/router.ts";
 import { startTurnTimer, type TurnTimer } from "../observability/timing.ts";
 import { toTurnSpeaker } from "../agents/runtime/build-agent.ts";
-import type { RootAgent } from "../agents/types.ts";
+import { PROACTIVE_DECLINE, type RootAgent } from "../agents/types.ts";
 import type { TurnSpeaker } from "../context/speaker-block.ts";
 import type { Identity } from "../flash-command/types.ts";
 import { MemoryOwnerKind, type MemoryScope } from "../state/types.ts";
@@ -194,6 +194,11 @@ export async function handleEnvelope(
     // suspended (§6): gate đã lưu pending + tự phát yêu cầu duyệt tới NGƯỜI DUYỆT (có thể ở phòng
     // khác) → worker thoát, không broadcast gì thêm. failed: không có text hợp lệ để gửi.
     if (result.status !== "reply" || result.text === "") return result;
+    // Lượt proactive model từ chối bằng sentinel → im lặng tuyệt đối. So startsWith chứ không so
+    // bằng: model lỡ kèm "vì sao em đứng ngoài" phía sau thì nuốt trọn, không lọt ra phòng.
+    if (envelope.source === "proactive" && result.text.trimStart().startsWith(PROACTIVE_DECLINE)) {
+      return { status: "ignored", reason: "proactive_decline" };
+    }
 
     // 9. BROADCAST — direct → DM user; group → topic phòng, @ lại người hỏi.
     // Cap ở đây chứ không ở agent: trần là ràng buộc CỦA KÊNH, agent không cần biết.

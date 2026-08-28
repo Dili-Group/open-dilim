@@ -69,6 +69,17 @@ describe("passesProactiveGate (tầng 0)", () => {
     expect(gate({ text: "đơn này khách đã CK, duyệt giúp em [Ảnh đính kèm]" })).toBe(true);
   });
 
+  test("tin tag đích danh người khác → việc của NGƯỜI ĐÓ, bỏ dù trúng trigger", () => {
+    // Case thật: đại lý tag nhân viên nhờ chuyển hoa hồng — "hoa hồng"/"chuyển" trúng trigger
+    // nhưng việc đã có địa chỉ, agent không được nhặt.
+    expect(
+      gate({
+        text: "@Trương Thị Mỹ Huyền em ơi bảng kê hoa hồng khớp rồi nhé. Lần này em chuyển qua tài khoản cá nhân chị Hương nha",
+        mentions: [{ uid: "NV1" }],
+      }),
+    ).toBe(false);
+  });
+
   test("tin của chính agent (uid mention HAY uid tài khoản vọng lại) → bỏ", () => {
     expect(gate({ senderId: AGENT_UID })).toBe(false);
     expect(gate({ senderId: SELF_UID })).toBe(false);
