@@ -25,13 +25,23 @@ import {
 /** Câu bắt buộc kèm mọi link — khách phải biết nó sống được bao lâu. */
 const TTL_NOTE = "Mỗi link chỉ có hiệu lực 15 phút — nói rõ câu này khi gửi cho khách.";
 
+/**
+ * session_type từ API: 0 = quét xuất kho (đóng gói), 1 = quét nhập hàng hoàn (khui hàng hoàn).
+ * Backend cũ chưa trả field này → nhãn rỗng, model coi như không rõ loại.
+ */
+const SESSION_TYPE_LABELS: Readonly<Record<number, string>> = {
+  0: "đóng gói",
+  1: "khui hàng hoàn",
+};
+
 export function buildOrderVideoTool(ctx: ToolContext): Tool {
   return {
     name: "video_don_hang",
     description:
-      "Lấy link video camera của một đơn (quay lúc quét/đóng gói hàng). Bắt buộc `ma_van_don`. " +
-      "Link hết hạn sau 15 phút: gọi tool NGAY lúc chuẩn bị gửi cho khách, KHÔNG gửi lại link cũ " +
-      "đã có trong lịch sử chat. CHỈ ĐỌC.",
+      "Lấy link video camera của một đơn. Có 2 loại (cột `loai`): video ĐÓNG GÓI (quét xuất kho) " +
+      "và video KHUI HÀNG HOÀN (quét nhập hàng hoàn) — gửi đúng loại khách xin, xin chung chung " +
+      "thì gửi cả hai. Bắt buộc `ma_van_don`. Link hết hạn sau 15 phút: gọi tool NGAY lúc chuẩn " +
+      "bị gửi cho khách, KHÔNG gửi lại link cũ đã có trong lịch sử chat. CHỈ ĐỌC.",
     inputSchema: {
       type: "object",
       properties: {
@@ -94,6 +104,7 @@ function renderEmpty(trackingNumber: string): string {
 function linkRow(link: OrderCameraLink): Row {
   return {
     lan_quet: cell(link.sessionCode),
+    loai: cell(link.sessionType === undefined ? undefined : SESSION_TYPE_LABELS[link.sessionType]),
     luc_quet: cell(formatDateTime(link.scannedAt)),
     so_camera: link.cameraCount ?? "",
     link: link.url,

@@ -83,6 +83,8 @@ export interface OrderSearchPage {
  */
 export interface OrderCameraLink {
   readonly sessionCode?: string;
+  /** Loại lần quét: 0 = xuất kho (đóng gói), 1 = nhập hàng hoàn (khui hàng hoàn). */
+  readonly sessionType?: number;
   readonly scannedAt?: string;
   readonly cameraCount?: number;
   readonly url: string;

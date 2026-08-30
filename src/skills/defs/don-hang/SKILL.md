@@ -1,6 +1,6 @@
 ---
 name: don-hang
-description: Xử lý mọi việc về đơn hàng của đại lý — tra trạng thái, liệt kê đơn theo ngày tạo, báo huỷ đơn, hỏi số tiền của đơn, xin video camera đóng gói. Load khi đại lý hoặc thành viên nhắc "đơn", "hàng", "giao", "huỷ", "thanh toán", "chuyển khoản", "nạp ví", "QR", "công nợ", "COD", "video", "camera", "mã vận đơn", "đơn hôm nay", "đơn ngày...".
+description: Xử lý mọi việc về đơn hàng của đại lý — tra trạng thái, liệt kê đơn theo ngày tạo, báo huỷ đơn, hỏi số tiền của đơn, xin video camera (đóng gói / khui hàng hoàn). Load khi đại lý hoặc thành viên nhắc "đơn", "hàng", "giao", "huỷ", "thanh toán", "chuyển khoản", "nạp ví", "QR", "công nợ", "COD", "video", "camera", "hàng hoàn", "mã vận đơn", "đơn hôm nay", "đơn ngày...".
 agents: dealer
 ---
 
@@ -16,7 +16,7 @@ Năm việc khách hay hỏi, dùng chung 3 bước: **phân loại việc → c
 | Tiền của đơn (tổng, COD, phí ship) | `tra_don_hang` (chi tiết đơn) | `references/thanh-toan.md` |
 | Cần chuyển bao nhiêu để đơn được đi | `tra_tien_can_chuyen` (chỉ con số) | `references/thanh-toan.md` |
 | Thanh toán để đơn được đi (QR + nội dung CK) | `tao_phieu_thanh_toan` — kể cả 1 đơn | `references/thanh-toan.md` |
-| Xin video camera đóng gói | `video_don_hang` | `references/video.md` |
+| Xin video camera (đóng gói / khui hàng hoàn) | `video_don_hang` — 2 loại, gửi đúng loại khách xin | `references/video.md` |
 | Hàng còn hay hết, đơn kẹt vì hết hàng | KHÔNG có tool tồn kho | skill `het-hang` |
 | Đơn 0đ / gửi bill CK / đơn kẹt lệch giá xin duyệt cho đơn đi | `duyet_don_da_thanh_toan` | skill `duyet-don-0d` |
 

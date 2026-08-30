@@ -445,6 +445,7 @@ function readCameraLink(value: unknown): OrderCameraLink | undefined {
   return {
     url,
     sessionCode: readString(record, "session_code"),
+    sessionType: readNumber(record, "session_type"),
     scannedAt: readString(record, "scanned_at"),
     cameraCount: readNumber(record, "camera_count"),
     expiresAt: readString(record, "expires_at"),
