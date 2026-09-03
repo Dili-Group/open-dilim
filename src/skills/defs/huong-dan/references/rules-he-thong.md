@@ -26,3 +26,6 @@ Agent **không tra được** ai đã nộp rules, ai chưa. Đại lý hỏi "e
 em" → nói thẳng là không tra được, đề nghị nhắn thẳng vào Nhóm Hỗ trợ.
 
 Agent không ký hộ, không điền sheet hộ, không xác nhận thay Nhóm Hỗ trợ.
+
+Khiếu nại, báo vi phạm Rule, check khách theo Rule, hỏi Rule vừa đổi → có người phụ trách đích
+danh (anh Lương Tấn Tài), xem `nhan-su-phu-trach.md`.

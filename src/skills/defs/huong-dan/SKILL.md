@@ -1,6 +1,6 @@
 ---
 name: huong-dan
-description: Chỉ đại lý CÁCH LÀM và cấp link tài liệu chính thức — quên mật khẩu / đăng nhập app, ký hợp đồng, đăng ký MST hộ kinh doanh, ký rules hệ thống, lấy API Key và gắn webhook PosCake (Pancake POS) để đơn tự về hệ thống, tích hợp app giao hàng cá nhân (Viettel Post), cách tạo đơn trên app, quy trình thanh toán - COD - hoá đơn, giờ shipper lấy hàng, địa chỉ kho, bảng giá niêm yết, drive tài liệu, group cộng đồng. Load khi đại lý hỏi "làm sao", "cách nào", "hướng dẫn", "link ở đâu", "chưa biết làm", "quên mật khẩu", "đăng ký ở đâu", "API key", "webhook", "poscake", "pancake".
+description: Chỉ đại lý CÁCH LÀM và cấp link tài liệu chính thức — quên mật khẩu / đăng nhập app, ký hợp đồng, đăng ký MST hộ kinh doanh, ký rules hệ thống, lấy API Key và gắn webhook PosCake (Pancake POS) để đơn tự về hệ thống, tích hợp app giao hàng cá nhân (Viettel Post), cách tạo đơn trên app, quy trình thanh toán - COD - hoá đơn, giờ shipper lấy hàng, địa chỉ kho, bảng giá niêm yết, drive tài liệu, group cộng đồng, ai phụ trách việc gì (trùng đơn, bán sai giá, đăng ký sale mới, khiếu nại - vi phạm Rule). Load khi đại lý hỏi "làm sao", "cách nào", "hướng dẫn", "link ở đâu", "chưa biết làm", "quên mật khẩu", "đăng ký ở đâu", "API key", "webhook", "poscake", "pancake", "liên hệ ai", "ai phụ trách", "trùng đơn", "khiếu nại", "đăng ký sale".
 agents: dealer
 ---
 
@@ -22,6 +22,7 @@ tiền bao nhiêu, bậc nào) — việc đó ở skill khác.
 | Lên đơn xong trả tiền kiểu gì, COD về khi nào, hoá đơn ra sao | `references/thanh-toan-cod.md` |
 | Mấy giờ shipper lấy hàng, kho ở đâu | `references/kho-lay-hang.md` |
 | Bảng giá niêm yết, drive tài liệu, vào group nào | `references/tai-lieu-group.md` |
+| Trùng đơn, bán sai giá, đăng ký đại lý/sale mới, check khách theo Rule, khiếu nại / vi phạm Rule — **liên hệ ai** | `references/nhan-su-phu-trach.md` |
 
 Hỏi hai việc trong một tin → đọc đủ hai file, trả lời gộp một tin, đừng bắt đại lý hỏi lại.
 
@@ -58,6 +59,7 @@ dòng đó.
 | Bảng giá niêm yết | https://docs.google.com/spreadsheets/d/16fPI2XwRYaVfALeo_atx9zxxZDASzQLUV4RFZlpHpWA/edit?gid=1114013565#gid=1114013565 |
 | Drive tài liệu tổng | https://drive.google.com/drive/u/0/folders/1FvTZlP-LXfqB23vwP84IoZmBnQvlG2N6 |
 | Trang hướng dẫn đại lý (bản đầy đủ) | https://dilim-guide-docs.solitary-rice-590b.workers.dev |
+| Văn bản phân công nhân sự | https://drive.google.com/file/d/11EpZt-du-wM8XigcWntfsKPyfjdMUxkB/view |
 
 **Webhook URL nhận đơn PosCake KHÔNG có trong bảng này** — vận hành cấp riêng cho từng đại lý. Agent
 không tự ghép, không đoán; đại lý cần thì chuyển Nhóm Hỗ trợ.
@@ -72,7 +74,8 @@ không tự ghép, không đoán; đại lý cần thì chuyển Nhóm Hỗ tr�
 4. **Số liệu chép đúng.** Giờ lấy hàng, địa chỉ kho, số điện thoại — chép nguyên, không làm tròn,
    không diễn giải lại.
 5. **Việc cần người xác nhận** (nộp rules, duyệt vào group riêng, tích hợp tài khoản vận chuyển) →
-   đề nghị đại lý nhắn **Nhóm Hỗ trợ**.
+   đề nghị đại lý nhắn **Nhóm Hỗ trợ**. Riêng việc đã có **người phụ trách đích danh** (trùng đơn,
+   sai giá, đăng ký sale mới, Rule) → chỉ thẳng người đó theo `references/nhan-su-phu-trach.md`.
 6. Đại lý hỏi lại lần hai → **không lặp nguyên tin cũ**. Thêm dữ kiện mới, hoặc chuyển Nhóm Hỗ trợ.
 
 ## DILIM hỗ trợ đại lý những gì

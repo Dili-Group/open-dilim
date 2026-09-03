@@ -48,6 +48,7 @@ describe("registry (defs thật)", () => {
       "gia-nhap.md",
       "kho-lay-hang.md",
       "mat-khau.md",
+      "nhan-su-phu-trach.md",
       "poscake.md",
       "rules-he-thong.md",
       "tai-lieu-group.md",
@@ -77,6 +78,20 @@ describe("registry (defs thật)", () => {
     const tien = await readReference(skill!, "thanh-toan-cod.md");
     expect(tien).toContain("T2 – T4 – T6");
     expect(tien).toContain("không tự nhân chia");
+  });
+
+  test("huong-dan/nhan-su-phu-trach: đúng người đúng số, việc ngoài bảng về Nhóm Hỗ trợ", async () => {
+    const registry = await buildSkillRegistry();
+    const skill = registry.get("huong-dan");
+    const ref = await readReference(skill!, "nhan-su-phu-trach.md");
+    // Số chép nguyên từ thông báo phân công 03/09/2026.
+    expect(ref).toContain("Trương Thị Mỹ Huyền");
+    expect(ref).toContain("0363699432");
+    expect(ref).toContain("Lương Tấn Tài");
+    expect(ref).toContain("0902430082");
+    expect(ref).toContain("không gán bừa");
+    // Link văn bản gốc nằm trong bảng link chuẩn của hub.
+    expect(await readBody(skill!)).toContain("11EpZt-du-wM8XigcWntfsKPyfjdMUxkB");
   });
 
   test("huong-dan/poscake: nêu đường lấy API Key và cảnh báo key = quyền admin", async () => {

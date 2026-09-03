@@ -25,6 +25,8 @@ Luật đi kèm bảng giá:
 | Lấy video phản hồi khách hàng | Sale + Lead | https://zalo.me/g/fcaiie012 |
 
 Gửi **đúng group cho đúng việc**, đừng dội cả bảng vào một tin khi đại lý chỉ hỏi một việc.
+Trùng đơn ngoài group báo check còn có người xử lý trực tiếp (chị Trương Thị Mỹ Huyền) — xem
+`nhan-su-phu-trach.md`.
 
 ## Group riêng tư phải duyệt
 
