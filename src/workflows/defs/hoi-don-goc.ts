@@ -162,6 +162,8 @@ export function buildAskOriginOrderWorkflow(deps: AskOriginOrderDeps): WorkflowD
           `mã vận đơn gốc, đọc lại cho đại lý xác nhận đúng đơn, rồi mới gọi tra_loi_viec với mã đó.`,
         `TUYỆT ĐỐI không tự cắt đuôi DH rồi ghi luôn khi đại lý chưa xác nhận, và không truyền ` +
           `SĐT/tên khách vào tra_loi_viec. Chưa có đại lý xác nhận thì chưa trả lời.`,
+        `Lượt này là hệ thống hỏi, chưa ai trả lời — KHÔNG gọi tra_loi_viec trong lượt này. ` +
+          `Đại lý hoặc nhân viên trong nhóm trả lời thì ai cũng được, ghi ở lượt đó.`,
       ].join("\n");
     },
 

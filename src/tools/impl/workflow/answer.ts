@@ -7,9 +7,22 @@
 // Khoá sai → tool trả về DANH SÁCH khoá đang chờ CỦA CHÍNH NHÓM NÀY, để model tự sửa ở lượt sau
 // thay vì bịa ra một mã gần đúng.
 
+import { WORKFLOW_SENDER_ID } from "../../../workflows/types.ts";
 import { readStringField } from "../../input.ts";
 import type { Tool, ToolContext, ToolResult } from "../../types.ts";
 import { NO_PORT, NO_ROOM, renderCatalog, roomOf, unknownWorkflow } from "./scope.ts";
+
+/**
+ * Lượt hiện tại do HỆ THỐNG phát để hỏi/nhắc — chưa có người nào trong nhóm nói gì. Vụ
+ * PKE1487782361DH: model tự cắt đuôi DH rồi ghi ngay trong lượt hỏi, kho nhận "đại lý xác nhận"
+ * khi chưa ai xác nhận. Lượt của NGƯỜI thật thì ai trả lời cũng được (đại lý hay nhân viên).
+ */
+const SYSTEM_TURN: ToolResult = {
+  content:
+    "Lượt này là hệ thống tự phát để HỎI, chưa có người nào trong nhóm trả lời. KHÔNG ghi gì — " +
+    "chỉ đặt câu hỏi, chờ đại lý hoặc nhân viên trả lời ở lượt sau rồi mới gọi lại.",
+  isError: true,
+};
 
 export function buildWorkflowAnswerTool(ctx: ToolContext): Tool {
   const defs = ctx.workflow?.catalog() ?? [];
@@ -50,6 +63,7 @@ async function runAnswer(ctx: ToolContext, input: unknown): Promise<ToolResult> 
 
   const room = roomOf(ctx);
   if (room === undefined) return NO_ROOM;
+  if (ctx.identity.senderId === WORKFLOW_SENDER_ID) return SYSTEM_TURN;
 
   const workflow = readStringField(input, "ma_viec");
   const subject = readStringField(input, "khoa");
