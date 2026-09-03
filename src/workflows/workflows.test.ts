@@ -26,9 +26,9 @@ const WAREHOUSE: RoomRef = { channel: "zalo-kho", groupId: "kho-1" };
 const DEALER_ROOM: RoomRef = { channel: "zalo", groupId: "group-42" };
 const OTHER_DEALER_ROOM: RoomRef = { channel: "zalo", groupId: "group-99" };
 const RETURN_CODE = "VTP0093412DH";
-/** Thân mã hoàn (bỏ đuôi DH) — đơn ĐỔI HÀNG, KHÔNG phải đơn gốc. */
+/** Thân mã hoàn (bỏ đuôi DH). Có thể chính là đơn gốc — hay không — chỉ đại lý biết. */
 const BASE_CODE = "VTP0093412";
-/** Đơn gốc thật do đại lý xác nhận — cố ý KHÁC thân mã hoàn. */
+/** Đơn gốc do đại lý xác nhận — cố ý KHÁC thân mã hoàn để test đường "không trùng". */
 const ORIGIN_CODE = "GHN0011223";
 /** 09:00 giờ VN = 02:00 UTC — trong giờ hành chính. */
 const NOW = Date.parse("2026-08-10T02:00:00Z");
@@ -304,10 +304,12 @@ describe("chuẩn hoá mã của def hoi-don-goc", () => {
     expect(def.normalizeAnswer("0912345678", RETURN_CODE)).toBeUndefined();
   });
 
-  test("đáp án trùng thân mã hoàn (tự cắt đuôi DH) bị từ chối — zero thông tin", () => {
-    expect(def.normalizeAnswer(BASE_CODE, RETURN_CODE)).toBeUndefined();
-    // Khoá thô chưa chuẩn hoá vẫn phải chặn được.
-    expect(def.normalizeAnswer(BASE_CODE, " vtp 009-3412 dh ")).toBeUndefined();
+  test("đáp án trùng thân mã hoàn được nhận — đại lý xác nhận đơn gốc chính là thân mã", () => {
+    // Vụ PKE1505725134DH: đại lý trả lời PKE1505725134, SĐT khách tra ra đúng mã đó. Chặn ở đây
+    // = việc treo không bao giờ đóng dù đại lý đã xác nhận. Chống model tự cắt đuôi là việc của
+    // askText, không phải của tầng data.
+    expect(def.normalizeAnswer(BASE_CODE, RETURN_CODE)).toBe(BASE_CODE);
+    expect(def.normalizeAnswer(BASE_CODE, " vtp 009-3412 dh ")).toBe(BASE_CODE);
   });
 
   test("chỉ mỗi chữ DH → không còn thân mã, không phải khoá hợp lệ", () => {

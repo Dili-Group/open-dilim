@@ -83,28 +83,29 @@ export function buildAskOriginOrderWorkflow(deps: AskOriginOrderDeps): WorkflowD
     },
 
     /**
-     * Đáp án phải là một MÃ VẬN ĐƠN thật sự — không phải câu nói, không phải SĐT khách, và không
-     * phải chính thân mã hoàn. Bốn kiểu sai bị chặn:
+     * Đáp án phải là một MÃ VẬN ĐƠN thật sự — không phải câu nói, không phải SĐT khách. Ba kiểu
+     * sai bị chặn:
      *  - chuỗi quá ngắn ("ok", "đơn chị" mà model tưởng là mã);
      *  - mã đuôi DH (mã HOÀN, không phải đơn gốc);
-     *  - toàn số (SĐT khách — phải tra ra mã vận đơn trước, xem answerHelp);
-     *  - trùng thân mã hoàn (bỏ đuôi DH) — đáp án zero thông tin: thân mã là đơn ĐỔI HÀNG mà cả
-     *    việc treo này tồn tại chính vì nó KHÔNG xác định được đơn gốc. Vụ PKE1487782361DH:
-     *    model tự cắt đuôi rồi báo "đại lý xác nhận" trong khi chưa ai xác nhận.
+     *  - toàn số (SĐT khách — phải tra ra mã vận đơn trước, xem answerHelp).
+     *
+     * KHÔNG chặn đáp án trùng thân mã hoàn (bỏ đuôi DH). Từng chặn (vụ PKE1487782361DH: model tự
+     * cắt đuôi rồi báo "đại lý xác nhận" khi chưa ai xác nhận) nhưng vụ PKE1505725134DH cho thấy
+     * thân mã NHIỀU KHI chính là đơn gốc — đại lý xác nhận, SĐT khách tra ra đúng mã đó — và chặn
+     * ở tầng data khiến việc treo không bao giờ đóng được. Tầng data không biết đại lý đã xác nhận
+     * hay chưa; chống model tự suy là việc của askText.
      */
-    normalizeAnswer(raw: string, subject: string): string | undefined {
+    normalizeAnswer(raw: string): string | undefined {
       const code = normalizeCode(raw);
       if (code === undefined || code.length < MIN_CODE_LENGTH) return undefined;
       if (needsOriginOrder(code)) return undefined;
       if (DIGITS_ONLY.test(code)) return undefined;
-      const subjectCode = normalizeCode(subject);
-      if (subjectCode !== undefined && code === baseCodeOf(subjectCode)) return undefined;
       return code;
     },
 
     answerHelp: [
       "Đáp án hợp lệ là MÃ VẬN ĐƠN GỐC do đại lý xác nhận (có tiền tố chữ, ví dụ PKE..., VTP...).",
-      "KHÔNG hợp lệ: mã hoàn (đuôi DH), thân mã hoàn tự cắt đuôi DH, SĐT hay tên khách.",
+      "KHÔNG hợp lệ: mã hoàn (đuôi DH), SĐT hay tên khách.",
       "Nếu đại lý chỉ cho tên/SĐT khách: gọi tra_don_hang với tim_kiem = tên/SĐT đó để tìm mã vận " +
         "đơn gốc, xác nhận lại với đại lý đúng đơn, rồi mới gọi tra_loi_viec với mã tìm được.",
     ].join(" "),
@@ -153,12 +154,14 @@ export function buildAskOriginOrderWorkflow(deps: AskOriginOrderDeps): WorkflowD
         `Hỏi đại lý trong nhóm này: mã hoàn "${code}" ứng với ĐƠN GỐC nào (mã vận đơn gốc, ` +
           `hoặc tên/số điện thoại khách nhận để tra ra đơn).`,
         `Nhắc lại mã hoàn NGUYÊN VĂN "${code}" trong câu hỏi — không rút gọn, không bỏ đuôi.`,
+        `Được phép hỏi gợi ý: "có phải đơn gốc là ${baseCodeOf(code)} không?" — nhiều khi đơn gốc ` +
+          `chính là thân mã. Đại lý xác nhận đúng thì ghi mã đó; đại lý nói khác thì ghi mã đại lý đọc.`,
         `Khi đại lý cho mã đơn gốc, gọi tool tra_loi_viec với ma_viec = "${ASK_ORIGIN_ORDER}", ` +
           `khoa = "${code}", tra_loi = mã đơn gốc đại lý vừa đọc.`,
         `Nếu đại lý chỉ cho TÊN hoặc SĐT khách: gọi tra_don_hang với tim_kiem = tên/SĐT đó để tìm ` +
           `mã vận đơn gốc, đọc lại cho đại lý xác nhận đúng đơn, rồi mới gọi tra_loi_viec với mã đó.`,
-        `TUYỆT ĐỐI không tự suy mã đơn gốc bằng cách cắt đuôi DH, và không truyền SĐT/tên khách ` +
-          `vào tra_loi_viec. Chưa có đại lý xác nhận thì chưa trả lời.`,
+        `TUYỆT ĐỐI không tự cắt đuôi DH rồi ghi luôn khi đại lý chưa xác nhận, và không truyền ` +
+          `SĐT/tên khách vào tra_loi_viec. Chưa có đại lý xác nhận thì chưa trả lời.`,
       ].join("\n");
     },
 

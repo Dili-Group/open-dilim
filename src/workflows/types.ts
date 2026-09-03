@@ -103,8 +103,8 @@ export interface WorkflowDef {
   /** Khoá thô người/model gõ → khoá chuẩn hoá. undefined = không hợp lệ, không mở việc. */
   normalizeSubject(raw: string): string | undefined;
   /**
-   * Đáp án thô → dạng lưu. undefined = không hợp lệ, KHÔNG đóng việc. Nhận thêm khoá việc để
-   * chặn đáp án "vòng tròn" — ví dụ trả lời đúng bằng thân mã hoàn thì không mang thông tin gì.
+   * Đáp án thô → dạng lưu. undefined = không hợp lệ, KHÔNG đóng việc. Nhận thêm khoá việc cho
+   * nghiệp vụ nào cần đối chiếu đáp án với khoá; def không cần thì bỏ qua tham số.
    */
   normalizeAnswer(raw: string, subject: string): string | undefined;
   /**
