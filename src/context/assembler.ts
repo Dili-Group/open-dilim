@@ -141,7 +141,7 @@ function toMessages(
 ): LlmMessage[] {
   const open = `<${tag}>`;
   const close = `</${tag}>`;
-  return history.map((entry) => {
+  return endWithUserTurn(history).map((entry) => {
     // History đi qua nhiều tầng (DB, cache, ingest) → entry/field có thể vắng ở runtime dù type
     // khai đủ. `?.` + mặc định rỗng: thiếu một lượt cũ không được giết cả lượt trả lời.
     if (entry?.role === "agent") {
@@ -164,6 +164,25 @@ function toMessages(
       ],
     };
   });
+}
+
+/**
+ * Message cuối gửi API PHẢI là user. History kết bằng lượt agent xảy ra thật: tin retry sau khi
+ * agent đã trả lời việc khác trong phòng, hoặc tin B vào lúc lượt A đang chạy → lượt B đọc
+ * history `[A, B, đáp A]`. Gửi nguyên → assistant cuối bị coi là prefill: DeepSeek 400
+ * "thinking must be passed back", Claude thì viết tiếp câu cũ thay vì trả lời B.
+ *
+ * Dời CỤM agent ở đuôi lên trước tin user cuối: model vẫn thấy mình đã nói gì, và tin user cuối
+ * là thứ cần trả lời. KHÔNG bỏ lượt (thà trả lời hai lần còn hơn im lặng — xem worker/burst.ts),
+ * KHÔNG bịa user message. Toàn bộ là agent → không có user để đẩy lên, trả nguyên.
+ */
+function endWithUserTurn(history: readonly HistoryEntry[]): readonly HistoryEntry[] {
+  let end = history.length;
+  while (end > 0 && history[end - 1]?.role === "agent") end--;
+  if (end === history.length || end === 0) return history;
+  const lastUser = history[end - 1];
+  if (lastUser === undefined) return history;
+  return [...history.slice(0, end - 1), ...history.slice(end), lastUser];
 }
 
 /**

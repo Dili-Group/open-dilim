@@ -318,6 +318,48 @@ describe("assembleTurnContext — messages", () => {
     expect(text).not.toContain("ảnh đính kèm");
   });
 
+  test("history kết bằng lượt agent → dời lên TRƯỚC tin user cuối; message cuối luôn là user", async () => {
+    // Tái hiện prod 04/09: msg retry sau khi agent đã trả lời việc khác trong phòng → shape
+    // `user user user assistant` → DeepSeek 400 "thinking must be passed back" (assistant cuối
+    // = prefill). Claude thật cũng hỏng: model viết tiếp câu cũ thay vì trả lời tin mới.
+    const ctx = await assembleTurnContext(sources(), {
+      history: [
+        entry({ msgId: "m1", text: "câu 1" }),
+        entry({ msgId: "m2", text: "câu 2" }),
+        entry({ msgId: "m3", text: "câu 3" }),
+        entry({ msgId: "a1", role: "agent", text: "em trả lời câu 2" }),
+      ],
+    });
+    expect(ctx.messages.map((m) => m.role)).toEqual(["user", "user", "assistant", "user"]);
+    const texts = ctx.messages.map((m) => (m.content[0] as { text: string }).text);
+    expect(texts[2]).toBe("em trả lời câu 2");
+    expect(texts[3]).toContain("câu 3");
+  });
+
+  test("nhiều lượt agent liên tiếp ở đuôi → dời cả cụm, giữ thứ tự trong cụm", async () => {
+    const ctx = await assembleTurnContext(sources(), {
+      history: [
+        entry({ msgId: "m1", text: "hỏi" }),
+        entry({ msgId: "a1", role: "agent", text: "đáp 1" }),
+        entry({ msgId: "a2", role: "agent", text: "đáp 2" }),
+      ],
+    });
+    expect(ctx.messages.map((m) => m.role)).toEqual(["assistant", "assistant", "user"]);
+    const texts = ctx.messages.map((m) => (m.content[0] as { text: string }).text);
+    expect(texts.slice(0, 2)).toEqual(["đáp 1", "đáp 2"]);
+  });
+
+  test("history kết bằng user → giữ nguyên thứ tự", async () => {
+    const ctx = await assembleTurnContext(sources(), {
+      history: [
+        entry({ msgId: "m1", text: "hỏi" }),
+        entry({ msgId: "a1", role: "agent", text: "đáp" }),
+        entry({ msgId: "m2", text: "hỏi nữa" }),
+      ],
+    });
+    expect(ctx.messages.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+  });
+
   test("lượt agent → assistant, KHÔNG stamp thời gian (tránh nhại vào câu trả lời)", async () => {
     const ctx = await assembleTurnContext(sources(), {
       history: [entry({ role: "agent", text: "dạ em trả lời" })],
