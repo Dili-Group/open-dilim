@@ -51,18 +51,20 @@ export class AnthropicProvider implements LLMProvider {
       // (role + loại block, không nội dung — không rò PII) để lần sau khỏi đoán mù, rồi rethrow.
       if (err instanceof Anthropic.BadRequestError) {
         const shape = req.messages
-          .map((m) => `${m.role}[${m.content.map((b) => b.type).join(",")}]`)
+          .map((m) => `${m.role}[${(m.content ?? []).map((b) => b?.type).join(",")}]`)
           .join(" ");
         console.error(`[llm] 400 từ ${this.model} — shape messages: ${shape}`);
       }
       throw err;
     }
 
-    const usage = fromApiUsage(message.usage);
+    // Response từ endpoint COMPAT (DeepSeek, router combo…) là untrusted: SDK khai field bắt
+    // buộc, runtime vẫn có thể vắng → `?.` ở mọi bước bóc, thiếu thì rơi về giá trị trung tính.
+    const usage = fromApiUsage(message?.usage);
     logCacheUsage(usage);
     return {
-      content: fromApiContent(message.content),
-      stopReason: mapStopReason(message.stop_reason),
+      content: fromApiContent(message?.content),
+      stopReason: mapStopReason(message?.stop_reason ?? null),
       usage,
     };
   }
@@ -105,12 +107,12 @@ function logCacheUsage(usage: LlmUsage): void {
  *  - `input_tokens` là phần CHƯA cache, KHÔNG phải cỡ prompt (prompt thật = cả ba field input).
  *  - hai field cache là optional trong SDK (null khi request không bật cache) → `?? 0`.
  */
-function fromApiUsage(usage: Anthropic.Usage): LlmUsage {
+function fromApiUsage(usage: Anthropic.Usage | undefined): LlmUsage {
   return {
-    input: usage.input_tokens,
-    output: usage.output_tokens,
-    cacheRead: usage.cache_read_input_tokens ?? 0,
-    cacheWrite: usage.cache_creation_input_tokens ?? 0,
+    input: usage?.input_tokens ?? 0,
+    output: usage?.output_tokens ?? 0,
+    cacheRead: usage?.cache_read_input_tokens ?? 0,
+    cacheWrite: usage?.cache_creation_input_tokens ?? 0,
   };
 }
 
@@ -141,14 +143,16 @@ function toApiBlock(block: LlmContentBlock): Anthropic.ContentBlockParam {
 }
 
 /** Giữ text + tool_use + thinking (echo bắt buộc với model reasoning). Block model SINH ra. */
-export function fromApiContent(content: readonly Anthropic.ContentBlock[]): LlmContentBlock[] {
+export function fromApiContent(
+  content: readonly Anthropic.ContentBlock[] | undefined,
+): LlmContentBlock[] {
   const out: LlmContentBlock[] = [];
-  for (const block of content) {
-    if (block.type === "text") {
-      out.push({ type: "text", text: block.text });
-    } else if (block.type === "tool_use") {
+  for (const block of content ?? []) {
+    if (block?.type === "text") {
+      out.push({ type: "text", text: block.text ?? "" });
+    } else if (block?.type === "tool_use") {
       out.push({ type: "tool_use", id: block.id, name: block.name, input: block.input });
-    } else if (block.type === "thinking") {
+    } else if (block?.type === "thinking") {
       // SDK khai các field là string, nhưng response đến từ endpoint COMPAT (DeepSeek…) là
       // untrusted — field có thể vắng ở runtime. `??` để không lưu undefined vào messages.
       out.push({
@@ -156,7 +160,7 @@ export function fromApiContent(content: readonly Anthropic.ContentBlock[]): LlmC
         thinking: block.thinking ?? "",
         ...(block.signature === undefined ? {} : { signature: block.signature }),
       });
-    } else if (block.type === "redacted_thinking") {
+    } else if (block?.type === "redacted_thinking") {
       out.push({ type: "redacted_thinking", data: block.data ?? "" });
     }
   }

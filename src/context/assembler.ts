@@ -142,16 +142,21 @@ function toMessages(
   const open = `<${tag}>`;
   const close = `</${tag}>`;
   return history.map((entry) => {
-    if (entry.role === "agent") {
-      return { role: "assistant" as const, content: [{ type: "text" as const, text: entry.text }] };
+    // History đi qua nhiều tầng (DB, cache, ingest) → entry/field có thể vắng ở runtime dù type
+    // khai đủ. `?.` + mặc định rỗng: thiếu một lượt cũ không được giết cả lượt trả lời.
+    if (entry?.role === "agent") {
+      return {
+        role: "assistant" as const,
+        content: [{ type: "text" as const, text: entry.text ?? "" }],
+      };
     }
-    const speaker = speakers?.get(entry.senderId);
-    const name = sanitizeField(speaker?.name ?? entry.senderName ?? UNKNOWN_FIELD);
+    const speaker = speakers?.get(entry?.senderId ?? "");
+    const name = sanitizeField(speaker?.name ?? entry?.senderName ?? UNKNOWN_FIELD);
     const role = speaker?.role ?? UNKNOWN_FIELD;
-    const prefix = `[${formatTurnTime(entry.ts)} - ${sanitizeField(entry.senderId)} - ${name} - ${role}]`;
+    const prefix = `[${formatTurnTime(entry?.ts ?? 0)} - ${sanitizeField(entry?.senderId ?? UNKNOWN_FIELD)} - ${name} - ${role}]`;
     // Người gõ mà chèn đúng chuỗi thẻ (thấy nó rò ra ở lượt trước, hoặc đoán trúng) là đóng được
     // vùng dữ liệu sớm rồi viết tiếp như hệ thống → gỡ mọi lần xuất hiện trước khi bọc.
-    const body = entry.text.replaceAll(open, "").replaceAll(close, "");
+    const body = (entry?.text ?? "").replaceAll(open, "").replaceAll(close, "");
     return {
       role: "user" as const,
       content: [
@@ -166,8 +171,8 @@ function toMessages(
  * Chỉ là con trỏ — nội dung ảnh chưa ai đọc; model muốn biết trong ảnh có gì thì gọi `xem_anh` với
  * đúng url này. Ingest đã loại url chứa ký tự bẻ được ô (adapters/zalo.ts), nên nối thẳng an toàn.
  */
-function imageNote(entry: HistoryEntry): string {
-  if (entry.imageUrl === undefined) return "";
+function imageNote(entry: HistoryEntry | undefined): string {
+  if (entry?.imageUrl === undefined) return "";
   return ` [ảnh đính kèm, chưa đọc nội dung — url: ${entry.imageUrl}]`;
 }
 

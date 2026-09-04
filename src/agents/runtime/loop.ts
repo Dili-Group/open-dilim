@@ -66,10 +66,15 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
     const llmMs = Date.now() - llmAt;
     // Cộng NGAY sau khi có kết quả: vòng sau có thể throw (timeout/abort) và thoát loop, nhưng
     // token của vòng này thì đã bị tính tiền rồi.
-    input.meter?.add(result.usage);
+    const usage = result?.usage;
+    if (usage !== undefined) input.meter?.add(usage);
 
-    if (result.stopReason === "tool_use") {
-      const toolUses = result.content.filter(isToolUse);
+    // Provider compat có thể trả thiếu field (xem anthropic.ts) → bóc bằng `?.`, coi như rỗng.
+    const content = result?.content ?? [];
+    const stopReason = result?.stopReason;
+
+    if (stopReason === "tool_use") {
+      const toolUses = content.filter(isToolUse);
       trace(agentType, i, maxIterations, `llm=${llmMs}ms → tool: ${toolUses.map((c) => c.name).join(", ")}`);
       // Báo TRƯỚC khi chạy tool: giá trị của câu "dạ để em kiểm tra" nằm ở chỗ nó tới sớm.
       if (!announced) {
@@ -82,7 +87,7 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
       trace(agentType, i, maxIterations, `tool xong=${Date.now() - toolsAt}ms`);
       messages = [
         ...messages,
-        { role: "assistant", content: result.content },
+        { role: "assistant", content },
         { role: "user", content: toolResults },
       ];
       continue;
@@ -92,11 +97,11 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
       agentType,
       i,
       maxIterations,
-      `llm=${llmMs}ms → ${result.stopReason}, tổng=${Date.now() - startedAt}ms`,
+      `llm=${llmMs}ms → ${stopReason}, tổng=${Date.now() - startedAt}ms`,
     );
-    if (result.stopReason === "refusal") return REFUSAL_REPLY;
-    const text = extractText(result.content);
-    if (result.stopReason === "max_tokens" && text === "") return TRUNCATED_REPLY;
+    if (stopReason === "refusal") return REFUSAL_REPLY;
+    const text = extractText(content);
+    if (stopReason === "max_tokens" && text === "") return TRUNCATED_REPLY;
     return text;
   }
 
@@ -157,12 +162,12 @@ async function announce(
 }
 
 function isToolUse(block: LlmContentBlock): block is LlmToolUseBlock {
-  return block.type === "tool_use";
+  return block?.type === "tool_use";
 }
 
 function extractText(content: readonly LlmContentBlock[]): string {
   return content
-    .filter((block): block is Extract<LlmContentBlock, { type: "text" }> => block.type === "text")
+    .filter((block): block is Extract<LlmContentBlock, { type: "text" }> => block?.type === "text")
     .map((block) => block.text)
     .join("")
     .trim();
