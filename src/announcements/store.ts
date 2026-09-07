@@ -186,6 +186,7 @@ export class SqlAnnouncementStore implements AnnouncementStore {
                                     WHERE a.status = ${AnnouncementState.Approved}
                                       AND d.status = ${DeliveryStatus.Pending}
                                       AND d.next_attempt_at IS NOT NULL
+                                      AND send_at is not null
                                       AND d.next_attempt_at <= ${now}
                                     ORDER BY d.next_attempt_at ASC
                                     LIMIT ${MAX_SEND_PER_TICK}`;
