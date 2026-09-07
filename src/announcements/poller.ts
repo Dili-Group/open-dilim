@@ -40,6 +40,9 @@ export function backoffFrom(attempts: number, nowMs: number): Date {
 /** Chạy 1 lượt quét. Export riêng để test gọi thẳng, không phải chờ timer. */
 export async function tick(deps: AnnouncementDeps, nowMs: number): Promise<void> {
   const due = await deps.store.dueForSend(new Date(nowMs));
+  if (due.length > 0) {
+    console.log(`[announcements] tick: ${due.length} lượt tới hạn`);
+  }
 
   // Batch tuần tự, trong batch chạy song song. `deliverSafely` không bao giờ reject nên một lượt
   // hỏng không kéo cả batch xuống — batch sau vẫn chạy.
