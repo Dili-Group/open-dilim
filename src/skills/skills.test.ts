@@ -28,10 +28,26 @@ describe("registry (defs thật)", () => {
       "grill-me",
       "het-hang",
       "huong-dan",
+      "khach-bao-hang-loi",
+      "khach-hay-hoi",
       "kiem-tra-gia-cod",
       "lap-lich",
+      "noi-voi-co-chu",
       "thong-bao-chung",
+      "tpbs-dung-luat",
+      "xin-so-dien-thoai",
     ]);
+  });
+
+  test("agent customer thấy đủ bộ skill tư vấn khách lẻ", async () => {
+    const registry = await buildSkillRegistry();
+    const forCustomer = registry.catalog().filter((m) => visibleTo(m, "customer")).map((m) => m.name);
+    for (const name of ["tpbs-dung-luat", "khach-hay-hoi", "xin-so-dien-thoai", "noi-voi-co-chu", "khach-bao-hang-loi"]) {
+      expect(forCustomer).toContain(name);
+    }
+    // Skill khách lẻ KHÔNG rò sang agent nội bộ: nội dung viết cho người chưa xác thực.
+    const forDealer = registry.catalog().filter((m) => visibleTo(m, "dealer")).map((m) => m.name);
+    expect(forDealer).not.toContain("khach-hay-hoi");
   });
 
   test("huong-dan: hub định tuyến, mọi link chuẩn nằm trong body", async () => {
