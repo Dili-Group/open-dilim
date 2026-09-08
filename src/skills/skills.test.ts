@@ -32,6 +32,7 @@ describe("registry (defs thật)", () => {
       "khach-hay-hoi",
       "kiem-tra-gia-cod",
       "lap-lich",
+      "nhan-tin-nhieu-doan",
       "noi-voi-co-chu",
       "thong-bao-chung",
       "tpbs-dung-luat",

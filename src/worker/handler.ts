@@ -11,8 +11,9 @@ import type { TurnSpeaker } from "../context/speaker-block.ts";
 import type { Identity } from "../flash-command/types.ts";
 import { MemoryOwnerKind, type MemoryScope } from "../state/types.ts";
 import { HISTORY_BUFFER_TURNS, HISTORY_WINDOW_TURNS } from "../state/session.ts";
-import { capForChannel, type TypingTarget } from "../broadcast/index.ts";
+import { capForChannel, type BroadcastTarget, type TypingTarget } from "../broadcast/index.ts";
 import { extractQrMedia } from "../broadcast/qr.ts";
+import { splitReply, typingDelayMs } from "../broadcast/split.ts";
 import type { PendingNotice } from "../context/pending-block.ts";
 import {
   AGENT_SENDER_ID,
@@ -213,9 +214,10 @@ export async function handleEnvelope(
       replyToSenderId: envelope.senderId,
       replyToSenderName: envelope.senderName,
     };
-    if (replyText !== "") {
-      await ctx.broadcaster.send(target, capForChannel(envelope.channel, replyText));
-    }
+    // Câu trả lời dài → nhiều tin ngắn liên tiếp thay vì một khối (marker do model đặt, xem
+    // broadcast/split.ts). Không có marker → đúng một tin như trước.
+    const chunks = splitReply(replyText);
+    await sendReplyChunks(ctx, envelope, target, chunks, onStep);
     for (const media of qrMedia) {
       // Tuần tự, không Promise.all: giữ thứ tự hiển thị text → QR trên Zalo.
       await ctx.broadcaster.sendMedia(target, media);
@@ -226,7 +228,9 @@ export async function handleEnvelope(
     // người nói, writer tự quyết phần chưa chưng cất đã đủ dài chưa). Sau broadcast: khách đã nhận câu trả lời, hỏng ở đây chỉ
     // mất trí nhớ chứ không được biến lượt thành failed. Nhớ text ĐÃ RÚT link — history phải khớp
     // cái đã gửi, đừng để model học lại thói dán link từ chính history của mình.
-    const remembered = replyText === "" ? result.text : replyText;
+    // Nhớ MỘT lượt agent dù đã gửi thành mấy tin: marker đã bỏ, các đoạn nối lại bằng xuống dòng.
+    // Ghi N lượt thì cửa sổ 20 tin đầy toàn tiếng của chính agent.
+    const remembered = chunks.length === 0 ? result.text : chunks.join("\n");
     await rememberTurn(ctx, envelope, agent, remembered, history, memoryScope, timer, signal);
     return result;
   } catch (err) {
@@ -237,6 +241,51 @@ export async function handleEnvelope(
     // giây thứ 60 mà không có dòng này thì không biết nó chết vì LLM lặng hay vì Postgres treo.
     // eslint-disable-next-line no-console
     console.log(`[worker] lượt ${envelope.msgId} phòng ${envelope.conversationId} ${timer.summary()}`);
+  }
+}
+
+/**
+ * Gửi câu trả lời thành từng tin một, có nhịp gõ giữa các tin: đó là thứ khiến người đọc thấy
+ * đang nhắn với người chứ không phải nhận một khối văn bản rơi xuống cùng lúc.
+ *
+ * Mention CHỈ ở tin đầu — @ lại người hỏi bốn lần liên tiếp là làm phiền thông báo của họ.
+ *
+ * Hai chế độ lỗi khác nhau, có chủ đích:
+ *  - Tin ĐẦU hỏng → throw như trước. Chưa gì tới tay người nhận, lượt tính là hỏng, broker giao lại.
+ *  - Tin SAU hỏng → log rồi đi tiếp. Người ta đã đọc phần đầu; để lượt thành failed thì lượt giao
+ *    lại sẽ gửi lặp cả đoạn họ vừa đọc.
+ */
+async function sendReplyChunks(
+  ctx: WorkerContext,
+  envelope: Envelope,
+  target: BroadcastTarget,
+  chunks: readonly string[],
+  typingPulse: () => Promise<void>,
+): Promise<void> {
+  for (const [index, chunk] of chunks.entries()) {
+    const first = index === 0;
+    if (!first) {
+      // Pulse TRƯỚC khi chờ để chấm "đang gõ" hiện trong lúc chờ. Best-effort, không chặn lượt.
+      await typingPulse().catch(() => undefined);
+      await Bun.sleep(typingDelayMs(chunk));
+    }
+    // Tin sau bỏ tên hiển thị → broadcaster gửi text trơn, không gắn mention (xem zalo.ts).
+    const chunkTarget: BroadcastTarget = first
+      ? target
+      : { ...target, replyToSenderName: undefined };
+    const text = capForChannel(envelope.channel, chunk);
+    if (first) {
+      await ctx.broadcaster.send(chunkTarget, text);
+      continue;
+    }
+    try {
+      await ctx.broadcaster.send(chunkTarget, text);
+    } catch (err) {
+      console.error(
+        `[worker] gửi đoạn ${index + 1}/${chunks.length} hỏng (${envelope.msgId}):`,
+        err,
+      );
+    }
   }
 }
 

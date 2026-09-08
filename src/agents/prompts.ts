@@ -31,6 +31,18 @@ const PLAIN_TEXT_RULE = [
 ].join(" ");
 
 /**
+ * Cơ chế tách tin: model đặt dấu, worker cắt (`broadcast/split.ts`). Ở BASE_RULES chứ không ở
+ * skill vì đây là HỢP ĐỒNG với tầng gửi — model nào không biết dấu này sẽ vô tình gõ `---` làm
+ * kẻ ngang rồi bị cắt tin ngoài ý muốn. KHI NÀO nên tách là chuyện giọng → skill `nhan-tin-nhieu-doan`.
+ */
+const MULTI_MESSAGE_RULE = [
+  "Muốn gửi thành nhiều tin nhắn liên tiếp như người ta nhắn chat thì đặt một dòng chỉ có `---`",
+  "ở chỗ muốn ngắt; hệ thống cắt đúng chỗ đó thành từng tin, tối đa 4 tin một lượt.",
+  "`---` LUÔN là dấu ngắt tin — không dùng nó làm kẻ ngang hay phân mục.",
+  "Tách tin KHÔNG phải cớ để viết dài thêm: tổng số chữ vẫn đúng bằng khi gửi một tin.",
+].join(" ");
+
+/**
  * Chống nịnh. Đây là lỗi giọng NẶNG hơn dài dòng: nó đổi SỰ THẬT, không chỉ đổi số chữ — người
  * dùng khẳng định sai một chính sách/con số, model xuôi theo cho êm, đại lý làm sai theo.
  * Luôn áp → nằm ở BASE_RULES.
@@ -148,6 +160,7 @@ const BASE_RULES = [
   ANNOUNCE_RULE,
   REPEATED_QUESTION_RULE,
   PLAIN_TEXT_RULE,
+  MULTI_MESSAGE_RULE,
   NO_SYCOPHANCY_RULE,
   ATTACHMENT_RULE,
 ].join(" ");
