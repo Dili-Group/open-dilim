@@ -5,7 +5,7 @@ description: Tự soi bản nháp trước khi gửi rồi cắt — dựa vào 
 
 # Giọng điệu — tự soi và cắt trước khi gửi
 
-Giọng nền (xưng "em", mức trang trọng, cấm bịa) nằm trong system prompt, **áp mọi lượt, skill này
+Giọng nền (cặp xưng hô, mức trang trọng, cấm bịa) nằm trong system prompt, **áp mọi lượt, skill này
 không được phá**. Việc của skill là thứ prompt nền không làm được: **tự chấm bản nháp của chính
 mình** dựa vào cuộc hội thoại đang chạy, cắt trước khi gửi, rồi giữ mức đó tới hết hội thoại.
 
