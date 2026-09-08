@@ -57,6 +57,7 @@ export interface BaseChannelConfig {
  * undefined = chưa cấu hình egress → kênh đó fallback console (dev), ingest vẫn chạy.
  */
 export interface ZaloChannelConfig extends BaseChannelConfig {
+  readonly platform: "zalo";
   readonly webhookSecret: string;
   readonly bridge?: ZaloBridgeConfig;
 }
@@ -74,6 +75,7 @@ function zaloChannel(prefix: string): ZaloChannelConfig | undefined {
   if (agentUid === undefined || webhookSecret === undefined) return undefined;
   const selfUid = optional(`${prefix}_SELF_UID`);
   return {
+    platform: "zalo",
     agentUid,
     ...(selfUid === undefined ? {} : { selfUid }),
     webhookSecret,
@@ -81,12 +83,56 @@ function zaloChannel(prefix: string): ZaloChannelConfig | undefined {
   };
 }
 
+/**
+ * Zalo Official Account — KHÁC chat cá nhân ở cả ba mặt nên là type riêng, không extend cái trên:
+ * verify bằng `SHA256(appId + rawBody + timestamp + oaSecretKey)` (không phải HMAC), không có
+ * nhóm, và egress đi Open API v3 kèm access_token chứ không qua bridge zca-js.
+ *
+ * `agentUid` = id OA (đúng field `recipient.id` của tin khách gửi tới). Trùng luôn `selfUid`:
+ * tin OA gửi vọng lại webhook mang chính id này ở `sender.id`.
+ */
+export interface ZaloOaChannelConfig extends BaseChannelConfig {
+  readonly platform: "zalo-oa";
+  readonly appId: string;
+  readonly oaSecretKey: string;
+  /**
+   * Endpoint hệ vận hành cấp `access_token` của OA. Agent KHÔNG giữ refresh_token: Zalo xoay nó
+   * mỗi lần refresh nên chỉ được một nơi ghi — backend DILIM.
+   * undefined = chưa cấu hình egress → kênh fallback console, ingest vẫn chạy.
+   */
+  readonly tokenUrl?: string;
+}
+
+/**
+ * Đọc config 1 kênh OA theo tiền tố env: `<PREFIX>_ID` (id OA), `<PREFIX>_APP_ID`,
+ * `<PREFIX>_SECRET_KEY` (OA Secret Key trong app Zalo — dùng để ký webhook),
+ * `<PREFIX>_TOKEN_URL` (tuỳ chọn — endpoint cấp access_token, thiếu thì kênh chỉ nhận không gửi).
+ *
+ * Thiếu bất kỳ cái nào → undefined = kênh KHÔNG đăng ký, webhook trả 404. Mặc định đóng.
+ */
+function zaloOaChannel(prefix: string): ZaloOaChannelConfig | undefined {
+  const oaId = optional(`${prefix}_ID`);
+  const appId = optional(`${prefix}_APP_ID`);
+  const oaSecretKey = optional(`${prefix}_SECRET_KEY`);
+  if (oaId === undefined || appId === undefined || oaSecretKey === undefined) return undefined;
+  const tokenUrl = optional(`${prefix}_TOKEN_URL`);
+  return {
+    platform: "zalo-oa",
+    agentUid: oaId,
+    selfUid: oaId,
+    appId,
+    oaSecretKey,
+    ...(tokenUrl === undefined ? {} : { tokenUrl }),
+  };
+}
+
 // Mỗi key = 1 kênh = 1 tài khoản Zalo riêng, và là KHOÁ ĐỊNH TUYẾN root agent (agents/router.ts).
 // Tên key đi vào: path webhook `/webhook/:channel`, cột `channel` của user_binding/group_map/
 // group_member, và key egress. ĐỔI TÊN KÊNH ĐANG CHẠY = mồ côi toàn bộ định danh đã bind.
 //
-// Thêm kênh: thêm 1 key ở đây + 1 dòng bảng ở agents/router.ts. Platform khác (Telegram) khai
-// type config riêng, không dùng lại ZaloChannelConfig.
+// Thêm kênh: thêm 1 key ở đây + 1 dòng bảng ở agents/router.ts. Platform khác (OA, Telegram) khai
+// type config riêng, không dùng lại ZaloChannelConfig — phân biệt bằng `platform`, nơi nào đọc
+// field riêng của một platform thì narrow theo nó trước (buildChannelFactory, egress ở bootstrap).
 /**
  * Kênh của nhân viên vận hành. Đặt tên vì có nơi phải TRA ĐÍCH DANH kênh này chứ không phải
  * "kênh nào cũng được": người duyệt phát tin chỉ được hỏi qua đây (xem `announcements/`).
@@ -99,6 +145,7 @@ const channels = {
   "zalo-sep": zaloChannel("ZALO_SEP"), // ban lãnh đạo
   "zalo-canhan": zaloChannel("ZALO_CANHAN"), // trợ lý riêng 1-1
   "zalo-kho": zaloChannel("ZALO_KHO"), // kho — nhóm nhận mã vận đơn hoàn
+  "zalo-oa": zaloOaChannel("ZALO_OA"), // Official Account — khách lẻ, chat 1-1
 } as const;
 
 // Egress Zalo qua bridge HTTP nội bộ (send text + typing). Ingest = verify webhook đến; bridge =

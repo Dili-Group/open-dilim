@@ -7,6 +7,7 @@ import type { LLMProvider } from "../llm/types.ts";
 import type { McpPort } from "../mcp/types.ts";
 import type { Identity } from "../flash-command/types.ts";
 import type {
+  CustomerZaloLinkPort,
   DailyPort,
   DealerPort,
   DiscountPort,
@@ -37,6 +38,8 @@ export const AgentType = {
   Personal: "personal",
   Boss: "boss",
   Warehouse: "warehouse",
+  /** Khách lẻ nhắn vào Official Account — người nhắn CHƯA được xác thực. */
+  Customer: "customer",
 } as const;
 export type AgentType = (typeof AgentType)[keyof typeof AgentType];
 
@@ -84,6 +87,8 @@ export interface AgentDeps {
    * định duyệt nằm ở `AnnounceApprovalPort`, cổng đó KHÔNG đi qua agent. undefined = chưa nối.
    */
   readonly announce?: AnnouncePort;
+  /** Cổng GẮN zalo user id vào hồ sơ khách cho tool `ghi_nhan_khach`. undefined = chưa nối. */
+  readonly customerZalo?: CustomerZaloLinkPort;
 }
 
 export interface AgentRunInput {

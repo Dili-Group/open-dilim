@@ -14,10 +14,12 @@ import type { Identity } from "../flash-command/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import { SkillRegistry } from "../skills/registry.ts";
 import { COMMON_TOOLS, buildToolRegistry } from "../tools/index.ts";
+import type { ToolContext } from "../tools/types.ts";
 import type { ToolFactory } from "../tools/types.ts";
 import { customerSupportSpec, internalOpsSpec } from "../state/specs.ts";
 import { runAgentLoop } from "./runtime/loop.ts";
 import { buildAgentRegistry } from "./registry.ts";
+import { customerProfile } from "./roots/customer.ts";
 import { buildRootAgent } from "./runtime/build-agent.ts";
 import { resolveAgentType } from "./router.ts";
 import { AgentType, type RootAgentProfile, type SubAgent } from "./types.ts";
@@ -54,6 +56,11 @@ const CFG: AgentConfig = { maxTokens: 100, effort: "low", agentMaxIterations: 4 
 // Registry skill rỗng: test loop/agent không phụ thuộc filesystem skill def.
 const SKILLS = new SkillRegistry();
 const MESSAGES: LlmMessage[] = [{ role: "user", content: [{ type: "text", text: "bạn là ai" }] }];
+
+/** ToolContext tối thiểu để đọc TÊN tool một profile khai (không chạy tool). */
+function toolCtx(): ToolContext {
+  return { skills: SKILLS, identity: GUEST };
+}
 
 function loop(provider: LLMProvider) {
   return runAgentLoop({
@@ -263,6 +270,22 @@ describe("AgentRegistry", () => {
   });
 });
 
+describe("agent customer (Official Account)", () => {
+  test("chỉ bộ chung + đường GHI lead — KHÔNG tool nào ĐỌC dữ liệu đại lý", () => {
+    const names = customerProfile.tools.map((factory) => factory(toolCtx()).name);
+    expect(names).toEqual([...COMMON_TOOLS.map((f) => f(toolCtx()).name), "ghi_nhan_khach"]);
+  });
+
+  test("prompt chặn đọc dữ liệu riêng ra cho người chưa xác thực", async () => {
+    const provider = new ScriptedProvider([
+      { stopReason: "end_turn", content: [{ type: "text", text: "dạ" }] },
+    ]);
+    const registry = buildAgentRegistry(agentDeps(provider));
+    await registry.resolve(AgentType.Customer).run({ identity: GUEST, history: HISTORY });
+    expect(systemText(provider.seen[0])).toContain("CHƯA được xác thực");
+  });
+});
+
 describe("resolveAgentType", () => {
   test("channel đã map → đúng agent, không phân biệt hoa thường", () => {
     expect(resolveAgentType("zalo")).toBe(AgentType.Dealer);
@@ -270,6 +293,7 @@ describe("resolveAgentType", () => {
     expect(resolveAgentType("zalo-canhan")).toBe(AgentType.Personal);
     // Khoá phải khớp key trong CONFIG.channels: lệch tên = OperationsAgent không ai gọi tới.
     expect(resolveAgentType("van-hanh")).toBe(AgentType.Operations);
+    expect(resolveAgentType("zalo-oa")).toBe(AgentType.Customer);
   });
 
   test("channel lạ → undefined (registry rơi về default, không đoán agent)", () => {

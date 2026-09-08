@@ -7,6 +7,7 @@
 import type { AnnouncePort } from "../announcements/types.ts";
 import type { Identity } from "../flash-command/types.ts";
 import type {
+  CustomerZaloLinkPort,
   DailyPort,
   DealerPort,
   DiscountPort,
@@ -111,6 +112,12 @@ export interface ToolContext {
    * undefined = chưa nối → tool trả lỗi nghiệp vụ.
    */
   readonly announce?: AnnouncePort;
+  /**
+   * Cổng GẮN zalo user id vào hồ sơ khách theo số điện thoại. Cổng duy nhất của agent khách lẻ —
+   * ghi một chiều, không đọc ngược (người nhắn chưa xác thực được là ai).
+   * undefined = chưa nối → tool trả lỗi nghiệp vụ, không throw.
+   */
+  readonly customerZalo?: CustomerZaloLinkPort;
 }
 
 export type ToolFactory = (ctx: ToolContext) => Tool;

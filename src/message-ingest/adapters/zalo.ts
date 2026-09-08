@@ -11,6 +11,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { ZaloChannelConfig } from "../../config.ts";
 import type { Mention } from "../../types/index.ts";
 import { isAddressed, type Ingestor, type ParsedMessage } from "../ingestor.ts";
+import { isRecord, readHttpUrl, readString, readTs } from "./payload.ts";
 
 // Header mang chữ ký webhook. LƯU Ý: tên header + cách Zalo compose chuỗi ký PHẢI xác nhận lại
 // với payload/tài liệu Zalo thật trước prod. Cơ chế (HMAC-SHA256 rawBody, so timing-safe) đúng;
@@ -108,23 +109,11 @@ function readText(content: unknown): string {
  */
 const IMAGE_EXTENSION = /\.(jpe?g|png|webp|heic|heif)$/i;
 
-/** Trần độ dài URL nhận vào — link CDN thật ngắn hơn nhiều; dài hơn là rác/nhồi prompt. */
-const MAX_IMAGE_URL_CHARS = 2048;
-
-/**
- * Ký tự URL hợp lệ KHÔNG cần tới (đã encode được), nhưng lại bẻ được prompt: link ảnh in ra NGOÀI
- * cặp thẻ dữ liệu của lượt (context/assembler.ts) nên một dấu `]` hay `<` trong tên file là đóng
- * được ô hệ thống rồi viết tiếp như hệ thống. Chặn tại cửa vào thay vì cắt gọt lúc render.
- */
-const UNSAFE_URL_CHARS = /[<>[\]\s"'`\\]/;
-
 /**
  * Ảnh đính kèm: `imageUrl` là ảnh sẵn; `fileUrl` là field chung mọi loại file nên CHỈ nhận khi đuôi
  * là ảnh — v1 chỉ đọc được ảnh, nhận PDF vào đây là hứa suông với model.
  *
- * Chỉ nhận http(s) tuyệt đối: `file://`, `data:` và đường dẫn tương đối không phải link CDN. Host
- * KHÔNG duyệt ở đây — allowlist nằm ở lúc tải (vision/image-vision.ts), chỗ duy nhất thật sự gọi ra
- * ngoài; chặn hai nơi bằng hai danh sách là sớm muộn lệch nhau.
+ * Phần kiểm URL (http(s) tuyệt đối, trần độ dài, ký tự bẻ prompt) nằm ở `readHttpUrl`.
  */
 function readImageUrl(event: Record<string, unknown>): string | undefined {
   const direct = readHttpUrl(event.imageUrl);
@@ -133,20 +122,6 @@ function readImageUrl(event: Record<string, unknown>): string | undefined {
   const file = readHttpUrl(event.fileUrl);
   if (file === undefined) return undefined;
   return IMAGE_EXTENSION.test(new URL(file).pathname) ? file : undefined;
-}
-
-function readHttpUrl(raw: unknown): string | undefined {
-  if (typeof raw !== "string") return undefined;
-  const value = raw.trim();
-  if (value === "" || value.length > MAX_IMAGE_URL_CHARS) return undefined;
-  if (UNSAFE_URL_CHARS.test(value)) return undefined;
-  let parsed: URL;
-  try {
-    parsed = new URL(value);
-  } catch {
-    return undefined;
-  }
-  return parsed.protocol === "https:" || parsed.protocol === "http:" ? value : undefined;
 }
 
 /** mentions[] → chỉ giữ uid (entity), bỏ pos/len/type. Bỏ entry thiếu uid. */
@@ -159,25 +134,4 @@ function readMentions(raw: unknown): Mention[] {
     if (uid !== null) out.push({ uid });
   }
   return out;
-}
-
-/** ts Zalo là ms epoch dạng string/number. Không parse được → now (đừng rớt tin vì ts xấu). */
-function readTs(raw: unknown): number {
-  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
-  if (typeof raw === "string") {
-    const n = Number(raw);
-    if (Number.isFinite(n)) return n;
-  }
-  return Date.now();
-}
-
-function isRecord(x: unknown): x is Record<string, unknown> {
-  return typeof x === "object" && x !== null && !Array.isArray(x);
-}
-
-/** String không rỗng → giá trị; còn lại → null. Id/msgId số cũng ép về string. */
-function readString(x: unknown): string | null {
-  if (typeof x === "string") return x.length > 0 ? x : null;
-  if (typeof x === "number" && Number.isFinite(x)) return String(x);
-  return null;
 }

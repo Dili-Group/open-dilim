@@ -4,6 +4,7 @@
 
 import { buildRootAgent } from "./runtime/build-agent.ts";
 import { bossProfile } from "./roots/boss.ts";
+import { customerProfile } from "./roots/customer.ts";
 import { dealerProfile } from "./roots/dealer.ts";
 import { defaultProfile } from "./roots/default.ts";
 import { operationsProfile } from "./roots/operations.ts";
@@ -22,6 +23,7 @@ export const PROFILES: readonly RootAgentProfile[] = [
   personalProfile,
   bossProfile,
   warehouseProfile,
+  customerProfile,
 ];
 
 export class AgentRegistry {

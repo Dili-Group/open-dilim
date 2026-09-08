@@ -210,6 +210,25 @@ export class AgentApiClient {
     return this.send(path, headers, request, { method: "POST", body: request.body });
   }
 
+  /**
+   * POST một endpoint KHÔNG gắn đại lý và KHÔNG gắn nhân viên — chỉ service token.
+   *
+   * CHỈ dùng cho ghi nhận thứ đến từ NGƯỜI CHƯA ĐỊNH DANH (khách lẻ nhắn vào Official Account):
+   * ở đó không có đại lý nào để gắn phạm vi, cũng không có nhân viên nào đứng sau lượt chat.
+   * Endpoint ghi dữ liệu đại lý PHẢI đi qua `post`; bỏ header phạm vi ở đó là ghi mù.
+   *
+   * KHÔNG RETRY như mọi đường ghi khác (xem `post`).
+   */
+  async postUnscoped(
+    path: string,
+    request: Omit<AgentApiRequest, "principal"> & { readonly body: unknown },
+  ): Promise<unknown> {
+    return this.send(path, { [SERVICE_TOKEN_HEADER]: this.serviceToken }, request, {
+      method: "POST",
+      body: request.body,
+    });
+  }
+
   private async send(
     path: string,
     headers: Record<string, string>,

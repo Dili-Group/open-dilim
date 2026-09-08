@@ -746,3 +746,39 @@ export const CARRIER_LABEL: Readonly<Record<number, string>> = {
   4: "nhận tại kho (đại lý lên lấy)",
   99: "khác",
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gắn `zalo_user_id` cho khách hàng cuối (`POST /agent/customers/zalo-user-id`).
+//
+// KHÔNG tạo khách mới: backend UPDATE `customers` khớp theo 9 CHỮ SỐ CUỐI của số điện thoại, trả
+// về số dòng khớp. Số chưa có trong hệ thống → `matched: 0`, KHÔNG phải lỗi — và cũng nghĩa là
+// chưa gắn được vào sale nào.
+//
+// Một số điện thoại có thể thuộc NHIỀU đại lý (unique là `dealer_id + phone`) → mọi dòng khớp đều
+// được ghi đè. Vì vậy `matched` có thể > 1; đó là bình thường, không phải dữ liệu bẩn.
+//
+// `zaloUserId` đến từ Identity.senderId (server-side), KHÔNG phải tham số LLM sinh — chống
+// confused-deputy: model không được tự khai mình đang nói chuyện với ai.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CustomerZaloLink {
+  /** Số điện thoại khách. Backend nhận mọi dạng; tool vẫn chuẩn hoá trước để bắt lỗi gõ sớm. */
+  readonly phone: string;
+  /** Id người nhắn trên Zalo OA — lấy từ Identity, không lấy từ input LLM. Backend giới hạn 64 ký tự. */
+  readonly zaloUserId: string;
+}
+
+/**
+ * Kết quả gắn. CHỈ giữ số dòng khớp: backend còn trả cả `dealer_id`, `name`, `phone` của khách,
+ * nhưng agent khách lẻ KHÔNG được cầm — người nhắn chưa xác thực được là ai, đọc ngược ra là rò
+ * dữ liệu của người khác trùng số.
+ */
+export interface CustomerZaloLinkResult {
+  /** 0 = không có hồ sơ khách nào mang số này (khách mới, hoặc số khác số lúc đặt hàng). */
+  readonly matched: number;
+}
+
+export interface CustomerZaloLinkPort {
+  /** Lỗi mạng/HTTP bubble lên để tool trả lỗi nghiệp vụ cho model, không nuốt. */
+  link(input: CustomerZaloLink, signal?: AbortSignal): Promise<CustomerZaloLinkResult>;
+}

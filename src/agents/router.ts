@@ -17,6 +17,7 @@ const CHANNEL_AGENT: Readonly<Record<string, AgentType>> = {
   "zalo-sep": AgentType.Boss,
   "zalo-canhan": AgentType.Personal,
   "zalo-kho": AgentType.Warehouse,
+  "zalo-oa": AgentType.Customer,
 };
 
 /**

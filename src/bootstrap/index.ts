@@ -28,6 +28,8 @@ import {
   ConsoleTypingSender,
   TypingFactory,
   ZaloBroadcaster,
+  ZaloOaBroadcaster,
+  ZaloOaTokenSource,
   ZaloTypingSender,
 } from "../broadcast/index.ts";
 import {
@@ -45,6 +47,7 @@ import { AgentApiDiscountPort } from "../operational/discount-api.ts";
 import { AgentApiDailyPort } from "../operational/daily-api.ts";
 import { AgentApiInternalOrdersPort } from "../operational/internal-api.ts";
 import { AgentApiPoscakePort } from "../operational/poscake-api.ts";
+import { AgentApiCustomerZaloPort } from "../operational/customer-zalo-api.ts";
 import { AgentApiOrderOwnerPort } from "../operational/owner-api.ts";
 import {
   SqlPendingStore,
@@ -176,6 +179,9 @@ export async function bootstrap(): Promise<Services> {
   // Cổng ghi CREDENTIAL PosCake của đại lý — tách port riêng để chỉ tool `nap_poscake` cầm được,
   // tool đọc đơn/hồ sơ không chạm tới key của đại lý.
   const poscake = new AgentApiPoscakePort(agentApi);
+  // Cổng GẮN zalo user id vào hồ sơ khách (tra theo số điện thoại) — không gắn đại lý lẫn nhân
+  // viên: chính nó là bước tra ra đại lý. Tách port riêng để chỉ tool `ghi_nhan_khach` cầm được.
+  const customerZalo = new AgentApiCustomerZaloPort(agentApi);
 
   // Egress dựng TRƯỚC agent vì tầng workflows cần broadcaster (báo kết quả về phòng đã hỏi, có
   // khi 2 ngày sau — lúc đó không còn lượt agent nào đang chạy để nhờ gửi hộ).
@@ -185,6 +191,20 @@ export async function bootstrap(): Promise<Services> {
   const typing = new TypingFactory(new ConsoleTypingSender());
   for (const [channel, channelConfig] of Object.entries(config.channels)) {
     if (channelConfig === undefined) continue;
+    // OA gửi qua Open API v3 (access_token do backend cấp), KHÔNG qua bridge zca-js. Không có
+    // typing API cho OA → kênh này giữ ConsoleTypingSender, chỉ đăng ký broadcaster.
+    if (channelConfig.platform === "zalo-oa") {
+      if (channelConfig.tokenUrl === undefined) {
+        console.warn(`[bootstrap] kênh ${channel} thiếu *_TOKEN_URL → egress dùng console.`);
+        continue;
+      }
+      const token = new ZaloOaTokenSource({
+        url: channelConfig.tokenUrl,
+        serviceToken: config.agentApi.serviceToken,
+      });
+      broadcaster.register(channel, new ZaloOaBroadcaster(token));
+      continue;
+    }
     if (channelConfig.bridge === undefined) {
       console.warn(`[bootstrap] kênh ${channel} thiếu *_BRIDGE_URL/SECRET → egress dùng console.`);
       continue;
@@ -247,6 +267,7 @@ export async function bootstrap(): Promise<Services> {
     mcp,
     workflow,
     announce,
+    customerZalo,
   });
   assertSkillAgentScopes(skills, agents);
 

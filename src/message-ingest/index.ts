@@ -8,17 +8,26 @@ import type { IngestDeps } from "./deps.ts";
 import { ChannelFactory } from "./factory.ts";
 import { createGateway } from "./gateway.ts";
 import { ZaloIngestor } from "./adapters/zalo.ts";
+import { ZaloOaIngestor } from "./adapters/zalo-oa.ts";
 
 /**
  * Register adapter cho từng kênh ĐÃ cấu hình (bỏ kênh thiếu agentUid/secret → webhook 404).
  *
- * Mọi kênh hiện là Zalo nên duyệt phẳng được. Có platform khác (config shape khác) thì tách
- * nhánh theo key — KHÔNG nới `ZaloIngestor` để nuốt mọi config.
+ * Mỗi platform một adapter riêng, chọn theo `config.platform` — KHÔNG nới `ZaloIngestor` để nuốt
+ * mọi config. Thêm platform mới mà quên nhánh ở đây thì `switch` không exhaustive → typecheck đỏ.
  */
 export function buildChannelFactory(): ChannelFactory {
   const factory = new ChannelFactory();
   for (const [channel, config] of Object.entries(CONFIG.channels)) {
-    if (config !== undefined) factory.register(new ZaloIngestor(channel, config));
+    if (config === undefined) continue;
+    switch (config.platform) {
+      case "zalo":
+        factory.register(new ZaloIngestor(channel, config));
+        break;
+      case "zalo-oa":
+        factory.register(new ZaloOaIngestor(channel, config));
+        break;
+    }
   }
   return factory;
 }

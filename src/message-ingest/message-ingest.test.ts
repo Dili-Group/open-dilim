@@ -12,7 +12,11 @@ import type { IngestDeps } from "./deps.ts";
 
 const AGENT_UID = "AGENT";
 const SECRET = "sekret";
-const CHANNEL_CONFIG: ZaloChannelConfig = { agentUid: AGENT_UID, webhookSecret: SECRET };
+const CHANNEL_CONFIG: ZaloChannelConfig = {
+  platform: "zalo",
+  agentUid: AGENT_UID,
+  webhookSecret: SECRET,
+};
 
 /** Vạch người nói giả — trả người nói trước rồi ghi đè, đúng semantics GETSET. */
 class FakeSpeakerTracker {

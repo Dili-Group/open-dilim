@@ -30,6 +30,7 @@ import {
 import { buildValidateOrdersTool } from "./impl/internal/validate-orders.ts";
 import { buildPoscakeRegisterTool } from "./impl/dealer/poscake.ts";
 import { buildImageReadTool } from "./impl/vision/xem-anh.ts";
+import { buildCustomerLeadTool } from "./impl/ghi-nhan-khach.ts";
 import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
 import { buildWorkflowAnswerTool } from "./impl/workflow/answer.ts";
 import { buildWorkflowListTool } from "./impl/workflow/list.ts";
@@ -45,6 +46,16 @@ export const COMMON_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildWhoamiTool(ctx.identity),
   (ctx: ToolContext): Tool => buildUseSkillTool(ctx.skills, ctx.agentType),
   (ctx: ToolContext): Tool => buildUseReferenceTool(ctx.skills, ctx.agentType),
+];
+
+/**
+ * Tool của agent KHÁCH LẺ (Official Account). Đường GHI duy nhất mà người chưa định danh chạm tới
+ * được — nên nó chỉ nhận số điện thoại rồi bàn giao, không đọc ngược ra thứ gì.
+ *
+ * KHÔNG khai cho agent khác: kênh nội bộ đã biết người gõ là ai, không có "lead" nào để ghi.
+ */
+export const CUSTOMER_LEAD_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildCustomerLeadTool(ctx),
 ];
 
 /**

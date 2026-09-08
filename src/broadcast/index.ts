@@ -2,6 +2,9 @@
 
 export { ConsoleBroadcaster } from "./console.ts";
 export { ZaloBroadcaster } from "./zalo.ts";
+export { ZaloOaBroadcaster } from "./zalo-oa.ts";
+export { ZaloOaTokenSource } from "./zalo-oa-token.ts";
+export type { ZaloOaTokenConfig, ZaloOaTokenPort } from "./zalo-oa-token.ts";
 export { BroadcastRouter } from "./router.ts";
 export type { Broadcaster, BroadcastTarget, OutboundMedia } from "./types.ts";
 export { capForChannel } from "./limits.ts";
