@@ -154,6 +154,25 @@ describe("ZaloOaIngestor.parse", () => {
     expect(bad).toBeDefined();
     expect(ingestor.parse(bad)[0]?.imageUrl).toBeUndefined();
   });
+
+  test("user_send_image mẫu production: giữ CẢ chữ lẫn url, không nuốt bên nào", () => {
+    const event = userSendText({
+      event_name: "user_send_image",
+      message: {
+        msg_id: "img-prod",
+        text: "hộp bị móp",
+        attachments: [
+          {
+            payload: { thumbnail: "https://cdn.zalo.me/a-thumb.jpg", url: "https://cdn.zalo.me/a.jpg" },
+            type: "image",
+          },
+        ],
+      },
+    });
+    const [msg] = ingestor.parse(event);
+    expect(msg?.text).toBe("hộp bị móp");
+    expect(msg?.imageUrl).toBe("https://cdn.zalo.me/a.jpg");
+  });
 });
 
 describe("gateway + kênh OA", () => {

@@ -271,9 +271,14 @@ describe("AgentRegistry", () => {
 });
 
 describe("agent customer (Official Account)", () => {
-  test("chỉ bộ chung + đường GHI lead — KHÔNG tool nào ĐỌC dữ liệu đại lý", () => {
+  test("bộ chung + đường GHI lead + đọc ảnh — KHÔNG tool nào ĐỌC dữ liệu đại lý", () => {
     const names = customerProfile.tools.map((factory) => factory(toolCtx()).name);
-    expect(names).toEqual([...COMMON_TOOLS.map((f) => f(toolCtx()).name), "ghi_nhan_khach"]);
+    expect(names).toEqual([
+      ...COMMON_TOOLS.map((f) => f(toolCtx()).name),
+      "ghi_nhan_khach",
+      // Khách lẻ chụp nhiều hơn gõ (hộp móp, ảnh sản phẩm) — `xem_anh` chỉ mở link do webhook cấp.
+      "xem_anh",
+    ]);
   });
 
   test("prompt chặn đọc dữ liệu riêng ra cho người chưa xác thực", async () => {

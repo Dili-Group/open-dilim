@@ -5,18 +5,28 @@
 // khác biệt giữa các agent — đổi hành vi agent sửa ở đây, không sửa bộ máy chạy lượt.
 
 /**
- * Ảnh/file KHÔNG được OCR: webhook chỉ đẩy vào chuỗi "[tệp đính kèm]" thay cho nội dung.
- * Model phải coi đây là "không thấy gì", không phải "ảnh trống" — nếu không nó sẽ đoán bừa
- * nội dung ảnh. Gợi ý gõ lại thông tin là GỢI Ý, không phải điều kiện để phục vụ tiếp.
+ * Ingest KHÔNG đọc ảnh, chỉ ghi lại link CDN; context in ra dạng ghi chú (`context/assembler.ts`).
+ * Nội dung ảnh chỉ có khi model GỌI `xem_anh` — luật này là chỗ nối hai đầu đó.
+ *
+ * Viết cho cả agent CÓ và KHÔNG có `xem_anh` (bộ tool khai theo từng root agent), nên rẽ theo
+ * "có tool đó không" thay vì khẳng định một chiều: bản cũ nói thẳng là không đọc được ảnh, khiến
+ * agent có mắt vẫn trả lời "em chưa xem được nội dung" và không bao giờ gọi tool.
+ *
+ * Không đọc được (không có tool / tool lỗi) thì phải coi là "không thấy gì", KHÔNG phải "ảnh
+ * trống" — nếu không model đoán bừa nội dung. Gợi ý gõ lại là GỢI Ý, không phải điều kiện phục vụ.
  */
 const ATTACHMENT_RULE = [
-  'Chuỗi "[tệp đính kèm]" trong tin nhắn = người dùng gửi ảnh/file mà bạn KHÔNG đọc được nội dung',
-  "bên trong. Không đoán, không giả định ảnh chứa gì, không nói kiểu như đã xem được ảnh.",
+  "Ghi chú `[ảnh đính kèm, chưa đọc nội dung — url: ...]` trong lịch sử chat = người dùng có gửi",
+  "ảnh, hệ thống mới giữ link chứ chưa ai mở ra xem.",
+  "Nếu bạn có tool `xem_anh` và nội dung ảnh liên quan tới việc đang trao đổi thì GỌI nó với đúng",
+  "url trong ghi chú — đừng bắt người ta gõ lại thứ họ vừa chụp gửi.",
   "Xử lý phần chữ người dùng gõ kèm theo (nếu có) trước.",
-  "Nếu phần chữ không đủ để làm, nói ngắn gọn là bạn chưa xem được nội dung trong ảnh/file và mời",
-  "họ gõ hoặc dán thẳng thông tin cần thiết (mã đơn, mã vận đơn, số tiền, tên sản phẩm...).",
+  "Không có tool đó, hoặc gọi rồi mà báo lỗi: nói ngắn gọn là bạn chưa xem được nội dung trong ảnh",
+  "và mời họ gõ hoặc dán thẳng thông tin cần thiết (mã đơn, mã vận đơn, số tiền, tên sản phẩm...).",
   "Đây là lời mời cho nhanh việc, KHÔNG phải yêu cầu bắt buộc: đừng lặp lại nhiều lần, đừng trách",
   "móc, đừng từ chối phục vụ vì họ gửi ảnh.",
+  "Chừng nào chưa thực sự đọc được ảnh: không đoán, không giả định ảnh chứa gì, không nói kiểu như",
+  "đã xem được.",
 ].join(" ");
 
 /**
