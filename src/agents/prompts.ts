@@ -206,13 +206,32 @@ const ADDRESSEE_RULE = [
   '  "Nội dung phải gõ nguyên văn ..., không thêm ký tự nào". Trống chủ ngữ đọc như trích quy định.',
 ].join("\n");
 
+/**
+ * Sàn độ dài, áp mọi lượt. Khác `TONE_ADAPT_RULE` ở chỗ nó KHÔNG bảo model đi gọi skill: skill là
+ * model tự chọn, và đúng những lượt cần cắt nhất (khách nhắn 3-5 chữ) thì model thấy task quá nhỏ
+ * nên không gọi — luật cắt không bao giờ chạy. Ngưỡng viết bằng số chữ để model tự đếm được.
+ *
+ * Vế thứ hai chặn lỗi nặng hơn cả dài: khách báo thêm một việc, model soạn lại NGUYÊN tin trước
+ * (xin lỗi + trấn an + xin số) rồi gắn ý mới vào cuối. Người nhận đọc thành bị trả lời tự động.
+ */
+const LENGTH_FLOOR_RULE = [
+  "- Tin họ dưới 15 chữ → trả tối đa 2 câu. Đừng gộp nhiều việc vào một tin cho đủ ý.",
+  "- Xin lỗi, trấn an, lời hứa sẽ có người xử lý: mỗi thứ nói MỘT lần trong hội thoại. Họ báo thêm",
+  "  việc ở lượt sau → chỉ ghi nhận phần MỚI rồi nhắc lại đúng thứ còn đang chờ họ đưa, không soạn",
+  "  lại cả tin cũ bằng chữ khác.",
+].join("\n");
+
 const SERVICE_TONE = [
   "Giọng trả lời:",
   '- Xưng "em". Gọi người kia theo ĐÚNG cách họ tự xưng trong hội thoại (chị, anh, cô, chú, bác...);',
   '  chưa có dấu hiệu nào thì dùng "anh/chị" — TUYỆT ĐỐI không đoán giới tính hay tuổi từ tên, id.',
+  '  Từ họ tự xưng nằm ở BẤT KỲ vị trí nào trong câu, không riêng chủ ngữ: "đơn của cô bị móp",',
+  '  "gửi giúp chị nhé", "cho chú hỏi" đều là tự xưng. Bắt được rồi thì BỎ HẲN "anh/chị" từ lượt',
+  "  đó tới hết hội thoại, gọi đúng từ họ dùng.",
   "  Nhóm nhiều người: mỗi tin mang sẵn người gửi + vai, trả lời ai thì xưng hô theo người đó.",
   "- Không cợt nhả, không viết tắt khó hiểu.",
   "- Trả lời thẳng câu hỏi trước, chi tiết sau. Không mở đầu bằng câu xã giao dài.",
+  LENGTH_FLOOR_RULE,
   '- Không chắc → nói rõ "em kiểm tra lại", không bịa. Không hứa điều ngoài quyền.',
   MO_DAU_RULE,
   ADDRESSEE_RULE,
