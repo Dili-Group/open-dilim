@@ -544,16 +544,25 @@ async function readPendingNotices(
 }
 
 /**
- * Nhịp "đang xử lý" bind sẵn target của lượt: agent chỉ gọi () => Promise, không biết channel/
- * conversationId. Sender chọn theo channel; kênh chưa có adapter → noop (factory tự fallback).
+ * Channel KHÔNG phát tin "đang làm việc X". Kênh khách lẻ (OA): câu trả lời vốn đã tách thành
+ * nhiều tin liên tiếp cho giống người nhắn, chèn thêm một bong bóng trấn an cố định trước mỗi lượt
+ * chạm tool là ồn và lộ ra đang nói chuyện với máy. Nhịp "đang soạn tin" (typing) vẫn giữ — đó mới
+ * là tín hiệu người ta quen đọc.
  */
+const NO_ANNOUNCE_CHANNELS: ReadonlySet<string> = new Set(["zalo-oa"]);
+
 /**
  * Gửi tin "đang làm việc X" giữa lượt (agent gọi khi chạm tool chậm — xem `Tool.announce`).
+ * undefined = channel này tắt hẳn tin báo (agent loop bỏ qua, không gọi gì).
  *
  * KHÔNG ghi vào history: đây là câu trấn an cố định, không mang dữ kiện. Ghi vào thì mỗi lượt tra
  * cứu đẻ thêm một lượt agent rỗng trong cửa sổ 20 tin và trong lô chưng cất trí nhớ.
  */
-function buildAnnouncer(ctx: WorkerContext, envelope: Envelope): (text: string) => Promise<void> {
+function buildAnnouncer(
+  ctx: WorkerContext,
+  envelope: Envelope,
+): ((text: string) => Promise<void>) | undefined {
+  if (NO_ANNOUNCE_CHANNELS.has(envelope.channel.toLowerCase())) return undefined;
   const target = {
     channel: envelope.channel,
     conversationId: envelope.conversationId,
@@ -564,6 +573,10 @@ function buildAnnouncer(ctx: WorkerContext, envelope: Envelope): (text: string) 
   return (text: string) => ctx.broadcaster.send(target, capForChannel(envelope.channel, text));
 }
 
+/**
+ * Nhịp "đang xử lý" bind sẵn target của lượt: agent chỉ gọi () => Promise, không biết channel/
+ * conversationId. Sender chọn theo channel; kênh chưa có adapter → noop (factory tự fallback).
+ */
 function buildTypingPulse(ctx: WorkerContext, envelope: Envelope): () => Promise<void> {
   const sender = ctx.typing.for(envelope.channel);
   const target: TypingTarget = {

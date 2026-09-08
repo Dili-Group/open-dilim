@@ -769,6 +769,48 @@ describe("handleEnvelope", () => {
     expect(saved.map((e) => e.role)).toEqual(["user", "agent"]);
   });
 
+  test("kênh OA: chạm tool KHÔNG phát tin báo, khách chỉ nhận câu trả lời", async () => {
+    const history = new MemoryHistoryStore();
+    await history.append({
+      conversationId: "oa-u1",
+      msgId: "m1",
+      senderId: "oa-u1",
+      text: "hộp bị móp",
+      isGroup: false,
+      role: "user",
+      ts: 1,
+    });
+    // `xem_anh` có khai announce; ctx không nối vision nên tool trả lỗi nghiệp vụ — không sao,
+    // tin báo phát TRƯỚC khi chạy tool, đây là chỗ cần soi.
+    const provider = new ScriptedProvider([
+      { stopReason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "xem_anh", input: { url: "https://cdn.zalo.me/a.jpg" } }] },
+      { stopReason: "end_turn", content: [{ type: "text", text: "Dạ em xem ảnh rồi ạ." }] },
+    ]);
+    const broadcaster = new CapturingBroadcaster();
+    const ctx: WorkerContext = {
+      history,
+      historyWriter: history,
+      flash: flashRegistry,
+      identityRepo: NOOP_REPO,
+      ops: NOOP_OPS,
+      jobs: NOOP_JOBS,
+      // Khách lẻ nhắn OA chưa xác thực được là ai → guest.
+      identity: new FakeResolver({ role: "guest", senderId: "oa-u1" }),
+      groupCustomer: new FakeGroupCustomer(undefined),
+      agents: buildAgentRegistry({ provider, config: CFG, skills: SKILLS }),
+      broadcaster,
+      typing: TYPING,
+    };
+
+    const result = await handleEnvelope(
+      ctx,
+      makeEnvelope({ channel: "zalo-oa", conversationId: "oa-u1", senderId: "oa-u1", text: "hộp bị móp" }),
+    );
+
+    expect(result.status).toBe("reply");
+    expect(broadcaster.sent.map((s) => s.text)).toEqual(["Dạ em xem ảnh rồi ạ."]);
+  });
+
   test("reply vượt trần channel → text gửi bị cắt, kết quả trả về giữ nguyên", async () => {
     const history = new MemoryHistoryStore();
     await history.append({
