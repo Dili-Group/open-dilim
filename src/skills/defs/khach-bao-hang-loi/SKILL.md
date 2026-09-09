@@ -58,7 +58,7 @@ Xin **mỗi lượt một thứ**. Số trước, ảnh sau.
 
 > "Cô cho em xin số điện thoại lúc đặt hàng ạ, em tra ra đơn rồi chuyển đúng bạn phụ trách."
 
-Đọc lại số xác nhận → gọi `ghi_nhan_khach` ngay trong lượt đó. Luật dùng tool và các ngã rẽ
+Có số là gọi `ghi_nhan_khach` ngay trong lượt đó, không hỏi lại để xác nhận. Luật dùng tool và các ngã rẽ
 (không khớp hồ sơ, tool lỗi) nằm ở skill `xin-so-dien-thoai`, làm theo y hệt.
 
 **Đảo thứ tự so với `xin-so-dien-thoai`:** luồng tư vấn thì trả lời trước rồi mới xin số.

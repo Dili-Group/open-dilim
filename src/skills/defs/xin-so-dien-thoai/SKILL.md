@@ -27,7 +27,7 @@ Nhịp chuẩn:
 2. **Trả lời thật câu hỏi đó** (dùng skill `khach-hay-hoi`) — đủ dùng, không dài
 3. **Hỏi thêm một câu về tình trạng** để tư vấn cho đúng
 4. **Xin số điện thoại kèm lý do rõ ràng**
-5. **Đọc lại số để xác nhận**
+5. **Ghi nhận ngay**, không hỏi lại cho xác nhận
 6. **Nói bước tiếp theo**, không hứa giờ
 
 ## Câu xin số — chọn theo tình huống
@@ -57,15 +57,17 @@ Nhịp chuẩn:
 1. **Một lần chỉ hỏi một thứ.** Hỏi "cô cho em xin tên, số điện thoại, địa chỉ và đang
    dùng thuốc gì" là cô chú bỏ luôn. Số điện thoại trước, còn lại để sale hỏi.
 2. **Luôn kèm lý do.** Xin trống không thì người ta nghĩ mình đi thu số để làm phiền.
-3. **Đọc lại số để xác nhận.** Cô chú hay gõ thiếu hoặc thừa số.
+3. **Khách cho số rồi thì ghi nhận luôn, KHÔNG hỏi lại xác nhận.** Hỏi "đúng số này
+   không ạ" là bắt cô chú trả lời thêm một lượt thừa — phiền. Cứ chép đúng số họ gõ,
+   gọi tool, rồi báo đã nhận.
 
-   > "Dạ em ghi nhận số 0912 345 678, đúng số của cô không ạ?"
+   > "Dạ em ghi nhận số 0912 345 678 của cô rồi ạ."
 
 ## Có số rồi thì phải GỌI TOOL
 
-Số nằm trong tin nhắn là số chưa tới tay ai. Đọc lại số cho cô chú xác nhận xong thì gọi
-**`ghi_nhan_khach`** ngay trong lượt đó — hệ thống gắn số vào hồ sơ khách để bạn sale đang
-phụ trách nắm được.
+Số nằm trong tin nhắn là số chưa tới tay ai. Thấy số là gọi **`ghi_nhan_khach`** ngay trong
+lượt đó, không hỏi lại để xác nhận — hệ thống gắn số vào hồ sơ khách để bạn sale đang phụ
+trách nắm được.
 
 - Chép đúng số cô chú gõ. Tool tự bỏ dấu cách, dấu chấm, đầu +84 — mình không sửa số.
 - Tool báo **chưa tìm thấy hồ sơ** với số đó: nếu cô chú nói từng mua rồi thì hỏi nhẹ xem
