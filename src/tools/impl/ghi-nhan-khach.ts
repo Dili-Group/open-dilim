@@ -86,13 +86,14 @@ async function run(
   // Không có hồ sơ nào mang số này: hoặc khách chưa từng mua, hoặc số đang nhắn khác số lúc đặt
   // hàng. Hệ thống KHÔNG lưu số của khách mới (quyết định nghiệp vụ) → không có ai được báo, nên
   // tuyệt đối không hứa gọi lại ở nhánh này. Hứa hụt còn tệ hơn nói thẳng là chưa tra ra.
+  //
+  // Cũng KHÔNG xin số khác: khách đã bỏ công gửi số rồi, hỏi thêm một vòng nữa là làm phiền.
   if (result.matched === 0) {
     return {
       content:
-        "Chưa tìm thấy hồ sơ khách nào mang số này, và số chưa được lưu lại. KHÔNG hứa là sẽ có " +
-        "người gọi lại. Nếu khách nói mình đã từng mua thì hỏi nhẹ nhàng xem lúc đặt hàng có dùng " +
-        "số nào khác không, rồi ghi lại bằng số đó. Nếu khách mua lần đầu thì cứ tiếp tục hỗ trợ " +
-        "khách ngay trong cuộc trò chuyện này và mời khách nhắn tiếp khi cần.",
+        "Chưa tìm thấy hồ sơ khách nào mang số này, và số chưa được lưu lại. Cứ báo khách là em " +
+        "đã nhận thông tin, rồi tiếp tục hỗ trợ khách ngay trong cuộc trò chuyện này. KHÔNG hứa " +
+        "là sẽ có người gọi lại. KHÔNG hỏi khách số nào khác, KHÔNG xin lại số.",
     };
   }
 
@@ -126,9 +127,11 @@ function normalizePhone(raw: string | undefined): string | undefined {
 }
 
 /**
- * 4xx = hệ vận hành TỪ CHỐI (số dưới 9 chữ số, body sai) → chưa ghi gì, hỏi lại khách.
- * 5xx/mạng = KHÔNG BIẾT đã ghi hay chưa → không được xin lại số lần nữa, cũng không được khẳng
- * định đã ghi. Đường ghi không retry (xem AgentApiClient.postUnscoped).
+ * 4xx = hệ vận hành TỪ CHỐI (số dưới 9 chữ số, body sai) → chưa ghi gì.
+ * 5xx/mạng = KHÔNG BIẾT đã ghi hay chưa → cũng không được khẳng định đã ghi. Đường ghi không
+ * retry (xem AgentApiClient.postUnscoped).
+ *
+ * Cả hai nhánh đều KHÔNG được xin lại số: khách gửi số rồi, lỗi là chuyện phía mình.
  *
  * KHÔNG in `err.message`: message mang body backend trả, trong đó có thể có lại số điện thoại.
  */
@@ -138,8 +141,9 @@ function failure(err: AgentApiError): ToolResult {
   if (err.status >= 400 && err.status < 500) {
     return {
       content:
-        "Hệ thống không nhận số này. Đọc lại số cho khách nghe và nhờ khách xác nhận giúp, rồi thử " +
-        "ghi lại một lần nữa. KHÔNG nói là đã ghi xong.",
+        "Hệ thống không nhận số này — chưa ghi được. KHÔNG xin lại số, KHÔNG hỏi khách xác nhận " +
+        "số. Báo khách là em đã nhận thông tin rồi tiếp tục hỗ trợ khách tại chỗ; KHÔNG nói là " +
+        "đã ghi vào hệ thống, KHÔNG hứa có người gọi lại.",
       isError: true,
     };
   }

@@ -111,14 +111,14 @@ describe("ghi_nhan_khach", () => {
     expect(result.content).toContain("KHÔNG nói là đã ghi");
   });
 
-  test("4xx = backend từ chối → xin khách đọc lại số rồi ghi lại", async () => {
+  test("4xx = backend từ chối → KHÔNG xin lại số, cũng không nói là đã ghi", async () => {
     const err = new AgentApiError("từ chối", 422, "invalid", "/agent/customers/zalo-user-id");
     const result = await buildCustomerLeadTool(ctxWith(new FakeCustomerZalo(err))).run({
       so_dien_thoai: "0912345678",
     });
     expect(result.isError).toBe(true);
-    expect(result.content).toContain("Đọc lại số");
-    expect(result.content).toContain("KHÔNG nói là đã ghi xong");
+    expect(result.content).toContain("KHÔNG xin lại số");
+    expect(result.content).toContain("KHÔNG nói là");
   });
 
   test("5xx = không biết đã ghi hay chưa → KHÔNG xin lại số, cũng không khẳng định đã ghi", async () => {
