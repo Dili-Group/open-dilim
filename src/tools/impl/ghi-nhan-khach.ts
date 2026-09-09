@@ -30,8 +30,8 @@ export function buildCustomerLeadTool(ctx: ToolContext): Tool {
     name: "ghi_nhan_khach",
     description:
       "GHI: gắn số điện thoại khách vừa để lại vào hệ thống, để bạn sale đang phụ trách khách đó " +
-      "nắm được và gọi lại tư vấn. Gọi NGAY khi khách đã đưa số và mình đã đọc lại số cho khách " +
-      "xác nhận. Chỉ chép đúng số khách gõ — KHÔNG tự bịa, KHÔNG lấy số khác trong lịch sử chat " +
+      "nắm được và gọi lại tư vấn. Gọi NGAY trong lượt khách đưa số — KHÔNG hỏi lại khách để " +
+      "xác nhận số. Chỉ chép đúng số khách gõ — KHÔNG tự bịa, KHÔNG lấy số khác trong lịch sử chat " +
       "nếu khách không nhắc tới. Khách chưa cho số thì đừng gọi tool, xin số trước (skill " +
       "xin-so-dien-thoai).",
     inputSchema: {
@@ -64,7 +64,7 @@ async function run(
     return {
       content:
         "Số điện thoại chưa hợp lệ. Số Việt Nam có 10 chữ số và bắt đầu bằng 0 (vd 0912345678). " +
-        "Đọc lại số cho khách nghe rồi nhờ khách đọc lại giúp — nói nhẹ nhàng là số còn thiếu, " +
+        "Đọc lại số cho khách nghe rồi nhờ khách gửi lại — nói nhẹ nhàng là số còn thiếu, " +
         "đừng nói khách gõ sai. KHÔNG tự sửa số, KHÔNG tự thêm chữ số.",
       isError: true,
     };

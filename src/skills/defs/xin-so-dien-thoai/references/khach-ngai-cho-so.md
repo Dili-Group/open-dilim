@@ -50,10 +50,12 @@ từ chối.
 
 ## Cô chú cho số nhưng gõ sai
 
-Hay gặp: thiếu số, thừa số, gõ liền chữ. Luôn đọc lại để xác nhận, tách nhóm cho dễ đọc:
+Số nhìn bình thường (10 chữ số, đầu 0) thì ghi nhận luôn, KHÔNG hỏi lại xác nhận — hỏi
+là bắt cô chú trả lời thêm một lượt thừa:
 
-> "Dạ em ghi nhận số 0912 345 678, đúng số của cô không ạ?"
+> "Dạ em ghi nhận số 0912 345 678 của cô rồi ạ."
 
-Nếu số nhìn không hợp lệ (thiếu chữ số, sai đầu số), hỏi lại nhẹ nhàng, đừng nói "sai rồi":
+Chỉ hỏi lại khi số THẬT SỰ không hợp lệ (thiếu chữ số, sai đầu số) — nhẹ nhàng, đừng nói
+"sai rồi":
 
 > "Dạ số này em thấy còn thiếu một số, cô đọc lại giúp em với ạ."
