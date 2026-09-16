@@ -366,6 +366,8 @@ export const MESSAGE_LOG = {
     addressedToAgent: "addressed_to_agent", // tin có nhắm agent không — audit "agent thấy gì"
     text: "text",
     imageUrl: "image_url",             // con trỏ CDN, nullable — không tải nội dung ảnh
+    fileUrl: "file_url",               // con trỏ CDN file tài liệu, nullable — không tải nội dung
+    fileName: "file_name",             // tên file lúc gửi, nullable
     ts: "ts",                          // event time ms epoch (Envelope.ts) — mốc ngày VN app tự tính
     createdAt: "created_at",
   },
@@ -706,7 +708,9 @@ CREATE TABLE IF NOT EXISTS ${ml.table} (
   ${ml.col.isGroup}           boolean     NOT NULL,
   ${ml.col.addressedToAgent}  boolean     NOT NULL,     -- audit: tin này agent có được gọi không
   ${ml.col.text}              text        NOT NULL,
-  ${ml.col.imageUrl}          text,                     -- con trỏ CDN, không tải nội dung
+  ${ml.col.imageUrl}          text,                     -- con trỏ CDN ảnh, không tải nội dung
+  ${ml.col.fileUrl}           text,                     -- con trỏ CDN file tài liệu, không tải nội dung
+  ${ml.col.fileName}          text,                     -- tên file lúc gửi
   -- EVENT TIME ms epoch (Envelope.ts). Mốc ngày giờ VN app tự tính khi query (cùng lý do
   -- usage_day ở llm_usage_log: server UTC thì CURRENT_DATE lệch 7 tiếng).
   ${ml.col.ts}                bigint      NOT NULL,

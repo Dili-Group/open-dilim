@@ -23,6 +23,7 @@ import type { AgentResult, HistoryEntry } from "../types/index.ts";
 import type { DistillSpec, MemoryRecall, MemoryScope } from "../state/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 import type { ToolFactory } from "../tools/types.ts";
+import type { DocPort } from "../doc/types.ts";
 import type { VisionPort } from "../vision/types.ts";
 // Nhập THẲNG từ meter.ts, không qua usage/index.ts: index kéo theo budget.ts, mà budget.ts đọc
 // AgentType từ chính file này → vòng lặp import.
@@ -75,6 +76,8 @@ export interface AgentDeps {
   readonly poscake?: PoscakePort;
   /** Cổng đọc ảnh đính kèm cho tool `xem_anh`. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
   readonly vision?: VisionPort;
+  /** Cổng đọc file tài liệu đính kèm cho tool `doc_file`. undefined = chưa nối → tool trả lỗi. */
+  readonly doc?: DocPort;
   /**
    * Cổng TOOL NGOÀI qua giao thức MCP. undefined = chưa khai server nào → agent nào khai
    * `mcpServers` cũng chỉ đơn giản không có tool đó, không phải lỗi.

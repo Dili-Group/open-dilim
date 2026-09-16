@@ -15,8 +15,9 @@ const T = MESSAGE_LOG.table;
 // hạn vẫn không được nhân đôi row. DO NOTHING vì row cũ là bản chụp đúng của tin đó rồi.
 const INSERT = `INSERT INTO ${T}
     (${C.channel}, ${C.msgId}, ${C.conversationId}, ${C.senderId}, ${C.senderName},
-     ${C.isGroup}, ${C.addressedToAgent}, ${C.text}, ${C.imageUrl}, ${C.ts})
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     ${C.isGroup}, ${C.addressedToAgent}, ${C.text}, ${C.imageUrl}, ${C.fileUrl},
+     ${C.fileName}, ${C.ts})
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
   ON CONFLICT (${C.channel}, ${C.msgId}) DO NOTHING`;
 
 export class SqlMessageLog {
@@ -33,6 +34,8 @@ export class SqlMessageLog {
       envelope.addressedToAgent,
       envelope.text,
       envelope.imageUrl ?? null,
+      envelope.fileUrl ?? null,
+      envelope.fileName ?? null,
       envelope.ts,
     ]);
   }

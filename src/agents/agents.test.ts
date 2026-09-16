@@ -278,6 +278,8 @@ describe("agent customer (Official Account)", () => {
       "ghi_nhan_khach",
       // Khách lẻ chụp nhiều hơn gõ (hộp móp, ảnh sản phẩm) — `xem_anh` chỉ mở link do webhook cấp.
       "xem_anh",
+      // Cùng lý do cho file: đơn thuốc, phiếu xét nghiệm, hoá đơn dạng PDF.
+      "doc_file",
     ]);
   });
 

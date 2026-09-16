@@ -312,6 +312,20 @@ describe("assembleTurnContext — messages", () => {
     expect(text.indexOf(url)).toBeGreaterThan(closeTag);
   });
 
+  test("tin kèm file → ghi chú url + tên file NGOÀI vùng dữ liệu, chỉ là con trỏ", async () => {
+    const url = "https://cdn.dili.vn/a/bang-ke.xlsx";
+    const ctx = await assembleTurnContext(sources(), {
+      history: [entry({ text: "xem giúp em", fileUrl: url, fileName: "bang-ke.xlsx" })],
+    });
+    const text = (ctx.messages[0]?.content[0] as { text: string }).text;
+
+    expect(text).toContain("file đính kèm");
+    expect(text).toContain('"bang-ke.xlsx"');
+    expect(text).toContain(`url: ${url}`);
+    const closeTag = text.lastIndexOf("</");
+    expect(text.indexOf(url)).toBeGreaterThan(closeTag);
+  });
+
   test("tin không kèm ảnh → không có ghi chú ảnh nào", async () => {
     const ctx = await assembleTurnContext(sources(), { history: [entry({ text: "chỉ chữ" })] });
     const text = (ctx.messages[0]?.content[0] as { text: string }).text;

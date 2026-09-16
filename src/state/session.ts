@@ -43,7 +43,8 @@ export function parseHistoryEntry(json: string): HistoryEntry | null {
     return null;
   }
   if (!isRecord(raw)) return null;
-  const { conversationId, msgId, senderId, senderName, text, imageUrl, isGroup, ts, role } = raw;
+  const { conversationId, msgId, senderId, senderName, text, imageUrl, fileUrl, fileName } = raw;
+  const { isGroup, ts, role } = raw;
   if (typeof conversationId !== "string" || conversationId === "") return null;
   if (typeof msgId !== "string" || typeof senderId !== "string" || typeof text !== "string") {
     return null;
@@ -56,6 +57,9 @@ export function parseHistoryEntry(json: string): HistoryEntry | null {
   const name = typeof senderName === "string" && senderName !== "" ? { senderName } : {};
   // Back-compat: entry ghi trước khi có ảnh đính kèm, hoặc tin không kèm ảnh → bỏ field.
   const image = typeof imageUrl === "string" && imageUrl !== "" ? { imageUrl } : {};
+  // Back-compat y hệt cho file tài liệu đính kèm (entry ghi trước khi có `doc_file`).
+  const file = typeof fileUrl === "string" && fileUrl !== "" ? { fileUrl } : {};
+  const docName = typeof fileName === "string" && fileName !== "" ? { fileName } : {};
   return {
     conversationId,
     msgId,
@@ -63,6 +67,8 @@ export function parseHistoryEntry(json: string): HistoryEntry | null {
     ...name,
     text,
     ...image,
+    ...file,
+    ...docName,
     isGroup,
     role: historyRole,
     ts,

@@ -46,6 +46,17 @@ export interface Envelope {
    * tải (allowlist CDN, xem vision/image-vision.ts). undefined = tin không kèm ảnh.
    */
   readonly imageUrl?: string;
+  /**
+   * FILE tài liệu đính kèm (PDF/Word/Excel/CSV...) — link CDN do channel cấp. Cùng luật với
+   * `imageUrl`: một tin tối đa MỘT file, ingest KHÔNG mở nội dung, agent tự gọi tool `doc_file`
+   * khi cần. Tin vừa có ảnh vừa có file là chuyện của channel, hai field độc lập nhau.
+   *
+   * URL đến TỪ WEBHOOK = untrusted: adapter đã chặn cho http(s), host chỉ được duyệt lúc tải
+   * (allowlist CDN, xem doc/anydoc.ts). undefined = tin không kèm file tài liệu.
+   */
+  readonly fileUrl?: string;
+  /** Tên file channel gửi kèm — để đoán định dạng và để gọi tên trong câu trả lời. */
+  readonly fileName?: string;
   readonly mentions: readonly Mention[];
   readonly ts: number;             // event time (ms epoch)
 }
@@ -72,6 +83,10 @@ export interface HistoryEntry {
   readonly text: string;
   /** Ảnh đính kèm của tin (xem `Envelope.imageUrl`). Giữ trong history để lượt sau còn gọi lại được. */
   readonly imageUrl?: string;
+  /** File tài liệu đính kèm (xem `Envelope.fileUrl`). Giữ theo tin, cùng lý do với `imageUrl`. */
+  readonly fileUrl?: string;
+  /** Tên file lúc gửi (xem `Envelope.fileName`). */
+  readonly fileName?: string;
   readonly isGroup: boolean;
   /** Người dùng gõ (ingest) hay agent trả (flash reply / lượt agent). Thiếu ở entry cũ → coi là user. */
   readonly role: HistoryRole;

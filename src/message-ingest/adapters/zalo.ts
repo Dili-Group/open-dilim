@@ -11,7 +11,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { ZaloChannelConfig } from "../../config.ts";
 import type { Mention } from "../../types/index.ts";
 import { isAddressed, type Ingestor, type ParsedMessage } from "../ingestor.ts";
-import { isRecord, readHttpUrl, readString, readTs } from "./payload.ts";
+import { isDocAttachment, isRecord, readFileName, readHttpUrl, readString, readTs } from "./payload.ts";
 
 // Header mang chữ ký webhook. LƯU Ý: tên header + cách Zalo compose chuỗi ký PHẢI xác nhận lại
 // với payload/tài liệu Zalo thật trước prod. Cơ chế (HMAC-SHA256 rawBody, so timing-safe) đúng;
@@ -69,6 +69,7 @@ export class ZaloIngestor implements Ingestor {
     const text = readText(event.content);
     const mentions = readMentions(event.mentions);
     const imageUrl = readImageUrl(event);
+    const file = readDocAttachment(event);
 
     return {
       channel: this.channel,
@@ -76,6 +77,7 @@ export class ZaloIngestor implements Ingestor {
       conversationId,
       senderId,
       ...(imageUrl === undefined ? {} : { imageUrl }),
+      ...(file ?? {}),
       // senderName = tên hiển thị Zalo. Không phải event nào cũng có → thiếu thì bỏ hẳn field.
       ...(readName(event.senderName) ?? {}),
       isGroup,
@@ -122,6 +124,20 @@ function readImageUrl(event: Record<string, unknown>): string | undefined {
   const file = readHttpUrl(event.fileUrl);
   if (file === undefined) return undefined;
   return IMAGE_EXTENSION.test(new URL(file).pathname) ? file : undefined;
+}
+
+/**
+ * File TÀI LIỆU đính kèm: cùng field `fileUrl` với ảnh, phân loại bằng đuôi. Đuôi ảnh đã đi đường
+ * `readImageUrl` nên ở đây chỉ còn tài liệu; đuôi lạ (zip, exe, apk) → bỏ, không hứa đọc được.
+ */
+function readDocAttachment(
+  event: Record<string, unknown>,
+): { fileUrl: string; fileName?: string } | undefined {
+  const url = readHttpUrl(event.fileUrl);
+  if (url === undefined) return undefined;
+  const name = readFileName(event.fileName);
+  if (!isDocAttachment(url, name)) return undefined;
+  return { fileUrl: url, ...(name === undefined ? {} : { fileName: name }) };
 }
 
 /** mentions[] → chỉ giữ uid (entity), bỏ pos/len/type. Bỏ entry thiếu uid. */

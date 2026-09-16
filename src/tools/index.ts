@@ -30,6 +30,7 @@ import {
 import { buildValidateOrdersTool } from "./impl/internal/validate-orders.ts";
 import { buildPoscakeRegisterTool } from "./impl/dealer/poscake.ts";
 import { buildImageReadTool } from "./impl/vision/xem-anh.ts";
+import { buildDocReadTool } from "./impl/doc/doc-file.ts";
 import { buildCustomerLeadTool } from "./impl/ghi-nhan-khach.ts";
 import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
 import { buildWorkflowAnswerTool } from "./impl/workflow/answer.ts";
@@ -192,6 +193,17 @@ export const POSCAKE_TOOLS: readonly ToolFactory[] = [
  */
 export const VISION_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildImageReadTool(ctx),
+];
+
+/**
+ * Tool ĐỌC FILE tài liệu đính kèm (PDF/Word/Excel/CSV → chữ). Khai cho agent nào có người gửi
+ * file vào — đại lý gửi bảng kê, kho gửi phiếu xuất, khách gửi đơn thuốc chụp thành PDF.
+ *
+ * Tách khỏi VISION_TOOLS dù cùng dạng "đọc thứ đính kèm": hai cổng khác nhau, bật/tắt độc lập
+ * (đọc ảnh cần key Gemini, đọc file cần dịch vụ anydoc) — gộp một bộ là tắt cái này kéo theo cái kia.
+ */
+export const DOC_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildDocReadTool(ctx),
 ];
 
 /**

@@ -11,7 +11,7 @@
 // webhook kênh cấp (cổng vision duyệt host trước khi tải) — không mở ra dữ liệu riêng của ai.
 
 import { customerSupportSpec } from "../../state/specs.ts";
-import { COMMON_TOOLS, CUSTOMER_LEAD_TOOLS, VISION_TOOLS } from "../../tools/index.ts";
+import { COMMON_TOOLS, CUSTOMER_LEAD_TOOLS, DOC_TOOLS, VISION_TOOLS } from "../../tools/index.ts";
 import { CUSTOMER_PROMPT } from "../prompts.ts";
 import { AgentType, type RootAgentProfile } from "../types.ts";
 
@@ -21,5 +21,6 @@ export const customerProfile: RootAgentProfile = {
   directOnly: true,
   prompt: CUSTOMER_PROMPT,
   memorySpec: customerSupportSpec,
-  tools: [...COMMON_TOOLS, ...CUSTOMER_LEAD_TOOLS, ...VISION_TOOLS],
+  // DOC_TOOLS cùng lý do: khách gửi file đơn thuốc, phiếu xét nghiệm, hoá đơn dạng PDF.
+  tools: [...COMMON_TOOLS, ...CUSTOMER_LEAD_TOOLS, ...VISION_TOOLS, ...DOC_TOOLS],
 };

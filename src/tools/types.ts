@@ -16,6 +16,7 @@ import type {
   PoscakePort,
 } from "../operational/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
+import type { DocPort } from "../doc/types.ts";
 import type { VisionPort } from "../vision/types.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
 import type { RoomRef } from "../workflows/types.ts";
@@ -97,6 +98,14 @@ export interface ToolContext {
    * nghiệp vụ, không throw.
    */
   readonly vision?: VisionPort;
+  /**
+   * Cổng ĐỌC FILE tài liệu đính kèm (link CDN → markdown). Cùng loại rủi ro với `vision`: gọi ra
+   * một URL do người ngoài đưa vào → hàng rào (allowlist host, trần dung lượng, chặn redirect)
+   * nằm trong cổng, không ở tool.
+   * undefined = chưa nối (thiếu ANYDOC_URL/ANYDOC_API_KEY hoặc chưa khai CDN_ALLOWED_HOSTS) →
+   * tool trả lỗi nghiệp vụ, không throw.
+   */
+  readonly doc?: DocPort;
   /**
    * NHÓM của lượt này (kênh + id nhóm). Việc treo liên nhóm neo vào đây: nhóm hỏi là nhóm
    * này, và nhóm được hỏi cũng phải khớp nhóm này thì mới cho trả lời.

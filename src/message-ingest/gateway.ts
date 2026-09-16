@@ -200,6 +200,8 @@ function toHistoryEntry(e: Envelope): HistoryEntry {
     text: e.text,
     // Ảnh chỉ là con trỏ (link CDN) — giữ theo tin để lượt sau agent còn gọi `xem_anh` lại được.
     ...(e?.imageUrl === undefined ? {} : { imageUrl: e.imageUrl }),
+    ...(e?.fileUrl === undefined ? {} : { fileUrl: e.fileUrl }),
+    ...(e?.fileName === undefined ? {} : { fileName: e.fileName }),
     isGroup: e.isGroup,
     role: "user",
     ts: e.ts,

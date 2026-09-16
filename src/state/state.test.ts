@@ -714,7 +714,7 @@ describe("SqlMessageLog.append", () => {
     expect(call?.text).toContain("ON CONFLICT (channel, msg_id) DO NOTHING");
     expect(call?.params).toEqual([
       "zalo", "m1", "g1", "u1", "Chị Lan", true, false, "hàng về chưa em",
-      "https://cdn.dili.vn/a/anh.jpg", 1_700_000_000_000,
+      "https://cdn.dili.vn/a/anh.jpg", null, null, 1_700_000_000_000,
     ]);
   });
 

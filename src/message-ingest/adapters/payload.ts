@@ -52,3 +52,33 @@ export function readTs(raw: unknown): number {
   }
   return Date.now();
 }
+
+/**
+ * Đuôi file TÀI LIỆU hệ thống đọc được. ĐÃ ĐỐI CHIẾU với enum Format thật của dịch vụ anydoc
+ * (16/09/2026): txt, md, html, tsv, xls đều bị từ chối — nhận rộng hơn bộ này là hứa với model
+ * một thứ mà tới lúc chuyển đổi mới báo không đọc được.
+ */
+const DOC_EXTENSION = /\.(pdf|docx?|xlsx|pptx?|csv|rtf|odt|ods|odp|epub)$/i;
+
+/** Trần độ dài tên file: tên do người gửi đặt, đi thẳng vào ghi chú trong prompt. */
+const MAX_FILE_NAME_CHARS = 120;
+
+/**
+ * Tên file người gửi đặt → untrusted y như tên hiển thị: cắt trần và gỡ ký tự bẻ được ô ghi chú
+ * trong prompt (cùng lý do với `UNSAFE_URL_CHARS`). Không phải chuỗi / rỗng → undefined.
+ */
+export function readFileName(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const name = raw.replace(/[<>[\]\r\n]/g, "").trim().slice(0, MAX_FILE_NAME_CHARS);
+  return name === "" ? undefined : name;
+}
+
+/** Link + tên có phải FILE TÀI LIỆU đọc được không: đuôi ở tên gửi kèm, hoặc đuôi trên đường dẫn. */
+export function isDocAttachment(url: string, fileName: string | undefined): boolean {
+  if (fileName !== undefined && DOC_EXTENSION.test(fileName)) return true;
+  try {
+    return DOC_EXTENSION.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+}

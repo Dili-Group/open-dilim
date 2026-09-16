@@ -17,7 +17,14 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { ZaloOaChannelConfig } from "../../config.ts";
 import type { Ingestor, ParsedMessage } from "../ingestor.ts";
-import { isRecord, readHttpUrl, readString, readTs } from "./payload.ts";
+import {
+  isDocAttachment,
+  isRecord,
+  readFileName,
+  readHttpUrl,
+  readString,
+  readTs,
+} from "./payload.ts";
 
 /** Header chữ ký. Giá trị dạng `mac=<hex>` — phần sau dấu `=` mới là chữ ký. */
 const SIGNATURE_HEADER = "x-zevent-signature";
@@ -113,6 +120,7 @@ export class ZaloOaIngestor implements Ingestor {
     if (oaId !== this.config.agentUid) return null;
 
     const imageUrl = readImageUrl(event.message.attachments);
+    const file = readDocAttachment(event.message.attachments);
 
     return {
       channel: this.channel,
@@ -121,6 +129,7 @@ export class ZaloOaIngestor implements Ingestor {
       conversationId: senderId,
       senderId,
       ...(imageUrl === undefined ? {} : { imageUrl }),
+      ...(file ?? {}),
       // Webhook OA KHÔNG kèm tên hiển thị (phải gọi API profile riêng) → agent gọi theo vai.
       isGroup: false,
       addressedToAgent: true,
@@ -133,7 +142,7 @@ export class ZaloOaIngestor implements Ingestor {
 
 /**
  * Ảnh đính kèm: `message.attachments[]` dạng `{ type, payload:{ url, thumbnail } }`. Chỉ lấy
- * `type === "image"` — v1 chỉ đọc được ảnh, nhận file/video vào đây là hứa suông với model.
+ * `type === "image"` — file tài liệu đi đường riêng (`readDocAttachment`), video thì chưa đọc được.
  * Envelope mang tối đa MỘT ảnh nên lấy cái đầu tiên.
  *
  * Shape này CHƯA đối chiếu payload thật (mới có mẫu `user_send_text`). Khác shape → không match →
@@ -146,6 +155,27 @@ function readImageUrl(attachments: unknown): string | undefined {
     if (!isRecord(item.payload)) continue;
     const url = readHttpUrl(item.payload.url);
     if (url !== undefined) return url;
+  }
+  return undefined;
+}
+
+/**
+ * File TÀI LIỆU đính kèm: `attachments[]` phần tử `{ type:"file", payload:{ url, name, size } }`
+ * (event `user_send_file`). Chỉ nhận đuôi hệ thống chuyển ra chữ được — đuôi lạ (zip, apk) bỏ qua,
+ * text của tin vẫn vào history bình thường.
+ *
+ * Envelope mang tối đa MỘT file nên lấy cái đầu tiên khớp.
+ */
+function readDocAttachment(attachments: unknown): { fileUrl: string; fileName?: string } | undefined {
+  if (!Array.isArray(attachments)) return undefined;
+  for (const item of attachments) {
+    if (!isRecord(item) || item.type !== "file") continue;
+    if (!isRecord(item.payload)) continue;
+    const url = readHttpUrl(item.payload.url);
+    if (url === undefined) continue;
+    const name = readFileName(item.payload.name);
+    if (!isDocAttachment(url, name)) continue;
+    return { fileUrl: url, ...(name === undefined ? {} : { fileName: name }) };
   }
   return undefined;
 }

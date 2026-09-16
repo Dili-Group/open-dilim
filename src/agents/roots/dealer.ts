@@ -4,6 +4,7 @@
 import { customerSupportSpec } from "../../state/specs.ts";
 import {
   COMMON_TOOLS,
+  DOC_TOOLS,
   DAILY_TOOLS,
   DEALER_TIER_TOOLS,
   DEALER_TOOLS,
@@ -50,6 +51,9 @@ export const dealerProfile: RootAgentProfile = {
     ...DAILY_TOOLS,
     ...POSCAKE_TOOLS,
     ...VISION_TOOLS,
+    // Đại lý gửi file bảng kê, hoá đơn PDF, danh sách đơn Excel — đọc khi nội dung file cần cho
+    // việc đang hỏi, không đọc sẵn.
+    ...DOC_TOOLS,
     ...WORKFLOW_REPLY_TOOLS,
     ...WORKFLOW_LIST_TOOLS,
   ],

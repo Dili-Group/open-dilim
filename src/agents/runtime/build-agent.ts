@@ -85,6 +85,7 @@ class ProfileRootAgent implements RootAgent {
           internal: this.deps.internal,
           poscake: this.deps.poscake,
           vision: this.deps.vision,
+          doc: this.deps.doc,
           workflow: this.deps.workflow,
           announce: this.deps.announce,
           customerZalo: this.deps.customerZalo,

@@ -160,7 +160,7 @@ function toMessages(
     return {
       role: "user" as const,
       content: [
-        { type: "text" as const, text: `${prefix}: ${open}${body}${close}${imageNote(entry)}` },
+        { type: "text" as const, text: `${prefix}: ${open}${body}${close}${imageNote(entry)}${fileNote(entry)}` },
       ],
     };
   });
@@ -193,6 +193,17 @@ function endWithUserTurn(history: readonly HistoryEntry[]): readonly HistoryEntr
 function imageNote(entry: HistoryEntry | undefined): string {
   if (entry?.imageUrl === undefined) return "";
   return ` [ảnh đính kèm, chưa đọc nội dung — url: ${entry.imageUrl}]`;
+}
+
+/**
+ * Ghi chú FILE TÀI LIỆU đính kèm — cùng luật với `imageNote`: đứng ngoài cặp thẻ dữ liệu, chỉ là
+ * con trỏ, nội dung chưa ai đọc; muốn biết bên trong có gì thì gọi `doc_file` với đúng url này.
+ * Tên file do người gửi đặt nên đã gỡ ký tự bẻ ô ở ingest (adapters/payload.ts).
+ */
+function fileNote(entry: HistoryEntry | undefined): string {
+  if (entry?.fileUrl === undefined) return "";
+  const name = entry.fileName === undefined ? "" : ` "${entry.fileName}"`;
+  return ` [file đính kèm${name}, chưa đọc nội dung — url: ${entry.fileUrl}]`;
 }
 
 /** Thẻ ranh giới của lượt: hex ngẫu nhiên, đủ ngắn để không tốn token, đủ dài để không đoán ra. */

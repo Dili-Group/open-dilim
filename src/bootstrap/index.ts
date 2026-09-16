@@ -20,6 +20,7 @@ import {
   startKbDigestPoller,
 } from "../kb-digest/index.ts";
 import { CdnImageVision, type VisionPort } from "../vision/index.ts";
+import { AnydocDocReader, type DocPort } from "../doc/index.ts";
 import { buildMcpRegistry } from "../mcp/index.ts";
 import { buildAgentRegistry, type AgentRegistry } from "../agents/index.ts";
 import {
@@ -152,6 +153,23 @@ export async function bootstrap(): Promise<Services> {
     vision = new CdnImageVision(buildVisionReader(config), config.vision.allowedHosts);
   }
 
+  // Đọc file đính kèm: cần CẢ endpoint anydoc LẪN key LẪN allowlist host CDN. Thiếu thứ nào cũng
+  // không dựng cổng — tool `doc_file` tự báo "chưa sẵn sàng", hơn là dựng một cổng hỏng rồi để
+  // model tưởng file nào cũng lỗi. Allowlist rỗng = fail-closed, giống hệt đường đọc ảnh.
+  let doc: DocPort | undefined;
+  const anydoc = config.anydoc;
+  if (anydoc.baseUrl === undefined || anydoc.apiKey === undefined) {
+    console.warn("[bootstrap] thiếu ANYDOC_URL/ANYDOC_API_KEY → tắt đọc file đính kèm (doc_file).");
+  } else if (anydoc.allowedHosts.length === 0) {
+    console.warn("[bootstrap] thiếu CDN_ALLOWED_HOSTS → tắt đọc file đính kèm (không tải link lạ).");
+  } else {
+    doc = new AnydocDocReader({
+      baseUrl: anydoc.baseUrl,
+      apiKey: anydoc.apiKey,
+      allowedHosts: anydoc.allowedHosts,
+    });
+  }
+
   // Tool NGOÀI qua MCP. Nối + chốt danh sách tool NGAY Ở BOOT: danh sách tool nằm trước system
   // prompt nên phải tĩnh cả vòng đời process. MCP_SERVERS rỗng → registry rỗng, không tốn gì.
   // Server nào chết thì buildMcpRegistry warn rồi bỏ, KHÔNG chặn boot (xem mcp/registry.ts).
@@ -264,6 +282,7 @@ export async function bootstrap(): Promise<Services> {
     internal,
     poscake,
     vision,
+    doc,
     mcp,
     workflow,
     announce,

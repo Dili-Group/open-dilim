@@ -412,6 +412,17 @@ export const CONFIG = {
     allowedHosts: csvEnv("CDN_ALLOWED_HOSTS"),
   },
 
+  // ĐỌC FILE đính kèm (tool `doc_file`) — dịch vụ anydoc chuyển PDF/Word/Excel ra markdown.
+  //
+  // Dùng CHUNG allowlist `CDN_ALLOWED_HOSTS` với đọc ảnh: file và ảnh cùng đến từ CDN của kênh
+  // chat, một danh sách host là đủ và bớt một chỗ quên khai. Fail-closed y hệt: rỗng = không tải.
+  // Thiếu `ANYDOC_URL` hoặc `ANYDOC_API_KEY` → bootstrap không dựng cổng, tool tự báo chưa sẵn sàng.
+  anydoc: {
+    baseUrl: optional("ANYDOC_URL"),
+    apiKey: optional("ANYDOC_API_KEY"),
+    allowedHosts: csvEnv("CDN_ALLOWED_HOSTS"),
+  },
+
   // Tool NGOÀI qua giao thức MCP (mcp/). Nối lúc boot, danh sách tool chốt một lần rồi cache.
   //
   // `servers` rỗng = không nối server nào (mặc định) → không agent nào thấy tool MCP. Bật một

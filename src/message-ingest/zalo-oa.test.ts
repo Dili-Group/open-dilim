@@ -155,6 +155,36 @@ describe("ZaloOaIngestor.parse", () => {
     expect(ingestor.parse(bad)[0]?.imageUrl).toBeUndefined();
   });
 
+  test("user_send_file → lấy url + tên file; đuôi không đọc được thì bỏ", () => {
+    const withFile = userSendText({
+      event_name: "user_send_file",
+      message: {
+        msg_id: "file1",
+        text: "bảng kê tháng 9 đây ạ",
+        attachments: [
+          {
+            type: "file",
+            payload: { url: "https://cdn.zalo.me/bang-ke.xlsx", name: "bang-ke.xlsx", size: 12345 },
+          },
+        ],
+      },
+    });
+    const [msg] = ingestor.parse(withFile);
+    expect(msg?.fileUrl).toBe("https://cdn.zalo.me/bang-ke.xlsx");
+    expect(msg?.fileName).toBe("bang-ke.xlsx");
+    expect(msg?.text).toBe("bảng kê tháng 9 đây ạ");
+    expect(msg?.imageUrl).toBeUndefined();
+
+    const zip = userSendText({
+      event_name: "user_send_file",
+      message: {
+        msg_id: "file2",
+        attachments: [{ type: "file", payload: { url: "https://cdn.zalo.me/x.zip", name: "x.zip" } }],
+      },
+    });
+    expect(ingestor.parse(zip)[0]?.fileUrl).toBeUndefined();
+  });
+
   test("user_send_image mẫu production: giữ CẢ chữ lẫn url, không nuốt bên nào", () => {
     const event = userSendText({
       event_name: "user_send_image",
