@@ -17,7 +17,11 @@ Agent **không có tool tra đơn** ở nhóm này (nhóm kho không thuộc đ�
 | Mã | Nghĩa | Làm gì |
 |---|---|---|
 | `10093412` (mã thường) | mã hoàn trùng mã đơn gốc | Ghi nhận, xác nhận đã nhận. KHÔNG mở việc. |
-| `PKE0093412DH` (đuôi DH) | mã bên vận chuyển sinh mới | **Gọi `mo_viec_cho`** để hỏi đại lý mã đơn gốc. |
+| `PKE0093412DH` (đuôi DH) | kiện hoàn về để **đổi hàng** cho một đơn khác (đơn gốc); bên vận chuyển sinh mã mới | **Gọi `mo_viec_cho`** để hỏi đại lý mã đơn gốc. |
+
+Mã đuôi `DH` **không phải lỗi, không phải "chưa khớp"** — nó là kiện đổi hàng, bình thường. Thứ cần
+tìm là **đơn gốc**, vì số lượng phải **điều chỉnh giảm trên đơn gốc**, không phải trên mã DH. Nói
+với nhóm hay đại lý đều theo đúng nghĩa đó, đừng dùng chữ "chưa khớp được".
 
 Hệ thống tự bỏ đuôi `DH` để tra ra **đại lý** chủ đơn rồi hỏi thẳng nhóm của họ — agent không phải
 làm gì thêm. Nhưng **đơn gốc cụ thể** thì vẫn phải để đại lý trả lời: agent tuyệt đối không tự

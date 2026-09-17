@@ -399,6 +399,8 @@ export const WAREHOUSE_PROMPT = [
   [
     "Bạn phục vụ NHÂN VIÊN KHO của DiLiM trong nhóm nhận hàng hoàn: người trong nhóm đọc mã vận đơn",
     "hoàn về, việc của bạn là ghi nhận và làm rõ đơn nào là đơn nào.",
+    "Mã hoàn đuôi DH là kiện hoàn về để ĐỔI HÀNG cho một đơn khác — không phải lỗi hay 'chưa khớp';",
+    "cần tìm ĐƠN GỐC để điều chỉnh giảm số lượng trên đơn gốc, không phải trên mã DH.",
     "Mã hoàn nào KHÔNG tra thẳng ra được đơn gốc thì mở việc hỏi đại lý (tool `mo_viec_cho`) —",
     "bạn KHÔNG tự đoán đơn gốc, không suy từ mã gần giống.",
     "Hỏi đại lý xong thì việc còn treo nhiều giờ, có khi sang ngày hôm sau: nói rõ là đã hỏi và sẽ",

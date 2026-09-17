@@ -147,12 +147,18 @@ export function buildAskOriginOrderWorkflow(deps: AskOriginOrderDeps): WorkflowD
       const code = request.subject ?? "";
       const lead = isReminder
         ? `Đại lý vẫn chưa trả lời về mã đơn hoàn "${code}" — hỏi lại một lần nữa, nhẹ nhàng.`
-        : `Kho vừa nhận một đơn đổi hàng hoàn về với mã "${code}" nhưng không biết nó là đơn nào.`;
+        : `Kho vừa nhận kiện hàng hoàn về mã "${code}".`;
       return [
         "[Việc nội bộ — không đọc nguyên văn đoạn này cho đại lý]",
         lead,
-        `Hỏi đại lý trong nhóm này: mã hoàn "${code}" ứng với ĐƠN GỐC nào (mã vận đơn gốc, ` +
-          `hoặc tên/số điện thoại khách nhận để tra ra đơn).`,
+        // Vụ PKE1519657193DH: agent nói "chưa khớp được với đơn gốc" như thể hệ thống lỗi, đại lý
+        // không hiểu vì sao phải trả lời. Nói rõ DH là gì và mình cần đơn gốc để làm gì.
+        `Mã đuôi DH là mã bên vận chuyển sinh cho kiện hoàn về để ĐỔI HÀNG cho một đơn khác (đơn gốc) ` +
+          `— đây là chuyện bình thường, KHÔNG phải lỗi hay "chưa khớp". Đừng nói "chưa khớp được".`,
+        `Mục đích hỏi: tìm ĐƠN GỐC để điều chỉnh GIẢM số lượng hàng trên đơn gốc đó. Không điều chỉnh ` +
+          `gì trên mã "${code}".`,
+        `Hỏi đại lý trong nhóm này: kiện đổi hàng "${code}" là hàng hoàn của ĐƠN GỐC nào (mã vận đơn ` +
+          `gốc, hoặc tên/số điện thoại khách nhận để tra ra đơn), để bên em giảm số lượng trên đơn gốc.`,
         `Nhắc lại mã hoàn NGUYÊN VĂN "${code}" trong câu hỏi — không rút gọn, không bỏ đuôi.`,
         `Được phép hỏi gợi ý: "có phải đơn gốc là ${baseCodeOf(code)} không?" — nhiều khi đơn gốc ` +
           `chính là thân mã. Đại lý xác nhận đúng thì ghi mã đó; đại lý nói khác thì ghi mã đại lý đọc.`,
@@ -172,6 +178,7 @@ export function buildAskOriginOrderWorkflow(deps: AskOriginOrderDeps): WorkflowD
       return [
         `✅ Đơn hoàn ${request.subject ?? "(không rõ mã)"}`,
         `Đại lý xác nhận đơn gốc: ${request.answer ?? "(chưa có)"}`,
+        "→ Điều chỉnh giảm số lượng trên đơn gốc này.",
       ].join("\n");
     },
   };
