@@ -313,6 +313,7 @@ function readSummary(value: unknown): OrderSummary | undefined {
   const items = readList(record, "items").map(readItem).filter(isPresent);
   return {
     trackingNumber,
+    id: readString(record, "id") ?? numberAsString(record, "id"),
     status: readNumber(record, "status"),
     carrier: readNumber(record, "carrier"),
     totalAmount: readMoney(record, "total_amount"),

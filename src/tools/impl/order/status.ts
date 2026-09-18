@@ -226,6 +226,7 @@ function renderLine(order: OrderSummary): string {
     formatDate(order.createdAt),
     formatMoney(order.totalAmount),
     order.customerName,
+    ledgerReference(order.id),
   ].filter((part): part is string => part !== undefined);
   return `- ${parts.join(" · ")}`;
 }
@@ -246,6 +247,7 @@ function renderDetail(order: OrderDetail): string {
     line("Thu hộ COD", formatMoney(order.codAmount)),
     line("Nhân viên phụ trách", order.staffName),
     line("Ghi chú", order.notes),
+    line("Tham chiếu ví", ledgerReference(order.id)),
   ].filter(isLine);
 
   if (order.items !== undefined) {
@@ -254,6 +256,11 @@ function renderDetail(order: OrderDetail): string {
   const history = order.transitions.slice(0, TRANSITION_LIMIT).map(renderTransition).filter(isLine);
   if (history.length > 0) lines.push("Lịch sử trạng thái:", ...history);
   return lines.join("\n");
+}
+
+/** Cùng dạng `đơn#…` mà `tra_lich_su_vi` in, để model khớp dòng ví với mã vận đơn. */
+function ledgerReference(id: string | undefined): string | undefined {
+  return id === undefined ? undefined : `đơn#${id}`;
 }
 
 function renderItem(item: OrderItem): string {

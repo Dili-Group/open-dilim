@@ -6,12 +6,28 @@
 //
 // Đại lý KHÔNG đi qua query param: backend lấy từ header `x-dealer-id` (buildAgentHeaders).
 
-import { AgentApiError, readEnvelopeData, type AgentApiClient } from "./agent-api.ts";
-import { asRecord, numberAsString, readBoolean, readMoney, readNumber, readString } from "./read.ts";
-import type { DealerPort, DealerProfile, OrderPrincipal, WalletDepositQr } from "./types.ts";
+import { AgentApiError, readEnvelopeData, readEnvelopeMeta, type AgentApiClient } from "./agent-api.ts";
+import {
+  asRecord,
+  isPresent,
+  numberAsString,
+  readBoolean,
+  readMoney,
+  readNumber,
+  readString,
+} from "./read.ts";
+import type {
+  DealerPort,
+  DealerProfile,
+  OrderPrincipal,
+  WalletDepositQr,
+  WalletLedgerEntry,
+  WalletLedgerPage,
+} from "./types.ts";
 
 const PROFILE_PATH = "/agent/profile";
 const DEPOSIT_QR_PATH = "/agent/wallet/deposit-qr";
+const WALLET_LEDGER_PATH = "/agent/wallet/ledger";
 
 export class AgentApiDealerPort implements DealerPort {
   constructor(private readonly api: AgentApiClient) {}
@@ -87,4 +103,39 @@ export class AgentApiDealerPort implements DealerPort {
       amount: readMoney(record, "amount"),
     };
   }
+
+  async walletLedger(
+    p: OrderPrincipal & { page?: number; signal?: AbortSignal },
+  ): Promise<WalletLedgerPage> {
+    const body = await this.api.get(WALLET_LEDGER_PATH, {
+      principal: { dealerId: p.dealerId, staffId: p.staffId },
+      query: { page: p.page },
+      signal: p.signal,
+    });
+
+    const data = readEnvelopeData(body, WALLET_LEDGER_PATH);
+    const rows = Array.isArray(data) ? data : [];
+    const meta = readEnvelopeMeta(body);
+    return {
+      entries: rows.map(toLedgerEntry).filter(isPresent),
+      page: readNumber(meta, "page"),
+      totalPages: readNumber(meta, "total_pages"),
+      totalItems: readNumber(meta, "total_items"),
+    };
+  }
+}
+
+function toLedgerEntry(row: unknown): WalletLedgerEntry | undefined {
+  const record = asRecord(row);
+  if (record === undefined) return undefined;
+  return {
+    id: readString(record, "id") ?? numberAsString(record, "id"),
+    type: readNumber(record, "type"),
+    amount: readMoney(record, "amount"),
+    balanceAfter: readMoney(record, "balance_after"),
+    referenceType: readNumber(record, "reference_type"),
+    referenceId: readString(record, "reference_id") ?? numberAsString(record, "reference_id"),
+    description: readString(record, "description"),
+    createdAt: readString(record, "created_at"),
+  };
 }

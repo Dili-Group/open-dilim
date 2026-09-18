@@ -16,6 +16,7 @@ import type {
   OrderPrincipal,
   TierUpgradeResult,
   WalletDepositQr,
+  WalletLedgerPage,
 } from "../operational/types.ts";
 import { buildSkillRegistry } from "../skills/index.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
@@ -85,6 +86,9 @@ class FakeDealer implements DealerPort {
   // Tool chiết khấu không đụng ví — có mặt chỉ để đủ interface.
   depositQr(): Promise<WalletDepositQr | null> {
     return Promise.resolve(null);
+  }
+  walletLedger(): Promise<WalletLedgerPage> {
+    return Promise.resolve({ entries: [] });
   }
 }
 

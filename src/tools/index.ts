@@ -17,6 +17,7 @@ import { buildValidatePaidOrdersTool } from "./impl/order/validate-paid.ts";
 import { buildOrderVideoTool } from "./impl/order/video.ts";
 import { buildDealerProfileTool } from "./impl/dealer/profile.ts";
 import { buildDepositQrTool } from "./impl/dealer/deposit-qr.ts";
+import { buildWalletLedgerTool } from "./impl/dealer/wallet-ledger.ts";
 import {
   buildDiscountTierListTool,
   buildDiscountTierUpgradeTool,
@@ -92,8 +93,8 @@ export const PAYMENT_BATCH_TOOLS: readonly ToolFactory[] = [
 ];
 
 /**
- * Tool đọc HỒ SƠ + VÍ đại lý (bậc chiết khấu, người giới thiệu, nhân viên phụ trách, QR nạp ví)
- * — cùng phạm vi như ORDER_TOOLS: đại lý của phòng, do server ép qua header, không nhận tham số
+ * Tool đọc HỒ SƠ + VÍ đại lý (bậc chiết khấu, người giới thiệu, nhân viên phụ trách, QR nạp ví,
+ * lịch sử ví 7 ngày để đối soát) — cùng phạm vi như ORDER_TOOLS: đại lý của phòng, do server ép qua header, không nhận tham số
  * đại lý.
  *
  * CHỈ ĐỌC (QR nạp ví cũng chỉ là sinh mã, không ghi gì). Đường GHI bậc chiết khấu tách hẳn sang
@@ -103,6 +104,7 @@ export const PAYMENT_BATCH_TOOLS: readonly ToolFactory[] = [
 export const DEALER_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildDealerProfileTool(ctx),
   (ctx: ToolContext): Tool => buildDepositQrTool(ctx),
+  (ctx: ToolContext): Tool => buildWalletLedgerTool(ctx),
 ];
 
 /**

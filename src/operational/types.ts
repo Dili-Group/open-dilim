@@ -32,6 +32,11 @@ export interface OrderItem {
  */
 export interface OrderSummary {
   readonly trackingNumber: string;
+  /**
+   * `orders.id` (bigint dạng chuỗi) — chính là tham chiếu `đơn#…` trong lịch sử ví
+   * (`tra_lich_su_vi`). Chỉ để đối soát, KHÔNG phải mã khách/đại lý đọc.
+   */
+  readonly id?: string;
   /** undefined = backend không trả (hoặc trả kiểu lạ) — render "chưa rõ", KHÔNG đoán một trạng thái. */
   readonly status?: number;
   readonly carrier?: number;
@@ -216,6 +221,30 @@ export interface WalletDepositQr {
 }
 
 /**
+ * Một dòng biến động ví TIỀN HÀNG (`wallet_ledger`). Tiền giữ nguyên chuỗi NUMERIC — dương = cộng
+ * ví, âm = trừ ví. `type` là mã TransactionType của backend, tool tự dịch nhãn.
+ *
+ * `referenceId` với dòng của đơn là ID NỘI BỘ của đơn (bigint), KHÔNG phải mã vận đơn.
+ */
+export interface WalletLedgerEntry {
+  readonly id?: string;
+  readonly type?: number;
+  readonly amount?: string;
+  readonly balanceAfter?: string;
+  readonly referenceType?: number;
+  readonly referenceId?: string;
+  readonly description?: string;
+  readonly createdAt?: string;
+}
+
+export interface WalletLedgerPage {
+  readonly entries: readonly WalletLedgerEntry[];
+  readonly page?: number;
+  readonly totalPages?: number;
+  readonly totalItems?: number;
+}
+
+/**
  * Cổng ĐỌC hồ sơ đại lý. CHỈ ĐỌC: đường GHI bậc chiết khấu nằm ở `DiscountPort` (tách hẳn), để
  * tool đọc hồ sơ không bao giờ cầm được đường ghi.
  */
@@ -232,6 +261,14 @@ export interface DealerPort {
   depositQr(
     p: OrderPrincipal & { readonly amount?: number; readonly signal?: AbortSignal },
   ): Promise<WalletDepositQr | null>;
+
+  /**
+   * Biến động ví tiền hàng 7 ngày gần nhất của đại lý phòng (backend ép cửa sổ, mới nhất trước).
+   * Không gồm ví hoa hồng. Lỗi bubble lên.
+   */
+  walletLedger(
+    p: OrderPrincipal & { readonly page?: number; readonly signal?: AbortSignal },
+  ): Promise<WalletLedgerPage>;
 }
 
 /**

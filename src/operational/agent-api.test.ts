@@ -230,6 +230,7 @@ describe("AgentApiOrderPort", () => {
       success: true,
       data: [
         {
+          id: 12345,
           tracking_number: "VTP01",
           status: 6,
           carrier: 1,
@@ -259,6 +260,8 @@ describe("AgentApiOrderPort", () => {
     expect(page.orders.length).toBe(1);
     expect(page.orders[0]?.totalAmount).toBe("1234567.00");
     expect(page.orders[0]?.status).toBe(6);
+    // orders.id số → chuỗi: là tham chiếu `đơn#…` của lịch sử ví.
+    expect(page.orders[0]?.id).toBe("12345");
     expect(page.orders[0]?.items?.[0]?.quantity).toBe(2);
   });
 
@@ -468,6 +471,60 @@ describe("AgentApiDealerPort", () => {
       }),
     );
     expect(broken.depositQr({ dealerId: "42" })).rejects.toThrow(AgentApiError);
+  });
+
+  test("walletLedger: bóc data[] + meta, tiền giữ chuỗi, page đi qua query", async () => {
+    const { fetchImpl, calls } = stubFetch(200, {
+      success: true,
+      data: [
+        {
+          id: "901",
+          wallet: "goods",
+          type: 14,
+          amount: "5000000.00",
+          balance_after: "3200000.00",
+          reference_type: 4,
+          reference_id: "555",
+          description: "Nạp ví",
+          created_at: "2026-09-17T03:30:00Z",
+        },
+        "rác",
+      ],
+      meta: { page: 2, page_size: 20, total_items: 25, total_pages: 2 },
+    });
+    const port = new AgentApiDealerPort(
+      new AgentApiClient({ baseUrl: BASE_URL, serviceToken: TOKEN, fetchImpl }),
+    );
+
+    const result = await port.walletLedger({ dealerId: "42", staffId: "77", page: 2 });
+    expect(result.entries).toEqual([
+      {
+        id: "901",
+        type: 14,
+        amount: "5000000.00",
+        balanceAfter: "3200000.00",
+        referenceType: 4,
+        referenceId: "555",
+        description: "Nạp ví",
+        createdAt: "2026-09-17T03:30:00Z",
+      },
+    ]);
+    expect(result.page).toBe(2);
+    expect(result.totalPages).toBe(2);
+    expect(result.totalItems).toBe(25);
+    expect(calls[0]?.url).toBe(`${BASE_URL}/agent/wallet/ledger?page=2`);
+    expect(calls[0]?.init.headers["x-dealer-id"]).toBe("42");
+  });
+
+  test("walletLedger: 500 → throw", async () => {
+    const port = new AgentApiDealerPort(
+      new AgentApiClient({
+        baseUrl: BASE_URL,
+        serviceToken: TOKEN,
+        fetchImpl: stubFetch(500, { code: "INTERNAL" }).fetchImpl,
+      }),
+    );
+    expect(port.walletLedger({ dealerId: "42" })).rejects.toThrow(AgentApiError);
   });
 });
 

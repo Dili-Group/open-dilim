@@ -26,6 +26,7 @@ import type {
   OrderSearchPage,
   PaymentBatch,
   WalletDepositQr,
+  WalletLedgerPage,
 } from "../operational/types.ts";
 import {
   COMMON_TOOLS,
@@ -50,6 +51,7 @@ import { buildOrderVideoTool } from "./impl/order/video.ts";
 import { buildCodCheckTool } from "./impl/order/cod-check.ts";
 import { buildDealerProfileTool } from "./impl/dealer/profile.ts";
 import { buildDepositQrTool } from "./impl/dealer/deposit-qr.ts";
+import { buildWalletLedgerTool } from "./impl/dealer/wallet-ledger.ts";
 
 const GUEST: Identity = { role: "guest", senderId: "u1" };
 const DEALER: Identity = { role: "dai_ly", senderId: "u2", customerId: "dealer-9" };
@@ -333,6 +335,14 @@ describe("tra_don_hang", () => {
     expect(result.content).toContain("1.234.567 ₫");
     expect(result.content).toContain("Viettel Post");
     expect(result.content).toContain("Lịch sử trạng thái");
+  });
+
+  test("in tham chiếu ví đơn#<orderId> ở chi tiết lẫn danh sách — khớp được với tra_lich_su_vi", async () => {
+    const port = new FakeOrders([{ dealerId: "dealer-1", order: makeOrder({ id: "12345" }) }]);
+    const detail = await buildOrderStatusTool({ ...ctx, orders: port }).run({ ma_van_don: "VTP01" });
+    expect(detail.content).toContain("Tham chiếu ví: đơn#12345");
+    const list = await buildOrderStatusTool({ ...ctx, orders: port }).run({});
+    expect(list.content).toContain("đơn#12345");
   });
 
   test("mã của đại lý KHÁC → không thấy, cấm nói 'đơn không tồn tại', không rò khách kia", async () => {
@@ -705,9 +715,11 @@ describe("buildToolRegistry", () => {
 class FakeDealer implements DealerPort {
   readonly seen: OrderPrincipal[] = [];
   readonly depositSeen: (OrderPrincipal & { amount?: number })[] = [];
+  readonly ledgerSeen: (OrderPrincipal & { page?: number })[] = [];
   constructor(
     private readonly byDealer: Readonly<Record<string, DealerProfile>>,
     private readonly qrByDealer: Readonly<Record<string, WalletDepositQr>> = {},
+    private readonly ledgerByDealer: Readonly<Record<string, WalletLedgerPage>> = {},
   ) {}
 
   profile(p: OrderPrincipal): Promise<DealerProfile | null> {
@@ -718,6 +730,11 @@ class FakeDealer implements DealerPort {
   depositQr(p: OrderPrincipal & { amount?: number }): Promise<WalletDepositQr | null> {
     this.depositSeen.push({ dealerId: p.dealerId, staffId: p.staffId, amount: p.amount });
     return Promise.resolve(this.qrByDealer[p.dealerId] ?? null);
+  }
+
+  walletLedger(p: OrderPrincipal & { page?: number }): Promise<WalletLedgerPage> {
+    this.ledgerSeen.push({ dealerId: p.dealerId, staffId: p.staffId, page: p.page });
+    return Promise.resolve(this.ledgerByDealer[p.dealerId] ?? { entries: [] });
   }
 }
 
@@ -737,6 +754,15 @@ class BrokenDealer implements DealerPort {
       500,
       AgentApiErrorCode.Transport,
       "/agent/wallet/deposit-qr",
+    );
+  }
+
+  walletLedger(): Promise<WalletLedgerPage> {
+    throw new AgentApiError(
+      "GET /agent/wallet/ledger trả 500",
+      500,
+      AgentApiErrorCode.Transport,
+      "/agent/wallet/ledger",
     );
   }
 }
@@ -898,6 +924,96 @@ describe("lay_qr_nap_vi", () => {
     const result = await buildDepositQrTool({ skills, identity: DEALER, dealer }).run({});
     expect(result.isError).toBe(true);
     expect(result.content).toContain("không trả được mã QR");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// tra_lich_su_vi — lịch sử ví 7 ngày. Chốt: ví của đại lý PHÒNG, dòng cộng có dấu +, không bao giờ
+// kể giao dịch khi API hỏng.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("tra_lich_su_vi", () => {
+  const LEDGER: WalletLedgerPage = {
+    entries: [
+      {
+        id: "901",
+        type: 14,
+        amount: "5000000.00",
+        balanceAfter: "3200000.00",
+        referenceType: 4,
+        referenceId: "555",
+        description: "Nạp ví DLM0123",
+        createdAt: "2026-09-17T03:30:00Z",
+      },
+      {
+        id: "900",
+        type: 1,
+        amount: "-1800000.00",
+        balanceAfter: "-1800000.00",
+        referenceType: 0,
+        referenceId: "12345",
+        description: "Giao dịch đơn hàng #12345",
+        createdAt: "2026-09-16T02:00:00Z",
+      },
+    ],
+    page: 1,
+    totalPages: 2,
+    totalItems: 25,
+  };
+
+  test("in từng dòng có nhãn loại, dấu +/-, số dư sau; ví của đại lý phòng", async () => {
+    const dealer = new FakeDealer({}, {}, { "dealer-1": LEDGER });
+    const ctx = { skills, identity: STAFF, roomCustomerId: "dealer-1", dealer };
+    const result = await buildWalletLedgerTool(ctx).run({});
+
+    expect(result.isError).toBeFalsy();
+    expect(result.content).toContain("Nạp ví qua chuyển khoản");
+    expect(result.content).toContain("+5.000.000 ₫");
+    expect(result.content).toContain("Trừ tiền hàng đơn");
+    expect(result.content).toContain("-1.800.000 ₫");
+    expect(result.content).toContain("3.200.000 ₫");
+    expect(result.content).toContain("đơn#12345");
+    expect(result.content).toContain("GD ngân hàng#555");
+    expect(result.content).toContain("KHÔNG phải mã vận đơn");
+    expect(result.content).toContain("gọi lại với trang 2");
+    expect(dealer.ledgerSeen.at(-1)).toEqual({ dealerId: "dealer-1", staffId: "77", page: 1 });
+  });
+
+  test("trang rác / âm → trang 1; trang hợp lệ đi xuống port", async () => {
+    const dealer = new FakeDealer({}, {}, {});
+    const ctx = { skills, identity: DEALER, dealer };
+    await buildWalletLedgerTool(ctx).run({ trang: -3 });
+    await buildWalletLedgerTool(ctx).run({ trang: "abc" });
+    await buildWalletLedgerTool(ctx).run({ trang: 3 });
+    expect(dealer.ledgerSeen.map((s) => s.page)).toEqual([1, 1, 3]);
+  });
+
+  test("mã loại lạ → in mã số, không bịa nhãn; không có giao dịch → nói rõ", async () => {
+    const odd: WalletLedgerPage = { entries: [{ type: 99, amount: "1000" }] };
+    const dealer = new FakeDealer({}, {}, { "dealer-9": odd });
+    const result = await buildWalletLedgerTool({ skills, identity: DEALER, dealer }).run({});
+    expect(result.content).toContain("mã 99");
+
+    const empty = await buildWalletLedgerTool({
+      skills,
+      identity: DEALER,
+      dealer: new FakeDealer({}, {}, {}),
+    }).run({});
+    expect(empty.content).toContain("Không có giao dịch nào");
+  });
+
+  test("chưa /ketnoi-daily → isError, không tra ví bừa", async () => {
+    const dealer = new FakeDealer({}, {}, {});
+    const result = await buildWalletLedgerTool({ skills, identity: GUEST, dealer }).run({});
+    expect(result.isError).toBe(true);
+    expect(dealer.ledgerSeen).toEqual([]);
+  });
+
+  test("API hỏng → báo trục trặc, CẤM tự kể giao dịch", async () => {
+    const ctx = { skills, identity: DEALER, dealer: new BrokenDealer() };
+    const result = await buildWalletLedgerTool(ctx).run({});
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("KHÔNG tự kể giao dịch");
   });
 });
 
