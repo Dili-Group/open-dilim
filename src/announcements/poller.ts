@@ -18,11 +18,11 @@ import type { AnnouncementDeps, Delivery } from "./types.ts";
 export const DEFAULT_TICK_MS = 60_000;
 
 /**
- * Số lượt gửi song song trong một batch. Store đã chặn trần mỗi tick; batch ở đây để 30 lượt
- * không phải xếp hàng tuần tự, nhưng vẫn không thả hết một lượt — bridge Zalo là tài nguyên chung
- * với câu trả lời của người dùng đang chờ.
+ * Giãn cách giữa hai nhóm liên tiếp. Bắn cùng một câu vào hàng chục nhóm trong vài giây là đúng
+ * hình mẫu spam mà Zalo khoá tài khoản; gửi tuần tự có nghỉ còn chừa bridge cho câu trả lời người
+ * dùng đang chờ. Nhân với trần mỗi tick của store phải lọt trong `DEFAULT_TICK_MS`.
  */
-export const SEND_BATCH_SIZE = 5;
+export const SEND_GAP_MS = 500;
 
 /** Giãn cách giữa hai lần thử cùng một nhóm: 2 phút, 4, 8... (backoff nhân đôi từ `attempts`). */
 const BASE_BACKOFF_MS = 2 * 60_000;
@@ -38,17 +38,21 @@ export function backoffFrom(attempts: number, nowMs: number): Date {
 }
 
 /** Chạy 1 lượt quét. Export riêng để test gọi thẳng, không phải chờ timer. */
-export async function tick(deps: AnnouncementDeps, nowMs: number): Promise<void> {
+export async function tick(
+  deps: AnnouncementDeps,
+  nowMs: number,
+  gapMs: number = SEND_GAP_MS,
+): Promise<void> {
   const due = await deps.store.dueForSend(new Date(nowMs));
   if (due.length > 0) {
     console.log(`[announcements] tick: ${due.length} lượt tới hạn`);
   }
 
-  // Batch tuần tự, trong batch chạy song song. `deliverSafely` không bao giờ reject nên một lượt
-  // hỏng không kéo cả batch xuống — batch sau vẫn chạy.
-  for (let start = 0; start < due.length; start += SEND_BATCH_SIZE) {
-    const batch = due.slice(start, start + SEND_BATCH_SIZE);
-    await Promise.all(batch.map((delivery) => deliverSafely(deps, delivery, nowMs)));
+  // Tuần tự, nghỉ giữa hai nhóm (không nghỉ sau nhóm cuối). `deliverSafely` không bao giờ reject
+  // nên một lượt hỏng không chặn các nhóm sau.
+  for (const [index, delivery] of due.entries()) {
+    if (index > 0) await Bun.sleep(gapMs);
+    await deliverSafely(deps, delivery, nowMs);
   }
 }
 

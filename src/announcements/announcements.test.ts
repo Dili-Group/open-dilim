@@ -35,6 +35,8 @@ const APPROVER_ROOM: ApproverRoom = { channel: "van-hanh", conversationId: "uid-
 const KHO_ROOM: ApproverRoom = { channel: "zalo-kho", conversationId: "kho-1" };
 const KEEPER = "sender-thu-kho";
 const NOW = Date.parse("2026-08-10T02:00:00Z");
+/** Test không cần giãn cách thật giữa các nhóm — chỉ test riêng về giãn cách mới bật. */
+const NO_GAP = 0;
 
 const ROOMS: readonly DealerRoom[] = [
   { channel: "zalo", groupId: "g1", customerId: "c1" },
@@ -370,7 +372,7 @@ describe("chốt → chờ duyệt", () => {
     await draftAndQueue(service);
     broadcaster.sent.length = 0;
 
-    await tick(deps, NOW + 3_600_000);
+    await tick(deps, NOW + 3_600_000, NO_GAP);
 
     expect(broadcaster.sent).toHaveLength(0);
     expect(history.entries).toHaveLength(0);
@@ -547,6 +549,22 @@ describe("cửa duyệt", () => {
 });
 
 describe("poller gửi", () => {
+  test("gửi tuần tự, nghỉ giữa hai nhóm", async () => {
+    const { deps, broadcaster } = buildDeps();
+    const service = new AnnouncementService(deps);
+    const id = await draftAndQueue(service);
+    await service.approve({ announcementId: id, userId: APPROVER_USER, nowMs: NOW });
+    broadcaster.sent.length = 0;
+    const gapMs = 50;
+
+    const startedAt = performance.now();
+    await tick(deps, NOW, gapMs);
+
+    expect(broadcaster.sent).toHaveLength(2);
+    // Hai nhóm → đúng một khoảng nghỉ.
+    expect(performance.now() - startedAt).toBeGreaterThanOrEqual(gapMs);
+  });
+
   test("đã duyệt → gửi đúng một tin/nhóm, NGUYÊN VĂN, và ghi vào history nhóm", async () => {
     const { deps, store, broadcaster, history } = buildDeps();
     const service = new AnnouncementService(deps);
@@ -555,7 +573,7 @@ describe("poller gửi", () => {
     await service.approve({ announcementId: id, userId: APPROVER_USER, nowMs: NOW });
     broadcaster.sent.length = 0;
 
-    await tick(deps, NOW);
+    await tick(deps, NOW, NO_GAP);
 
     expect(broadcaster.sent).toHaveLength(2);
     expect(broadcaster.sent.map((item) => item.text)).toEqual([text, text]);
@@ -572,10 +590,10 @@ describe("poller gửi", () => {
     const service = new AnnouncementService(deps);
     const id = await draftAndQueue(service);
     await service.approve({ announcementId: id, userId: APPROVER_USER, nowMs: NOW });
-    await tick(deps, NOW);
+    await tick(deps, NOW, NO_GAP);
     broadcaster.sent.length = 0;
 
-    await tick(deps, NOW + 600_000);
+    await tick(deps, NOW + 600_000, NO_GAP);
 
     expect(broadcaster.sent).toHaveLength(0);
   });
@@ -588,7 +606,7 @@ describe("poller gửi", () => {
     await service.approve({ announcementId: id, userId: APPROVER_USER, nowMs: NOW });
     broadcaster.sent.length = 0;
 
-    await tick(deps, NOW);
+    await tick(deps, NOW, NO_GAP);
 
     expect(broadcaster.sent).toHaveLength(0);
   });
@@ -603,7 +621,7 @@ describe("poller gửi", () => {
     await service.approve({ announcementId: id, userId: APPROVER_USER, nowMs: NOW });
     broadcaster.sent.length = 0;
 
-    await tick(deps, NOW);
+    await tick(deps, NOW, NO_GAP);
 
     expect(broadcaster.sent.map((item) => item.target.conversationId)).toEqual(["g2"]);
     const failing = store.rows.find((row) => row.groupId === "g1");
@@ -625,7 +643,7 @@ describe("poller gửi", () => {
     // Mỗi tick chạy sau mốc backoff của lần trước → lần thử kế được nhặt.
     let at = NOW;
     for (let i = 0; i < MAX_ATTEMPTS; i++) {
-      await tick(deps, at);
+      await tick(deps, at, NO_GAP);
       at += backoffFrom(i + 1, 0).getTime() + 1;
     }
 
