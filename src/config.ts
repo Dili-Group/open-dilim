@@ -342,7 +342,7 @@ const DEFAULT_VISION_MODEL = "gemini-3.1-flash-lite";
 // cùng lý do với vision/embedder: việc nền tần suất cao, chạy con rẻ.
 const DEFAULT_COMPACT_MODEL = "gemini-3.5-flash-lite";
 // Model PHÁN QUYẾT của tầng 2 phễu proactive (judge/). PIN bản cụ thể, KHÔNG dùng `jev-latest`:
-// ngưỡng ở `proactive/buckets.ts` chỉnh theo hành vi của đúng một bản, bản đổi dưới chân là
+// ngưỡng ở `proactive/judge-spec.ts` chỉnh theo hành vi của đúng một bản, bản đổi dưới chân là
 // ngưỡng sai mà không ai biết.
 const DEFAULT_JEV_MODEL = "jev-1.13.0";
 // Trần MỘT lần chấm. Nhà cung cấp công bố 70–500ms; 3s là để một lần treo không kéo dài cả tick

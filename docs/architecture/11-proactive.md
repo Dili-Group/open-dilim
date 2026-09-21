@@ -40,9 +40,9 @@ tin group !addressedToAgent (gateway.ts → considerProactive, best-effort)
   │          Đây là bộ lọc mạnh nhất: đa số câu hỏi người thật tự trả lời nhau;
   │          agent chỉ nhặt câu BỊ BỎ RƠI.
   │
-  ├─ TẦNG 2  proactive/judge.ts — PHÁN QUYẾT CÓ KIỂU (Jev, xem §14). Một request, 5 câu hỏi
-  │          chấm song song: tự làm được không · nhóm việc nào · có nhờ đích danh ai không ·
-  │          đã có người lo chưa · giọng đang ở mức nào. Code so với NGƯỠNG của agent
+  ├─ TẦNG 2  proactive/judge.ts — PHÁN QUYẾT CÓ KIỂU (Jev, xem §14). Một request, 4 mệnh đề
+  │          `noul` chấm song song: tự làm được không · có nhờ đích danh ai không ·
+  │          đã có người lo chưa · có đang bức xúc không. Code so với NGƯỠNG của agent
   │          (`ProactiveSpec.judge.policy`) rồi quyết, và ghi lý do từ chối ra log.
   │          FAIL-CLOSED: chưa nối / hỏng / quá hạn → KHÔNG nhặt (khác luật cũ "cho qua",
   │          vì tầng 0 không còn regex gác trước).
@@ -57,7 +57,7 @@ tin group !addressedToAgent (gateway.ts → considerProactive, best-effort)
 
 Phễu là tính năng CỦA AGENT, khai bằng `RootAgentProfile.proactive: ProactiveSpec` (giống
 `mcpServers`): `judge` (năng lực + ngưỡng), `waitMs`, `turnNote`, `maxPerRoomPerHour`. Agent khai
-NĂNG LỰC bằng tiếng Việt (`{ bucket, moTa }`) chứ không khai từ khoá — thêm agent dùng phễu
+NĂNG LỰC bằng tiếng Việt (`capabilities: string[]`) chứ không khai từ khoá — thêm agent dùng phễu
 không phải nghĩ lại danh sách regex. Thiếu = agent không dùng
 phễu. Hiện chỉ `dealerProfile` khai. Engine dùng chung, KHÔNG rẽ nhánh theo agentType — bật cho
 agent khác = thêm spec vào profile của nó.

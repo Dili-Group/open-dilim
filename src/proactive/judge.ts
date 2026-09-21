@@ -10,58 +10,60 @@
 // đó là làm chậm ingest và biến lỗi mạng thành nhả dedupe, bắt kênh gửi lại nguyên tin. Ở tầng 2
 // thì tầng 1 (chờ xem người thật có đáp không) đã lọc gần hết, và không ai đang chờ câu trả lời.
 //
+// CHỈ dùng `noul`: mọi câu hỏi ở đây đều là mệnh đề đúng/sai, trả về đúng một xác suất 0–1 để so
+// thẳng với ngưỡng. Không `choice`/`score` — phân loại nhóm việc và chấm thang giọng không thêm
+// thông tin nào cho quyết định cuối, mà thêm hai shape phải narrow và hai chỗ hỏng.
+//
 // Chia đôi rõ: model TRẢ SỐ, còn LUẬT là `quyetDinh()` — hàm thuần, test không cần mạng.
 
-import { choice, noul, score, type AnswersOf, type JudgePort } from "../judge/index.ts";
+import { noul, type AnswersOf, type JudgePort } from "../judge/index.ts";
 import { JudgeError } from "../judge/types.ts";
 import type { HistoryEntry } from "../types/index.ts";
-import { WORK_BUCKETS, type ProactiveJudgeSpec, type WorkBucket } from "./buckets.ts";
+import type { ProactiveJudgeSpec } from "./judge-spec.ts";
 import type { PendingQuestion } from "./pending.ts";
 
-/** Mức độ, sắp từ thấp tới cao — `score` đòi thang có thứ tự. */
-const MUC_DO_LEVELS = ["binh_thuong", "hoi_gap", "buc_xuc"] as const;
-
 /**
- * Năm câu hỏi, gửi trong MỘT request: Jev chấm chúng độc lập và song song nên thêm câu gần như
+ * Bốn mệnh đề, gửi trong MỘT request: Jev chấm chúng độc lập và song song nên thêm câu gần như
  * không thêm độ trễ, chỉ thêm ít token đầu vào.
  */
 export const PROACTIVE_QUESTIONS = {
+  // Hỏi "có ĐANG CẦN GIÚP việc trong danh sách không", KHÔNG hỏi "có đủ dữ kiện để xử lý không":
+  // đại lý gõ cộc lốc, thiếu mã đơn là chuyện thường, mà thiếu thì trợ lý hỏi thêm được. Đo
+  // 21/09/2026 trên cùng bộ câu: bản hỏi "đủ dữ kiện" cho "giúp a đơn này e" 0.15, bản này 0.85.
   tu_lam_duoc: noul(
-    "Trợ lý có tự xử lý được yêu cầu trong `cau_hoi` bằng đúng những việc liệt kê ở `tro_ly_lam_duoc` không?",
+    "Người trong `cau_hoi` có đang cần giúp một việc thuộc `tro_ly_lam_duoc` không?",
     {
-      true: "Yêu cầu nằm gọn trong danh sách việc trợ lý làm được, và có đủ dữ kiện để bắt đầu xử lý.",
+      true: "Có nhờ, hỏi, hay giục một việc thuộc danh sách đó — dù nói cộc lốc, thiếu mã đơn, hay chưa nêu chi tiết.",
       false:
-        "Yêu cầu nằm ngoài danh sách đó, hoặc không phải yêu cầu nào cả, hoặc phải có người thật quyết định mới làm được.",
+        "Chỉ chào hỏi, cảm ơn, thông báo, tán gẫu; hoặc việc nằm ngoài danh sách; hoặc phải có người thật quyết định.",
     },
   ),
-  nhom_viec: choice("Yêu cầu trong `cau_hoi` thuộc nhóm việc nào?", WORK_BUCKETS),
-  nho_dich_danh: noul(
-    "Người hỏi có đang nhờ ĐÍCH DANH một người cụ thể trong nhóm không?",
-    {
-      true: "Có gọi tên, gọi chức danh, hoặc nhắc rõ một người cụ thể để nhờ việc đó.",
-      false: "Hỏi chung cả nhóm, không chỉ định ai.",
-    },
-  ),
+  nho_dich_danh: noul("Người hỏi có đang nhờ ĐÍCH DANH một người cụ thể trong nhóm không?", {
+    true: "Có gọi tên, gọi chức danh, hoặc nhắc rõ một người cụ thể để nhờ việc đó.",
+    false: "Hỏi chung cả nhóm, không chỉ định ai.",
+  }),
   da_co_nguoi_lo: noul(
     "Trong `tin_sau_cau_hoi`, đã có người nào đang xử lý hoặc đã trả lời đúng yêu cầu đó chưa?",
     {
       true: "Có người đã trả lời đúng việc đó, hoặc nói rõ là đang làm.",
-      false:
-        "Chưa ai đụng tới yêu cầu đó — danh sách rỗng, hoặc mọi người đang nói chuyện khác.",
+      false: "Chưa ai đụng tới yêu cầu đó — danh sách rỗng, hoặc mọi người đang nói chuyện khác.",
     },
   ),
-  muc_do: score("Giọng của người hỏi trong `cau_hoi` đang ở mức nào?", MUC_DO_LEVELS),
+  dang_buc_xuc: noul("Người hỏi trong `cau_hoi` có đang bức xúc không?", {
+    true: "Đang cáu, phàn nàn nặng, trách móc, hoặc đòi đền bù.",
+    false: "Hỏi bình thường, kể cả khi có giục hay sốt ruột.",
+  }),
 } as const;
 
 export type ProactiveAnswers = AnswersOf<typeof PROACTIVE_QUESTIONS>;
 
 export type JudgeVerdict =
-  | { readonly nhat: true; readonly nhom: WorkBucket; readonly confidence: number }
+  | { readonly nhat: true; readonly diem: number }
   | { readonly nhat: false; readonly lyDo: string };
 
 /**
- * Luật biến phân phối xác suất thành quyết định. Trả LÝ DO khi từ chối chứ không trả `false`
- * trần: lý do là thứ duy nhất cho phép chỉnh ngưỡng có căn cứ sau này.
+ * Luật biến xác suất thành quyết định. Trả LÝ DO khi từ chối chứ không trả `false` trần: lý do là
+ * thứ duy nhất cho phép chỉnh ngưỡng có căn cứ sau này.
  *
  * Thứ tự kiểm là thứ tự ưu tiên: ba cửa "việc của người khác / đã có người lo / đang bức xúc"
  * chặn TRƯỚC, kể cả khi model rất chắc là trợ lý làm được — chen vào mấy tình huống đó gây hại
@@ -77,27 +79,14 @@ export function quyetDinh(answers: ProactiveAnswers, spec: ProactiveJudgeSpec): 
     return { nhat: false, lyDo: "da_co_nguoi_lo" };
   }
   // Bức xúc thì để NGƯỜI xử lý: agent nhảy vào giữa lúc người ta đang cáu là đổ thêm dầu.
-  if (answers.muc_do.score === "buc_xuc") {
+  if (answers.dang_buc_xuc.noul >= policy.maxBucXuc) {
     return { nhat: false, lyDo: "dang_buc_xuc" };
   }
   if (answers.tu_lam_duoc.noul < policy.minTuLamDuoc) {
     return { nhat: false, lyDo: "ngoai_pham_vi" };
   }
-  if (answers.tu_lam_duoc.confidence < policy.minConfidence) {
-    return { nhat: false, lyDo: "khong_du_chac" };
-  }
 
-  const nhom = answers.nhom_viec.choice;
-  if (!spec.capabilities.some((cap) => cap.bucket === nhom)) {
-    return { nhat: false, lyDo: `nhom_ngoai_pham_vi:${nhom}` };
-  }
-  const prob = answers.nhom_viec.probabilities[nhom];
-  // Thiếu phân phối = không đọc được field (nhà cung cấp đổi tên) → từ chối kèm lý do đọc được
-  // ở log, thay vì im lặng coi như đủ ngưỡng.
-  if (prob === undefined) return { nhat: false, lyDo: "thieu_phan_phoi" };
-  if (prob < policy.minNhomViecProb) return { nhat: false, lyDo: "phan_van_giua_cac_nhom" };
-
-  return { nhat: true, nhom, confidence: answers.tu_lam_duoc.confidence };
+  return { nhat: true, diem: answers.tu_lam_duoc.noul };
 }
 
 /** Trần cắt để state không phình: câu dài của người dùng đi thẳng vào token đầu vào. */
@@ -130,7 +119,7 @@ export function buildJudgeState(input: JudgeStateInput): unknown {
     },
     tin_truoc_cau_hoi: truoc.map(toLine),
     tin_sau_cau_hoi: sau.map(toLine),
-    tro_ly_lam_duoc: spec.capabilities.map((cap) => ({ nhom: cap.bucket, viec: cap.moTa })),
+    tro_ly_lam_duoc: spec.capabilities,
   };
 }
 
@@ -173,11 +162,12 @@ export function buildProactiveClassify(judge: JudgePort): ProactiveClassify {
     // Log đủ số để chỉnh ngưỡng sau vài ngày. KHÔNG log nội dung tin: nhóm đại lý nói cả chuyện
     // đơn hàng lẫn chuyện riêng, log text là rò sang nơi không ai kiểm soát vòng đời.
     console.info(
-      `[proactive] judge msg=${input.question.msgId} nhat=${verdict.nhat} ` +
-        `${verdict.nhat ? `nhom=${verdict.nhom}` : `lyDo=${verdict.lyDo}`} ` +
-        `lam_duoc=${answers.tu_lam_duoc.noul.toFixed(2)}/${answers.tu_lam_duoc.confidence.toFixed(2)} ` +
+      `[proactive] judge msg=${input.question.msgId} nhat=${verdict.nhat}` +
+        `${verdict.nhat ? "" : ` lyDo=${verdict.lyDo}`} ` +
+        `lam_duoc=${answers.tu_lam_duoc.noul.toFixed(2)} ` +
         `dich_danh=${answers.nho_dich_danh.noul.toFixed(2)} ` +
-        `co_nguoi_lo=${answers.da_co_nguoi_lo.noul.toFixed(2)} muc_do=${answers.muc_do.score}`,
+        `co_nguoi_lo=${answers.da_co_nguoi_lo.noul.toFixed(2)} ` +
+        `buc_xuc=${answers.dang_buc_xuc.noul.toFixed(2)}`,
     );
     return verdict.nhat;
   };

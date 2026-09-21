@@ -99,32 +99,42 @@ Không đáng lo — key theo `(channel, phòng, người hỏi)` nên tin sau �
 một phòng chỉ chiếm đúng một member; chi phí là 2 lệnh Redis/tin, cùng hạng với `message_log`
 vốn đã ghi Postgres mọi tin.
 
-## 4. Bộ câu hỏi (DATA, không phải code)
+## 4. Bộ câu hỏi (DATA, không phải code) — CHỈ `noul`
 
-Một request, năm câu hỏi. `state` = câu hỏi đang xét + vài lượt history quanh nó + danh sách
-việc agent làm được.
+Một request, bốn mệnh đề đúng/sai. `state` = câu hỏi đang xét + vài lượt history quanh nó +
+danh sách việc agent làm được.
 
-| id | loại | hỏi gì | dùng để |
-|---|---|---|---|
-| `tu_lam_duoc` | `noul` | Trợ lý có tự xử lý được yêu cầu này bằng đúng danh sách việc trong state không? | cổng chính |
-| `nhom_viec` | `choice` | Yêu cầu thuộc nhóm nào: `tra_don`, `tien_can_chuyen`, `vi_chiet_khau`, `doi_soat`, `het_hang`, `khieu_nai`, `nho_nguoi_khac`, `tan_gau` | chặn theo bộ tool agent thực có; cũng là nhãn để đo |
-| `nho_dich_danh` | `noul` | Người hỏi đang nhờ ĐÍCH DANH một người cụ thể (dù không tag)? | thứ regex không bao giờ bắt được |
-| `da_co_nguoi_lo` | `noul` | Trong các tin sau câu hỏi, đã có ai đang xử lý việc này chưa? | lớp hai cho tầng 1 (tầng 1 chỉ đếm "có ai nói", không biết nói về gì) |
-| `muc_do` | `score` | `[binh_thuong, hoi_gap, buc_xuc]` | khiếu nại nặng → để NGƯỜI xử lý, agent đứng ngoài |
+| id | hỏi gì | dùng để |
+|---|---|---|
+| `tu_lam_duoc` | Người hỏi có đang CẦN GIÚP một việc thuộc danh sách trong state không? | cổng chính, so thẳng với ngưỡng |
+| `nho_dich_danh` | Người hỏi đang nhờ ĐÍCH DANH một người cụ thể (dù không tag)? | thứ regex không bao giờ bắt được |
+| `da_co_nguoi_lo` | Trong các tin sau câu hỏi, đã có ai đang xử lý việc này chưa? | lớp hai cho tầng 1 (tầng 1 chỉ đếm "có ai nói", không biết nói về gì) |
+| `dang_buc_xuc` | Người hỏi có đang bức xúc không? | khiếu nại nặng → để NGƯỜI xử lý, agent đứng ngoài |
+
+**Vì sao chỉ `noul`** (chốt 21/09/2026, sau lần chạy thật đầu tiên): prod ném
+`[proactive] judge hỏng (200) → jev: "muc_do" trả score lạ` — HTTP 200, nhưng giá trị trả về
+không nằm trong thang đã gửi nên adapter từ chối, phễu fail-closed và **im hoàn toàn**. Bản thân
+hai primitive kia cũng không thêm gì cho quyết định cuối: `nhom_viec` chỉ chặn lại đúng thứ
+`tu_lam_duoc` đã chặn, còn thang giọng rút gọn được thành một mệnh đề "có đang bức xúc không".
+Mỗi loại câu hỏi là một shape phải narrow, tức một chỗ hỏng — giữ một loại thì còn một chỗ.
 
 `state` (JSON, không phải chuỗi ghép):
 
 ```jsonc
 {
-  "cau_hoi": { "nguoi_hoi": "Chị Lan (đại lý)", "noi_dung": "đơn hôm qua vẫn nằm im" },
-  "hoi_thoai_gan_day": [ { "ai": "Chị Lan", "noi": "…" }, { "ai": "NV Hà", "noi": "…" } ],
+  "cau_hoi": { "nguoi_hoi": "Chị Lan", "noi_dung": "đơn hôm qua vẫn nằm im" },
+  "tin_truoc_cau_hoi": [ { "ai": "Chị Lan", "noi": "…" } ],
+  "tin_sau_cau_hoi":   [ { "ai": "NV Hà", "noi": "…" } ],
   "tro_ly_lam_duoc": [
-    { "id": "tra_don", "mo_ta": "tra tình trạng đơn, mã vận đơn, lý do đơn treo" },
-    { "id": "tien_can_chuyen", "mo_ta": "số tiền đại lý cần chuyển để đơn được đi" }
-    // … sinh từ ProactiveSpec.capabilities, không gõ tay hai lần
+    "tra tình trạng đơn, mã vận đơn, lý do đơn chưa đi, video đóng gói",
+    "tra số tiền đại lý cần chuyển để đơn được đi, lập phiếu thanh toán gộp kèm mã QR"
+    // … lấy thẳng từ ProactiveSpec.capabilities, không gõ tay hai lần
   ]
 }
 ```
+
+Tách `tin_truoc_cau_hoi` / `tin_sau_cau_hoi` chứ không gộp một mảng: câu `da_co_nguoi_lo` chỉ
+được nhìn phần SAU, gộp lại là model đọc nhầm tin cũ thành "đã có người lo".
 
 Danh sách `tro_ly_lam_duoc` lấy thẳng từ spec của agent → **thêm agent dùng phễu = khai năng lực
 bằng tiếng Việt, không phải nghĩ regex**. Đây là phần trả lời được câu "sao mỗi agent phải viết
@@ -136,25 +146,52 @@ Jev trả số; **ngưỡng và luật là của mình**, để test được kh
 
 ```ts
 // proactive/judge.ts
-export function quyetDinh(answers: ProactiveAnswers, policy: JudgePolicy): JudgeVerdict {
-  if (answers.nho_dich_danh.noul >= policy.maxNhoDichDanh) return decline("viec_cua_nguoi_khac");
+export function quyetDinh(answers: ProactiveAnswers, spec: ProactiveJudgeSpec): JudgeVerdict {
+  const { policy } = spec;
+  if (answers.nho_dich_danh.noul >= policy.maxNhoDichDanh) return decline("nho_dich_danh_nguoi_khac");
   if (answers.da_co_nguoi_lo.noul >= policy.maxDaCoNguoiLo) return decline("da_co_nguoi_lo");
-  if (answers.muc_do.score === "buc_xuc") return decline("buc_xuc_de_nguoi_xu_ly");
+  if (answers.dang_buc_xuc.noul >= policy.maxBucXuc) return decline("dang_buc_xuc");
   if (answers.tu_lam_duoc.noul < policy.minTuLamDuoc) return decline("ngoai_pham_vi");
-  if (answers.tu_lam_duoc.confidence < policy.minConfidence) return decline("khong_chac");
-  const nhom = answers.nhom_viec.choice;
-  if (!policy.capabilityIds.includes(nhom)) return decline("nhom_viec_khong_thuoc_pham_vi");
-  if ((answers.nhom_viec.probabilities[nhom] ?? 0) < policy.minNhomViecProb) return decline("phan_tan");
-  return { nhat: true, nhom, confidence: answers.tu_lam_duoc.confidence };
+  return { nhat: true, diem: answers.tu_lam_duoc.noul };
 }
 ```
 
-Ngưỡng khởi điểm (chỉnh sau khi có số thật — §9):
+Ba cửa chặn đứng TRƯỚC ngưỡng nhặt, kể cả khi `tu_lam_duoc` = 0.99: chen vào việc của người
+khác, chen vào việc đã có người lo, hay chen vào giữa lúc người ta đang cáu — cả ba đều hại hơn
+là giúp.
+
+### Ngưỡng — đo trên Jev thật, không đoán
+
+Chạy 15 câu mẫu qua `jev-1.13.0` ngày 21/09/2026 (`src/judge/probe.ts`). Số quan sát được:
+
+| câu hỏi | mẫu ÂM | mẫu DƯƠNG | vạch |
+|---|---|---|---|
+| `tu_lam_duoc` | tán gẫu/chào hỏi/thông báo **0.04–0.07** | câu cần giúp **0.82–0.97** | **0.70** |
+| `nho_dich_danh` | hỏi chung cả nhóm **0.09–0.27** | gọi đích danh **0.62–0.93** | **0.50** |
+| `da_co_nguoi_lo` | chưa ai đụng **0.04–0.05** | "để em xem" **0.40** · "đang xử lý rồi" **0.86** | **0.30** |
+| `dang_buc_xuc` | hỏi thường **0.04–0.11** · sốt ruột **0.34** | cáu thật **0.94** | **0.60** |
 
 ```ts
-minTuLamDuoc: 0.75, minConfidence: 0.60, minNhomViecProb: 0.50,
-maxNhoDichDanh: 0.30, maxDaCoNguoiLo: 0.30
+minTuLamDuoc: 0.70, maxNhoDichDanh: 0.50, maxDaCoNguoiLo: 0.30, maxBucXuc: 0.60
 ```
+
+Hai vạch đáng chú ý:
+
+- `maxDaCoNguoiLo` giữ **0.30** chứ không nới: "để em xem cho ạ" chấm 0.40 — mơ hồ nhưng ĐÃ có
+  người nhận việc, nới lên 0.5 là agent chen vào trên đầu người thật.
+- `maxBucXuc` nới lên **0.60**: "đơn hôm qua vẫn nằm im" chấm 0.34 — sốt ruột, không phải cáu.
+  Ở vạch 0.30 thì chính câu ví dụ mở đầu §1 bị chặn, đúng lỗi mà cả thiết kế này sinh ra để chữa.
+
+**Cách hỏi quyết định điểm, không phải ngưỡng.** Bản đầu hỏi "trợ lý có TỰ XỬ LÝ ĐƯỢC không",
+criteria đòi "có đủ dữ kiện để bắt đầu xử lý" → "giúp a đơn này e" chỉ được **0.15** vì thiếu mã
+đơn. Đổi sang "người hỏi có ĐANG CẦN GIÚP việc trong danh sách không", nói rõ thiếu chi tiết thì
+hỏi thêm được → cùng câu đó lên **0.82**, trong khi tán gẫu vẫn ở 0.05. Khoảng cách âm/dương rộng
+ra chính là thứ làm ngưỡng dễ đặt.
+
+Không còn `minConfidence`: Jev **không trả** field `confidence` cho `noul` (đo cùng ngày —
+response chỉ có `type` + `noul`), và ngưỡng nhặt đọc thẳng `noul`. Adapter để `confidence` là
+optional, thiếu thì để thiếu, KHÔNG đắp 0 — đắp 0 là bịa ra một con số không phân biệt được với
+"model hoàn toàn không chắc".
 
 `JudgeVerdict` mang cả **lý do từ chối** — không phải `boolean`. Lý do là thứ đi vào log và là
 thứ duy nhất cho phép chỉnh ngưỡng có căn cứ.
@@ -192,8 +229,8 @@ export interface JudgePort {
 }
 ```
 
-Khai `QUESTIONS` với `as const` là `answers.nhom_viec.choice` tự có union đúng 8 nhóm; gõ sai
-tên nhóm ở `quyetDinh` là đỏ typecheck.
+Khai `PROACTIVE_QUESTIONS` với `as const` là `answers` tự có đúng bốn khoá, mỗi khoá một
+`NoulAnswer`; gõ sai tên câu hỏi ở `quyetDinh` là đỏ typecheck, không phải `undefined` lúc chạy.
 
 **Lớp runtime** — luật của repo: *type ở boundary phải validate, đừng tin blind*. Response HTTP
 là `unknown`; adapter narrow từng answer theo đúng định nghĩa câu hỏi đã khai, thiếu/sai kiểu →
@@ -244,7 +281,7 @@ Không đụng: `pending.ts`, `verify.ts`, tầng 3, worker, agent.
 
 > Regex đã bỏ hẳn nên không còn phán quyết thứ hai để so song song. Phần dưới giữ lại làm hồ sơ
 > cho lần muốn dựng đo có hệ thống. Hiện tại mỗi phán quyết in một dòng log
-> `[proactive] judge msg=… nhat=… lyDo=… lam_duoc=…/… dich_danh=… co_nguoi_lo=… muc_do=…` —
+> `[proactive] judge msg=… nhat=… lyDo=… lam_duoc=… dich_danh=… co_nguoi_lo=… buc_xuc=…` —
 > đủ để chỉnh ngưỡng bằng tay sau vài ngày, không đủ để tính ma trận nhầm lẫn.
 
 Repo đã có tiền lệ đúng kiểu này (`ENFORCE_BUDGET=false`: đo trước, chặn sau). Làm y vậy:
@@ -317,7 +354,7 @@ phòng → ghi ở `proactive_judgment` (§9), cộng riêng.
 |---|---|
 | `src/judge/types.ts` | `noul/choice/score`, `AnswerOf`/`AnswersOf`, `JudgePort`, `JudgeError` |
 | `src/judge/jev.ts` | `JevJudge` — fetch, backoff 429/5xx/transport, narrow response theo định nghĩa câu hỏi |
-| `src/proactive/buckets.ts` | 8 nhóm việc + `ProactiveCapability` + `JudgePolicy` (file lá, tránh vòng import) |
+| `src/proactive/judge-spec.ts` | `ProactiveJudgeSpec` (danh sách năng lực) + `JudgePolicy` (file lá, tránh vòng import) |
 | `src/proactive/judge.ts` | 5 câu hỏi, `buildJudgeState`, `quyetDinh` (thuần), `buildProactiveClassify` (fail-closed) |
 | `src/proactive/gate.ts` | bỏ regex intent, còn guard cấu trúc |
 | `src/agents/types.ts` · `roots/dealer.ts` | `ProactiveSpec.triggers` → `judge`; 9 regex → 4 năng lực + ngưỡng |

@@ -31,12 +31,6 @@ export {
   type ProactiveAnswers,
   type ProactiveClassify,
 } from "./judge.ts";
-export {
-  WORK_BUCKETS,
-  type JudgePolicy,
-  type ProactiveCapability,
-  type ProactiveJudgeSpec,
-  type WorkBucket,
-} from "./buckets.ts";
+export { type JudgePolicy, type ProactiveJudgeSpec } from "./judge-spec.ts";
 export { proactiveSpecFor } from "./spec.ts";
 export { buildProactiveVerify, type ProactiveVerify, type ProactiveVerifyDeps } from "./verify.ts";

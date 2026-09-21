@@ -180,7 +180,7 @@ function readOne(id: string, def: QuestionDef, answer: Record<string, unknown>):
     case "noul": {
       const value = readUnit(answer.noul);
       if (value === undefined) throw new JudgeError(`jev: "${id}" thiếu noul`, 200, false);
-      return { noul: value, confidence: confidence ?? 0 };
+      return confidence === undefined ? { noul: value } : { noul: value, confidence };
     }
     case "choice":
       return readPicked(id, answer, "choice", Object.keys(def.criteria), confidence);
@@ -201,11 +201,11 @@ function readPicked(
   if (typeof picked !== "string" || !allowed.includes(picked)) {
     throw new JudgeError(`jev: "${id}" trả ${field} lạ`, 200, false);
   }
-  return {
+  const parsed = {
     [field]: picked,
     probabilities: readProbabilities(answer.probabilities, allowed),
-    confidence: confidence ?? 0,
   };
+  return confidence === undefined ? parsed : { ...parsed, confidence };
 }
 
 /**

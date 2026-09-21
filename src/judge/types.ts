@@ -35,7 +35,12 @@ export type QuestionSet = Readonly<Record<string, QuestionDef>>;
 export interface NoulAnswer {
   /** Xác suất mệnh đề ĐÚNG, 0–1. */
   readonly noul: number;
-  readonly confidence: number;
+  /**
+   * Độ tin cậy. OPTIONAL vì đo thật ngày 21/09/2026 cho thấy Jev KHÔNG trả field này cho `noul`
+   * (response chỉ có `type` + `noul`). Thiếu thì để thiếu — đắp 0 là bịa một con số mà nơi gọi
+   * không phân biệt được với "model hoàn toàn không chắc".
+   */
+  readonly confidence?: number;
 }
 
 export interface ChoiceAnswer<O extends string> {
@@ -45,13 +50,15 @@ export interface ChoiceAnswer<O extends string> {
    * thiếu (`noUncheckedIndexedAccess` ép sẵn), KHÔNG được đắp giá trị mặc định cho đủ.
    */
   readonly probabilities: Readonly<Record<string, number>>;
-  readonly confidence: number;
+  /** Optional, cùng lý do như `NoulAnswer.confidence`. */
+  readonly confidence?: number;
 }
 
 export interface ScoreAnswer<L extends string> {
   readonly score: L;
   readonly probabilities: Readonly<Record<string, number>>;
-  readonly confidence: number;
+  /** Optional, cùng lý do như `NoulAnswer.confidence`. */
+  readonly confidence?: number;
 }
 
 /** Kiểu câu trả lời SUY RA từ định nghĩa câu hỏi — khai câu hỏi một lần, dùng kiểu ở mọi nơi. */

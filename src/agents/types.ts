@@ -20,7 +20,7 @@ import type { TurnSpeaker } from "../context/speaker-block.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
 import type { RoomRef } from "../workflows/types.ts";
 import type { AgentResult, HistoryEntry } from "../types/index.ts";
-import type { ProactiveJudgeSpec } from "../proactive/buckets.ts";
+import type { ProactiveJudgeSpec } from "../proactive/judge-spec.ts";
 import type { DistillSpec, MemoryRecall, MemoryScope } from "../state/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 import type { ToolFactory } from "../tools/types.ts";

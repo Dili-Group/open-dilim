@@ -67,25 +67,24 @@ export const dealerProfile: RootAgentProfile = {
   proactive: {
     judge: {
       capabilities: [
-        { bucket: "tra_don", moTa: "tra tình trạng đơn, mã vận đơn, lý do đơn chưa đi, video đóng gói" },
-        {
-          bucket: "tien_can_chuyen",
-          moTa: "tra số tiền đại lý cần chuyển để đơn được đi, lập phiếu thanh toán gộp kèm mã QR",
-        },
-        {
-          bucket: "vi_chiet_khau",
-          moTa: "tra ví tiền hàng và lịch sử ví 7 ngày, mã QR nạp ví, bậc chiết khấu hiện tại",
-        },
-        { bucket: "doi_soat", moTa: "đối soát sổ một ngày: đơn đã xuất, đơn hoàn, tiền phải trả" },
+        "tra tình trạng đơn, mã vận đơn, lý do đơn chưa đi, video đóng gói/khui hàng hoàn",
+        "tra số tiền đại lý cần chuyển để đơn được đi, lập phiếu thanh toán gộp kèm mã QR",
+        "tra ví tiền hàng và lịch sử ví 7 ngày, mã QR nạp ví, bậc chiết khấu hiện tại",
+        "đối soát sổ một ngày: đơn đã xuất, đơn hoàn, tiền phải trả",
+        "hỗ trợ giải đáp thắc mắc về chính sách của công ty nếu đại lý hỏi"
       ],
-      // Ngưỡng khởi điểm. Đọc log `[proactive] judge` vài ngày rồi chỉnh theo số thật — đừng
-      // chỉnh theo cảm giác sau một ca nhặt nhầm.
+      // Ngưỡng đo trên Jev thật 21/09/2026, 15 câu mẫu (xem §5 docs/architecture/14-…):
+      //   lam_duoc   câu cần giúp 0.82–0.97 · tán gẫu 0.04–0.07      → vạch 0.70
+      //   dich_danh  hỏi chung 0.12–0.24 · gọi đích danh 0.63–0.93   → vạch 0.50
+      //   co_nguoi_lo chưa ai đụng 0.04–0.05 · "để em xem" 0.40      → vạch 0.30 (phải chặn 0.40)
+      //   buc_xuc    sốt ruột 0.32 · cáu thật 0.94                   → vạch 0.60
+      // Đọc log `[proactive] judge` vài ngày rồi chỉnh lại theo số thật, đừng chỉnh theo cảm
+      // giác sau một ca nhặt nhầm.
       policy: {
-        minTuLamDuoc: 0.75,
-        minConfidence: 0.6,
-        minNhomViecProb: 0.5,
-        maxNhoDichDanh: 0.3,
+        minTuLamDuoc: 0.7,
+        maxNhoDichDanh: 0.5,
         maxDaCoNguoiLo: 0.3,
+        maxBucXuc: 0.6,
       },
     },
     waitMs: 30 * 1000,

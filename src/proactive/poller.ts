@@ -10,7 +10,7 @@ import { HISTORY_WINDOW_TURNS } from "../state/session.ts";
 import type { Broker } from "../message-ingest/deps.ts";
 import type { HistoryReader } from "../worker/index.ts";
 import type { ProactiveSpec } from "../agents/types.ts";
-import type { ProactiveJudgeSpec } from "./buckets.ts";
+import type { ProactiveJudgeSpec } from "./judge-spec.ts";
 import type { HistoryEntry } from "../types/index.ts";
 import type { RedisCommand } from "../redis/types.ts";
 import type { Envelope } from "../types/index.ts";
