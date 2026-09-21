@@ -22,6 +22,7 @@ import { buildAgentRegistry } from "./registry.ts";
 import { customerProfile } from "./roots/customer.ts";
 import { buildRootAgent } from "./runtime/build-agent.ts";
 import { resolveAgentType } from "./router.ts";
+import { matchesDedicatedTrigger, type DedicatedRoom } from "./dedicated-rooms.ts";
 import { AgentType, type RootAgentProfile, type SubAgent } from "./types.ts";
 import type { AgentConfig, AgentDeps } from "./types.ts";
 
@@ -305,6 +306,58 @@ describe("resolveAgentType", () => {
 
   test("channel lạ → undefined (registry rơi về default, không đoán agent)", () => {
     expect(resolveAgentType("telegram")).toBeUndefined();
+  });
+
+  // Phòng chuyên dụng phải THẮNG bảng channel: nhóm riêng nằm trên chính kênh của agent khác.
+  // Chưa phòng thật nào được khai (dedicated-rooms.ts) nên dựng phòng giả để khoá thứ tự tra.
+  const phongGia: DedicatedRoom = {
+    channel: "zalo",
+    groupId: "G-RIENG",
+    agentType: AgentType.Warehouse,
+    triggers: [/^\s*stt\s*[:.\-–]?\s*\d+/im],
+  };
+
+  test("phòng chuyên dụng thắng bảng channel", () => {
+    expect(resolveAgentType("zalo", "G-RIENG", [phongGia])).toBe(AgentType.Warehouse);
+  });
+
+  test("nhóm khác trên cùng kênh vẫn về agent của kênh", () => {
+    expect(resolveAgentType("zalo", "G-KHAC", [phongGia])).toBe(AgentType.Dealer);
+    // Chat 1-1 không có nhóm để tra.
+    expect(resolveAgentType("zalo", undefined, [phongGia])).toBe(AgentType.Dealer);
+  });
+
+  test("chưa khai phòng nào → tra theo kênh như cũ (fail-closed)", () => {
+    expect(resolveAgentType("zalo", "G-RIENG", [])).toBe(AgentType.Dealer);
+  });
+});
+
+describe("cổng mẫu phòng chuyên dụng", () => {
+  const rooms: readonly DedicatedRoom[] = [
+    {
+      channel: "zalo",
+      groupId: "G-RIENG",
+      agentType: AgentType.Warehouse,
+      triggers: [/^\s*stt\s*[:.\-–]?\s*\d+/im],
+    },
+  ];
+
+  test("tin khớp mẫu trong đúng nhóm → tính là một lượt", () => {
+    for (const text of ["STT: 8 NVH\n1, Tên KH: chị TRANG 94734", "Stt 2 :  BCL", "Stt 1. HDZ"]) {
+      expect(matchesDedicatedTrigger(rooms, "zalo", "G-RIENG", text)).toBe(true);
+    }
+  });
+
+  test("tán gẫu trong chính nhóm đó KHÔNG thành lượt", () => {
+    for (const text of ["ok em", "xong chưa ạ", "hôm nay nhiều ca quá"]) {
+      expect(matchesDedicatedTrigger(rooms, "zalo", "G-RIENG", text)).toBe(false);
+    }
+  });
+
+  test("cùng mẫu tin nhưng ở nhóm khác, hoặc chưa khai phòng, thì không nhận", () => {
+    expect(matchesDedicatedTrigger(rooms, "zalo", "G-KHAC", "STT: 8 NVH")).toBe(false);
+    expect(matchesDedicatedTrigger(rooms, "zalo", undefined, "STT: 8 NVH")).toBe(false);
+    expect(matchesDedicatedTrigger([], "zalo", "G-RIENG", "STT: 8 NVH")).toBe(false);
   });
 });
 

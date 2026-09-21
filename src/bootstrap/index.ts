@@ -4,7 +4,7 @@
 // bootstrap() = dựng service (DI). start() = bootstrap + khởi động gateway + worker pool.
 // src/index.ts (entrypoint) chỉ gọi start() rồi wire signal shutdown.
 
-import { startGateway, type IngestDeps } from "../message-ingest/index.ts";
+import { dedicatedRooms, startGateway, type IngestDeps } from "../message-ingest/index.ts";
 import { buildSkillRegistry, type SkillRegistry } from "../skills/index.ts";
 import { flashRegistry } from "../flash-command/index.ts";
 import { closeDb, sql } from "../db/client.ts";
@@ -80,10 +80,12 @@ import { startWorkers } from "../worker/index.ts";
 import {
   ProactiveIngest,
   RedisProactivePending,
+  buildProactiveClassify,
   buildProactiveVerify,
   proactiveSpecFor,
   startProactivePoller,
 } from "../proactive/index.ts";
+import { JevJudge } from "../judge/index.ts";
 import { SqlJobRepo, startScheduler } from "../scheduler/index.ts";
 import { checkInfra, loadConfig } from "./env.ts";
 import { OPERATIONS_CHANNEL } from "../config.ts";
@@ -328,12 +330,42 @@ export async function bootstrap(): Promise<Services> {
     enforce: config.enforceBudget,
   };
 
+  // Nhóm chuyên dụng (nhóm xác nhận đơn của BS Sơn). CÙNG danh sách mà ingest dùng để đặt cổng
+  // mẫu — router, phễu proactive và cổng ingest lệch nhau là tin lọt vào rồi bị agent kênh trả lời.
+  const rooms = dedicatedRooms();
+  for (const room of rooms) {
+    console.info(`[bootstrap] gác phòng chuyên dụng ${room.channel}/${room.groupId} → ${room.agentType}`);
+  }
+  if (rooms.length === 0) {
+    console.warn(
+      "[bootstrap] thiếu ZALO_XACNHAN_GROUP_ID → agent xác nhận đơn TẮT, nhóm đó do agent đại lý trả lời.",
+    );
+  }
+
+  // TẦNG 2 của phễu: model phán quyết chấm "câu này có đáng đánh thức agent không". Thiếu key →
+  // undefined → poller KHÔNG nhặt câu nào (fail-closed): tầng 0 không còn regex gác trước nữa.
+  const proactiveClassify =
+    config.jev.apiKey === undefined
+      ? undefined
+      : buildProactiveClassify(
+          new JevJudge({
+            apiKey: config.jev.apiKey,
+            model: config.jev.model,
+            timeoutMs: config.jev.timeoutMs,
+          }),
+        );
+  if (proactiveClassify === undefined) {
+    console.warn("[bootstrap] thiếu JEV_API_KEY → phễu proactive TẮT (agent chỉ trả lời khi được tag).");
+  } else {
+    console.info(`[bootstrap] phễu proactive dùng model phán quyết ${config.jev.model}.`);
+  }
+
   const proactive = new ProactiveIngest({
     pending: proactivePending,
-    specFor: proactiveSpecFor,
+    specFor: (channel, groupId) => proactiveSpecFor(channel, groupId, rooms),
     selfIdsFor: (channel) => selfIdsByChannel.get(channel) ?? [],
     // Verify trước khi vào hàng chờ: phòng đã /ketnoi-daily (spec đòi) + ngân sách phòng còn.
-    verify: buildProactiveVerify({ groups: groupCustomer, usage }),
+    verify: buildProactiveVerify({ groups: groupCustomer, usage, dedicatedRooms: rooms }),
   });
   const ingestDeps: IngestDeps = {
     broker,
@@ -355,6 +387,7 @@ export async function bootstrap(): Promise<Services> {
     jobs,
     llm,
     agents,
+    dedicatedRooms: rooms,
     broadcaster,
     typing,
     identity,
@@ -373,6 +406,7 @@ export async function bootstrap(): Promise<Services> {
     compactor,
     summaries,
     usage,
+    proactiveClassify,
     kbDigestStore,
     kbDigest,
     kbReview,
@@ -401,6 +435,7 @@ export async function start(): Promise<RunningSystem> {
     compactor: services.compactor,
     summaries: services.summaries,
     agents: services.agents,
+    dedicatedRooms: services.dedicatedRooms,
     broadcaster: services.broadcaster,
     typing: services.typing,
     workflow: services.workflow,
@@ -465,7 +500,11 @@ export async function start(): Promise<RunningSystem> {
             history: services.historyReader,
             broker: services.ingestDeps.broker,
             send: commandOf(redis),
-            specFor: proactiveSpecFor,
+            specFor: (channel, groupId) =>
+              proactiveSpecFor(channel, groupId, services.dedicatedRooms),
+            ...(services.proactiveClassify === undefined
+              ? {}
+              : { classify: services.proactiveClassify }),
           },
           services.config.schedulerTickMs,
         );

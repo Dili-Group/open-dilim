@@ -13,6 +13,7 @@ import type { JobAdmin, JobRepo } from "../scheduler/types.ts";
 import type { LLMProvider } from "../llm/index.ts";
 import type { McpRegistry } from "../mcp/index.ts";
 import type { AgentRegistry } from "../agents/index.ts";
+import type { DedicatedRoom } from "../agents/dedicated-rooms.ts";
 import type { Broadcaster, TypingFactory } from "../broadcast/index.ts";
 import type { GroupCustomerLookup, IdentityResolver } from "../auth/index.ts";
 import type {
@@ -33,7 +34,7 @@ import type {
 } from "../announcements/types.ts";
 import type { KbDigestService } from "../kb-digest/service.ts";
 import type { KbDigestStore, KbReviewPort } from "../kb-digest/types.ts";
-import type { ProactivePendingStore } from "../proactive/index.ts";
+import type { ProactiveClassify, ProactivePendingStore } from "../proactive/index.ts";
 
 /** Mọi service dựng lúc boot, share cho các tầng downstream (worker/gateway). */
 export interface Services {
@@ -57,6 +58,11 @@ export interface Services {
   readonly llm: LLMProvider;
   /** Root agent registry (worker resolve+run). */
   readonly agents: AgentRegistry;
+  /**
+   * Nhóm được phục vụ bởi agent KHÁC agent mặc định của kênh (agents/dedicated-rooms.ts). Rỗng =
+   * chưa khai id nhóm ở env → mọi nhóm tra theo kênh như cũ.
+   */
+  readonly dedicatedRooms: readonly DedicatedRoom[];
   /** Egress (dev: console). */
   readonly broadcaster: Broadcaster;
   /** Nhịp "đang xử lý" theo channel (dev: console). Worker phát mỗi bước agent. */
@@ -117,6 +123,11 @@ export interface Services {
    * toàn cục (không agent nào khai spec, hay muốn tắt hẳn) → không dựng poller.
    */
   readonly proactivePending?: ProactivePendingStore;
+  /**
+   * Cổng phán quyết tầng 2 của phễu (proactive/judge.ts). undefined = thiếu JEV_API_KEY → phễu
+   * TẮT: không có phán quyết thì không nhặt câu nào (fail-closed).
+   */
+  readonly proactiveClassify?: ProactiveClassify;
 }
 
 /** Hệ thống ĐANG CHẠY: service + HTTP server + hook shutdown sạch. */

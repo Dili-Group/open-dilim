@@ -1,9 +1,12 @@
-// gate.ts — TẦNG 0 của phễu proactive: lọc heuristic 0 token, chạy trên MỌI tin group không
-// mention agent nên phải rẻ tuyệt đối (regex, không I/O). Nhiệm vụ là LOẠI phần chắc chắn không
-// phải câu cần giúp (sticker, ảnh trần, thông báo kho, tin của chính agent) — bắt nhầm còn hơn
-// bỏ sót, tầng 1 (chờ người thật trả lời) và tầng 2 (classifier) lọc tiếp.
+// gate.ts — TẦNG 0 của phễu proactive: guard CẤU TRÚC, 0 token, không I/O. Chạy trên MỌI tin
+// group không mention agent, và chạy TRONG đường nóng của webhook (gateway gọi trước khi trả
+// 202, bên trong vùng đã mark dedupe) → ở đây tuyệt đối không được gọi mạng.
+//
+// Nhiệm vụ đã thu hẹp: chỉ loại thứ KHÔNG THỂ là câu cần giúp dù đọc kiểu gì — tin không phải
+// người thật gõ, tin của chính agent, tin đã tag đích danh người khác, tin rỗng/chỉ media. Việc
+// đoán Ý ĐỊNH chuyển hẳn sang tầng 2 (proactive/judge.ts), nơi không ai đang chờ và tầng 1 đã
+// lọc gần hết. Trước đây tầng này còn một danh sách regex intent — đã bỏ.
 
-import type { ProactiveSpec } from "../agents/types.ts";
 import type { Envelope } from "../types/index.ts";
 
 /**
@@ -18,7 +21,6 @@ const MIN_MEANINGFUL_CHARS = 4;
 
 export interface ProactiveGateInput {
   readonly envelope: Envelope;
-  readonly spec: ProactiveSpec;
   /**
    * Mọi id mà tin của CHÍNH agent có thể mang khi vọng lại webhook: agentUid (id mention) +
    * selfUid (id tài khoản OA gửi tin — đo thực tế HAI ID NÀY KHÁC NHAU trên Zalo). Thiếu selfUid
@@ -27,8 +29,8 @@ export interface ProactiveGateInput {
   readonly selfIds: readonly string[];
 }
 
-/** true = tin đáng vào phễu → ingest đặt lịch chờ (tầng 1). Thuần, không I/O. */
-export function passesProactiveGate({ envelope, spec, selfIds }: ProactiveGateInput): boolean {
+/** true = tin đáng vào hàng chờ (tầng 1). Thuần, không I/O. */
+export function passesProactiveGate({ envelope, selfIds }: ProactiveGateInput): boolean {
   // Phễu chỉ dành cho tin người thật gõ trong NHÓM mà trigger gate đã bỏ qua. Tin direct và tin
   // mention agent đã có lượt riêng; envelope tổng hợp (cron/distill/proactive) không phải tin.
   if (!envelope.isGroup || envelope.addressedToAgent || envelope.source !== "channel") return false;
@@ -41,7 +43,5 @@ export function passesProactiveGate({ envelope, spec, selfIds }: ProactiveGateIn
     .replace(ATTACHMENT_PLACEHOLDER, " ")
     .replace(URL_PATTERN, " ")
     .trim();
-  if (meaningful.length < MIN_MEANINGFUL_CHARS) return false;
-
-  return spec.triggers.some((pattern) => pattern.test(meaningful));
+  return meaningful.length >= MIN_MEANINGFUL_CHARS;
 }

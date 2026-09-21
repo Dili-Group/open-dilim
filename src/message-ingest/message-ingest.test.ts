@@ -8,6 +8,8 @@ import { ChannelFactory } from "./factory.ts";
 import { createGateway } from "./gateway.ts";
 import { isAddressed } from "./ingestor.ts";
 import { ZaloIngestor } from "./adapters/zalo.ts";
+import type { DedicatedRoom } from "../agents/dedicated-rooms.ts";
+import { AgentType } from "../agents/types.ts";
 import type { IngestDeps } from "./deps.ts";
 
 const AGENT_UID = "AGENT";
@@ -136,6 +138,54 @@ describe("isAddressed (trigger gate)", () => {
   });
   test("group /lệnh (không mention) → true", () => {
     expect(isAddressed(true, "/ketnoi-hethong X", [], AGENT_UID)).toBe(true);
+  });
+});
+
+// Phòng chuyên dụng: tin theo MẪU cũng là một lượt dù không mention ai — và CHỈ trong đúng nhóm
+// ấy. Nới rộng là agent nói leo trong mọi nhóm; chưa khai phòng thì cổng đóng hoàn toàn.
+describe("cổng mẫu phòng chuyên dụng (ingest)", () => {
+  const rooms: readonly DedicatedRoom[] = [
+    {
+      channel: "zalo",
+      groupId: "G-RIENG",
+      agentType: AgentType.Warehouse,
+      triggers: [/^\s*stt\s*[:.\-–]?\s*\d+/im],
+    },
+  ];
+  const ingestor = new ZaloIngestor("zalo", CHANNEL_CONFIG, rooms);
+
+  const parseOne = (over: Record<string, unknown>) => {
+    const [msg] = ingestor.parse([event(over)]);
+    if (msg === undefined) throw new Error("parse trả rỗng");
+    return msg;
+  };
+
+  test("tin khớp mẫu trong phòng chuyên dụng → thành một lượt", () => {
+    const msg = parseOne({ idTo: "G-RIENG", content: "STT: 8 NVH\n1, Tên KH: chị Trang 94734" });
+    expect(msg.addressedToAgent).toBe(true);
+  });
+
+  test("tán gẫu trong chính phòng đó → vẫn chỉ vào history", () => {
+    expect(parseOne({ idTo: "G-RIENG", content: "ok em" }).addressedToAgent).toBe(false);
+  });
+
+  test("cùng tin đó ở nhóm khác → không thành lượt", () => {
+    expect(parseOne({ idTo: "G-KHAC", content: "STT: 8 NVH" }).addressedToAgent).toBe(false);
+  });
+
+  test("mention agent trong phòng chuyên dụng vẫn luôn vào (đường thoát khi gõ lệch mẫu)", () => {
+    const msg = parseOne({
+      idTo: "G-RIENG",
+      content: "ca này ghi giúp mình",
+      mentions: [{ uid: AGENT_UID }],
+    });
+    expect(msg.addressedToAgent).toBe(true);
+  });
+
+  test("chưa khai phòng nào → cổng mẫu đóng hoàn toàn", () => {
+    const plain = new ZaloIngestor("zalo", CHANNEL_CONFIG);
+    const [msg] = plain.parse([event({ idTo: "G-RIENG", content: "STT: 8 NVH" })]);
+    expect(msg?.addressedToAgent).toBe(false);
   });
 });
 

@@ -58,28 +58,36 @@ export const dealerProfile: RootAgentProfile = {
     ...WORKFLOW_LIST_TOOLS,
   ],
   // Phễu proactive: đại lý phần lớn KHÔNG mention agent khi cần giúp (đo trên message_log
-  // 25/08/2026: 818 tin group không nhắm agent, ~20% là câu nhờ vả/hỏi thật). Trigger bám theo
-  // intent hay gặp nhất trong data đó — không phải danh sách "mọi từ có thể", tầng 1-2 lọc tiếp.
+  // 25/08/2026: 818 tin group không nhắm agent, ~20% là câu nhờ vả/hỏi thật).
+  //
+  // Trước đây chỗ này là 9 regex intent. Đã bỏ: regex đo TỪ NGỮ nên vừa sót ("đơn hôm qua vẫn
+  // nằm im" không có từ khoá nào) vừa bắt nhầm ("cảm ơn c, chiết khấu ok rồi"), và không trả ra
+  // con số nào để biết mình sai bao nhiêu. Giờ khai NĂNG LỰC bằng tiếng Việt; tầng 2 chấm ý định
+  // rồi so với ngưỡng (proactive/judge.ts).
   proactive: {
-    triggers: [
-      // Nhờ vả trực tiếp: "hủy giúo c nhé", "nhờ hỗ trợ in đơn này giúp c" (78/818 tin).
-      /giúp|giùm|hộ (em|chị|anh|c|a|mình)|nhờ.{0,12}hỗ trợ/i,
-      // Hủy / lên lại đơn, đổi thông tin giao.
-      /hủy|huỷ|lên lại|đổi địa chỉ/i,
-      // Check tình trạng đơn.
-      /check|kiểm tra|xem (lại|giúp|hộ)/i,
-      // Vận đơn / in đơn.
-      /vận đơn|in đơn|mã vận/i,
-      // Tiền: thanh toán, công nợ, nạp ví.
-      /thanh toán|chuyển khoản|công nợ|nạp (ví|tiền)/i,
-      // Chiết khấu / đối soát / hoàn.
-      /chiết khấu|hoa hồng|đối soát|hoàn (tiền|hàng|lại)/i,
-      // Giục: "sao đơn này vẫn chưa gửi cho ĐVVC".
-      /(vẫn |)chưa (được|thấy|có|về|nhận|gửi)/i,
-      // Câu hỏi mở: thời gian, lý do, hoặc kết bằng dấu hỏi.
-      /khi nào|bao giờ|bao lâu|vì sao|tại sao|\bsao\b/i,
-      /\?\s*$/m,
-    ],
+    judge: {
+      capabilities: [
+        { bucket: "tra_don", moTa: "tra tình trạng đơn, mã vận đơn, lý do đơn chưa đi, video đóng gói" },
+        {
+          bucket: "tien_can_chuyen",
+          moTa: "tra số tiền đại lý cần chuyển để đơn được đi, lập phiếu thanh toán gộp kèm mã QR",
+        },
+        {
+          bucket: "vi_chiet_khau",
+          moTa: "tra ví tiền hàng và lịch sử ví 7 ngày, mã QR nạp ví, bậc chiết khấu hiện tại",
+        },
+        { bucket: "doi_soat", moTa: "đối soát sổ một ngày: đơn đã xuất, đơn hoàn, tiền phải trả" },
+      ],
+      // Ngưỡng khởi điểm. Đọc log `[proactive] judge` vài ngày rồi chỉnh theo số thật — đừng
+      // chỉnh theo cảm giác sau một ca nhặt nhầm.
+      policy: {
+        minTuLamDuoc: 0.75,
+        minConfidence: 0.6,
+        minNhomViecProb: 0.5,
+        maxNhoDichDanh: 0.3,
+        maxDaCoNguoiLo: 0.3,
+      },
+    },
     waitMs: 30 * 1000,
     turnNote: [
       "LƯỢT PROACTIVE: đại lý hỏi trong nhóm nhưng KHÔNG tag em, và sau vài phút chưa ai trả lời",

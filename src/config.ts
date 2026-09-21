@@ -341,6 +341,13 @@ const DEFAULT_VISION_MODEL = "gemini-3.1-flash-lite";
 // Model NÉN hội thoại ngắn hạn (rolling summary) — luôn Gemini, độc lập PROVIDER của agent,
 // cùng lý do với vision/embedder: việc nền tần suất cao, chạy con rẻ.
 const DEFAULT_COMPACT_MODEL = "gemini-3.5-flash-lite";
+// Model PHÁN QUYẾT của tầng 2 phễu proactive (judge/). PIN bản cụ thể, KHÔNG dùng `jev-latest`:
+// ngưỡng ở `proactive/buckets.ts` chỉnh theo hành vi của đúng một bản, bản đổi dưới chân là
+// ngưỡng sai mà không ai biết.
+const DEFAULT_JEV_MODEL = "jev-1.13.0";
+// Trần MỘT lần chấm. Nhà cung cấp công bố 70–500ms; 3s là để một lần treo không kéo dài cả tick
+// đang xử lý hàng loạt câu. Quá hạn = không nhặt (fail-closed), không phải chờ tiếp.
+const DEFAULT_JEV_TIMEOUT_MS = 3_000;
 // Trần thời gian bắt tay + `tools/list` với một server MCP lúc boot. Server chết không được làm
 // chậm cả app — quá hạn thì bỏ server đó, boot tiếp.
 const DEFAULT_MCP_CONNECT_TIMEOUT_MS = 5_000;
@@ -432,6 +439,17 @@ export const CONFIG = {
     servers: mcpServersFromEnv(),
     connectTimeoutMs: positiveIntEnv("MCP_CONNECT_TIMEOUT_MS", DEFAULT_MCP_CONNECT_TIMEOUT_MS),
     callTimeoutMs: positiveIntEnv("MCP_CALL_TIMEOUT_MS", DEFAULT_MCP_CALL_TIMEOUT_MS),
+  },
+
+  // PHÁN QUYẾT tầng 2 của phễu proactive (judge/ + proactive/judge.ts): chấm "câu này có đáng
+  // đánh thức agent không" bằng model trả giá trị có kiểu, thay cho danh sách regex trước đây.
+  //
+  // Thiếu `JEV_API_KEY` → phễu TẮT hoàn toàn (fail-closed). Tầng 0 không còn regex gác trước nữa,
+  // nên không có phán quyết mà vẫn nhặt thì mọi câu chưa ai đáp đều đánh thức agent.
+  jev: {
+    apiKey: optional("JEV_API_KEY"),
+    model: optional("JEV_MODEL") ?? DEFAULT_JEV_MODEL,
+    timeoutMs: positiveIntEnv("JEV_TIMEOUT_MS", DEFAULT_JEV_TIMEOUT_MS),
   },
 
   // Hạn mức chi phí LLM theo phòng/ngày (usage/). Trần khai bằng VND theo agent ở

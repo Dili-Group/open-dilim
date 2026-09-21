@@ -8,6 +8,7 @@
 // isGroup = idTo !== agentUid: group gửi tới id nhóm; direct gửi thẳng tới agent.
 
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { matchesDedicatedTrigger, type DedicatedRoom } from "../../agents/dedicated-rooms.ts";
 import type { ZaloChannelConfig } from "../../config.ts";
 import type { Mention } from "../../types/index.ts";
 import { isAddressed, type Ingestor, type ParsedMessage } from "../ingestor.ts";
@@ -29,6 +30,12 @@ export class ZaloIngestor implements Ingestor {
   constructor(
     readonly channel: string,
     private readonly config: ZaloChannelConfig,
+    /**
+     * Phòng chuyên dụng trên chính kênh này (nhóm xác nhận đơn). Trong phòng đó, tin khớp mẫu
+     * đăng ký cũng là một lượt dù không @agent — sale gõ sổ, không ai mention agent bao giờ.
+     * Rỗng (mặc định) = hành vi cũ y nguyên.
+     */
+    private readonly dedicatedRooms: readonly DedicatedRoom[] = [],
   ) {}
 
   verify(headers: Headers, rawBody: string): boolean {
@@ -81,7 +88,17 @@ export class ZaloIngestor implements Ingestor {
       // senderName = tên hiển thị Zalo. Không phải event nào cũng có → thiếu thì bỏ hẳn field.
       ...(readName(event.senderName) ?? {}),
       isGroup,
-      addressedToAgent: isAddressed(isGroup, text, mentions, this.config.agentUid),
+      // `@agent` và `/lệnh` LUÔN vào (đường thoát khi sale gõ lệch mẫu); ngoài ra, trong phòng
+      // chuyên dụng thì tin khớp mẫu sổ cũng vào. Hai vế phải cùng đọc một danh sách phòng với
+      // agents/router.ts, lệch nhau là tin tới worker rồi bị agent của kênh trả lời.
+      addressedToAgent:
+        isAddressed(isGroup, text, mentions, this.config.agentUid) ||
+        matchesDedicatedTrigger(
+          this.dedicatedRooms,
+          this.channel,
+          isGroup ? conversationId : undefined,
+          text,
+        ),
       text,
       mentions,
       ts: readTs(event.ts),

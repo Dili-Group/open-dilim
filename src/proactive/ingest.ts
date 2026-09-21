@@ -9,7 +9,7 @@ import type { Envelope } from "../types/index.ts";
 
 export interface ProactiveIngestDeps {
   readonly pending: ProactivePendingStore;
-  readonly specFor: (channel: string) => ProactiveSpec | undefined;
+  readonly specFor: (channel: string, groupId?: string) => ProactiveSpec | undefined;
   /** Id "chính mình" theo kênh (agentUid + selfUid) — xem ProactiveGateInput.selfIds. */
   readonly selfIdsFor: (channel: string) => readonly string[];
   /**
@@ -24,10 +24,11 @@ export class ProactiveIngest {
 
   /** Tin qua gate tầng 0 → đè lịch chờ của (phòng, người hỏi): câu mới nhất thắng, đồng hồ reset. */
   async consider(envelope: Envelope): Promise<void> {
-    const spec = this.deps.specFor(envelope.channel);
+    // Phễu chỉ nhặt tin NHÓM (gateway lọc trước) → conversationId chính là id nhóm.
+    const spec = this.deps.specFor(envelope.channel, envelope.conversationId);
     if (spec === undefined) return;
     const selfIds = this.deps.selfIdsFor(envelope.channel);
-    if (!passesProactiveGate({ envelope, spec, selfIds })) return;
+    if (!passesProactiveGate({ envelope, selfIds })) return;
     // Gate (rẻ, thuần) TRƯỚC verify (có I/O): chỉ tin trúng trigger mới tốn query trạng thái.
     if (this.deps.verify !== undefined && !(await this.deps.verify(envelope, spec))) return;
 

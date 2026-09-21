@@ -40,24 +40,23 @@ function envelope(over: Partial<Envelope> = {}): Envelope {
 const dealerSpec = proactiveSpecFor("zalo");
 if (dealerSpec === undefined) throw new Error("dealerProfile phải khai proactive cho test này");
 
-describe("passesProactiveGate (tầng 0)", () => {
+describe("passesProactiveGate (tầng 0 — guard cấu trúc)", () => {
   const gate = (over: Partial<Envelope>) =>
-    passesProactiveGate({ envelope: envelope(over), spec: dealerSpec, selfIds: SELF_IDS });
+    passesProactiveGate({ envelope: envelope(over), selfIds: SELF_IDS });
 
-  test("câu nhờ vả thật từ message_log → vào phễu", () => {
+  // Tầng 0 KHÔNG còn đoán ý định nữa (regex intent đã bỏ). Câu có nội dung thì vào hàng chờ;
+  // đáng trả lời hay không là việc của tầng 2 (judge.ts::quyetDinh).
+  test("tin có nội dung → vào hàng chờ, không phân biệt có từ khoá hay không", () => {
     expect(gate({ text: "PKE1496271976 hủy giúo c nhé" })).toBe(true);
     expect(gate({ text: "nhờ hỗ trợ in đơn này giúp c" })).toBe(true);
-    expect(gate({ text: "em ơi, sao đơn này mình vẫn chưa gửi cho bên đơn vị giao hàng" })).toBe(true);
-    expect(
-      gate({ text: "chuyển chiết khấu cho đại lý 30% lên 50% thì số 20% còn lại khi nào hoàn" }),
-    ).toBe(true);
-    expect(gate({ text: "Dạ mình đã ký xong hợp đồng đại lý chưa ạ ?" })).toBe(true);
+    // Câu KHÔNG có từ khoá nào — đúng thứ danh sách regex cũ bỏ sót.
+    expect(gate({ text: "đơn hôm qua vẫn nằm im đó em" })).toBe(true);
+    expect(gate({ text: "Bàn giao ĐVVC sáng 24/08/2026 Lần 1" })).toBe(true);
   });
 
-  test("chatter/thông báo không phải câu cần giúp → bỏ", () => {
+  test("tin quá ngắn để mang nội dung → bỏ", () => {
     expect(gate({ text: "Dạ" })).toBe(false);
-    expect(gate({ text: "ok cảm ơn nhiều" })).toBe(false);
-    expect(gate({ text: "Bàn giao ĐVVC sáng 24/08/2026 Lần 1" })).toBe(false);
+    expect(gate({ text: "ok" })).toBe(false);
   });
 
   test("tin chỉ có đính kèm / URL → bỏ, kể cả placeholder lẫn link dài", () => {
@@ -65,16 +64,13 @@ describe("passesProactiveGate (tầng 0)", () => {
     expect(gate({ text: "https://drive.google.com/drive/folders/abc?usp=link [Tệp đính kèm]" })).toBe(
       false,
     );
-    // Đính kèm NHƯNG kèm câu hỏi thật → vẫn vào.
     expect(gate({ text: "đơn này khách đã CK, duyệt giúp em [Ảnh đính kèm]" })).toBe(true);
   });
 
-  test("tin tag đích danh người khác → việc của NGƯỜI ĐÓ, bỏ dù trúng trigger", () => {
-    // Case thật: đại lý tag nhân viên nhờ chuyển hoa hồng — "hoa hồng"/"chuyển" trúng trigger
-    // nhưng việc đã có địa chỉ, agent không được nhặt.
+  test("tin tag đích danh người khác → việc của NGƯỜI ĐÓ", () => {
     expect(
       gate({
-        text: "@Trương Thị Mỹ Huyền em ơi bảng kê hoa hồng khớp rồi nhé. Lần này em chuyển qua tài khoản cá nhân chị Hương nha",
+        text: "@Trương Thị Mỹ Huyền em ơi bảng kê hoa hồng khớp rồi nhé, em chuyển qua tài khoản chị Hương nha",
         mentions: [{ uid: "NV1" }],
       }),
     ).toBe(false);
@@ -226,7 +222,8 @@ function pollerDeps(over: {
       throw new Error(`lệnh chưa mock: ${name}`);
     },
     specFor: () => over.spec ?? dealerSpec,
-    ...(over.classify === undefined ? {} : { classify: over.classify }),
+    // Mặc định "đồng ý" để test tầng 1 + trần tần suất; nhánh thiếu classify có test riêng.
+    classify: over.classify ?? (() => Promise.resolve(true)),
   };
   return { deps, published };
 }
@@ -276,7 +273,7 @@ describe("proactiveTick (tầng 1-3)", () => {
     expect(published).toEqual([]);
   });
 
-  test("classifier (tầng 2) từ chối → không publish; chấp nhận → publish", async () => {
+  test("phán quyết (tầng 2) từ chối → không publish; chấp nhận → publish", async () => {
     const rejected = pollerDeps({ classify: () => Promise.resolve(false) });
     await proactiveTick(rejected.deps, Date.now());
     expect(rejected.published).toEqual([]);
@@ -284,6 +281,40 @@ describe("proactiveTick (tầng 1-3)", () => {
     const accepted = pollerDeps({ classify: () => Promise.resolve(true) });
     await proactiveTick(accepted.deps, Date.now());
     expect(accepted.published).toHaveLength(1);
+  });
+
+  // FAIL-CLOSED: tầng 0 không còn regex gác trước, nên thiếu cổng phán quyết mà vẫn nhặt thì
+  // MỌI câu chưa ai đáp đều đánh thức agent.
+  test("chưa nối cổng phán quyết → KHÔNG nhặt câu nào", async () => {
+    const base = pollerDeps({});
+    const published: Envelope[] = [];
+    const deps: ProactivePollerDeps = {
+      ...base.deps,
+      classify: undefined,
+      broker: {
+        publish: (e) => {
+          published.push(e);
+          return Promise.resolve();
+        },
+      },
+    };
+    await proactiveTick(deps, Date.now());
+    expect(published).toEqual([]);
+  });
+
+  test("cổng phán quyết nhận đúng cửa sổ history + năng lực của agent phòng đó", async () => {
+    const seen: { recent: number; capabilities: number }[] = [];
+    const { deps } = pollerDeps({
+      classify: (input) => {
+        seen.push({
+          recent: input.recent.length,
+          capabilities: input.spec.capabilities.length,
+        });
+        return Promise.resolve(false);
+      },
+    });
+    await proactiveTick(deps, Date.now());
+    expect(seen).toEqual([{ recent: 1, capabilities: dealerSpec.judge.capabilities.length }]);
   });
 
   test("channel không còn spec (agent tắt phễu) → câu đang chờ rơi theo", async () => {

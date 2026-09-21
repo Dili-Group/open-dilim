@@ -1,5 +1,5 @@
 // poller.ts — vòng tick của phễu proactive: câu hỏi đến hạn chờ → TẦNG 1 (đã có ai đáp chưa?)
-// → trần tần suất → TẦNG 2 (classifier, seam — chưa nối thì cho qua) → TẦNG 3 publish Envelope
+// → trần tần suất → TẦNG 2 (phán quyết có kiểu; chưa nối thì KHÔNG nhặt) → TẦNG 3 publish Envelope
 // `proactive` vào đúng queue tin thường. Worker/agent xử lý phần còn lại, poller không gọi LLM
 // trả lời — nó chỉ quyết "có đáng đánh thức agent không".
 //
@@ -10,6 +10,8 @@ import { HISTORY_WINDOW_TURNS } from "../state/session.ts";
 import type { Broker } from "../message-ingest/deps.ts";
 import type { HistoryReader } from "../worker/index.ts";
 import type { ProactiveSpec } from "../agents/types.ts";
+import type { ProactiveJudgeSpec } from "./buckets.ts";
+import type { HistoryEntry } from "../types/index.ts";
 import type { RedisCommand } from "../redis/types.ts";
 import type { Envelope } from "../types/index.ts";
 import type { PendingQuestion, ProactivePendingStore } from "./pending.ts";
@@ -23,13 +25,20 @@ export interface ProactivePollerDeps {
   readonly broker: Broker;
   readonly send: RedisCommand;
   /** Cùng hàm tra của ingest — spec đổi (agent tắt phễu) thì câu đang chờ cũng rơi theo. */
-  readonly specFor: (channel: string) => ProactiveSpec | undefined;
+  readonly specFor: (channel: string, groupId?: string) => ProactiveSpec | undefined;
   /**
-   * TẦNG 2 — seam classifier (model rẻ): true = đáng trả lời. undefined = CHƯA NỐI → cho qua
-   * hết; các tầng 0-1 + trần tần suất vẫn chặn phần lớn nhiễu. Nối classifier là chỉ cắm hàm
-   * này ở bootstrap, poller không đổi.
+   * TẦNG 2 — cổng phán quyết (proactive/judge.ts): true = đáng đánh thức agent.
+   *
+   * undefined = CHƯA NỐI → KHÔNG nhặt câu nào. Đây là fail-closed có chủ đích: tầng 0 không còn
+   * danh sách regex gác trước nữa, nên "chưa nối thì cho qua" sẽ thành đánh thức agent cho mọi
+   * câu chưa ai đáp — đúng thứ phễu sinh ra để tránh.
    */
-  readonly classify?: (question: PendingQuestion) => Promise<boolean>;
+  readonly classify?: (input: {
+    readonly question: PendingQuestion;
+    readonly recent: readonly HistoryEntry[];
+    /** Phần khai năng lực + ngưỡng của agent phục vụ phòng này. */
+    readonly spec: ProactiveJudgeSpec;
+  }) => Promise<boolean>;
 }
 
 export interface RunningProactivePoller {
@@ -53,7 +62,7 @@ export async function proactiveTick(deps: ProactivePollerDeps, nowMs: number): P
 }
 
 async function pickUp(deps: ProactivePollerDeps, question: PendingQuestion): Promise<void> {
-  const spec = deps.specFor(question.channel);
+  const spec = deps.specFor(question.channel, question.conversationId);
   if (spec === undefined) return;
 
   // TẦNG 1 — NGƯỜI KHÁC (đại lý khác, nhân viên, hay chính agent) đã lên tiếng sau câu hỏi →
@@ -65,7 +74,10 @@ async function pickUp(deps: ProactivePollerDeps, question: PendingQuestion): Pro
 
   if (!(await underRateLimit(deps.send, spec, question))) return;
 
-  if (deps.classify !== undefined && !(await deps.classify(question))) return;
+  // Cổng phán quyết dùng LẠI cửa sổ history vừa đọc ở tầng 1 — cùng một dữ kiện, đọc hai lần là
+  // tốn công mà còn có thể lệch nhau giữa hai lần gọi.
+  if (deps.classify === undefined) return;
+  if (!(await deps.classify({ question, recent, spec: spec.judge }))) return;
 
   await deps.broker.publish(toProactiveEnvelope(question));
 }

@@ -20,6 +20,7 @@ import type { TurnSpeaker } from "../context/speaker-block.ts";
 import type { WorkflowPort } from "../workflows/service.ts";
 import type { RoomRef } from "../workflows/types.ts";
 import type { AgentResult, HistoryEntry } from "../types/index.ts";
+import type { ProactiveJudgeSpec } from "../proactive/buckets.ts";
 import type { DistillSpec, MemoryRecall, MemoryScope } from "../state/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 import type { ToolFactory } from "../tools/types.ts";
@@ -225,8 +226,12 @@ export const PROACTIVE_DECLINE = "[BO-QUA]";
  * poller (tầng 1-3). Xem docs thiết kế phễu trong src/proactive/.
  */
 export interface ProactiveSpec {
-  /** Tầng 0: tin group không mention agent phải khớp ÍT NHẤT MỘT pattern mới vào phễu. */
-  readonly triggers: readonly RegExp[];
+  /**
+   * Tầng 2: agent này làm được việc gì, và ngưỡng nào thì nhảy vào (proactive/judge.ts chấm bằng
+   * model phán quyết có kiểu). Thay cho danh sách regex trước đây — regex đo từ ngữ, thứ cần đo
+   * là ý định, và regex không trả ra con số nào để biết mình đang sai bao nhiêu.
+   */
+  readonly judge: ProactiveJudgeSpec;
   /**
    * Tầng 1: chờ người thật trả lời bao lâu trước khi agent nhặt. Đến hạn mà trong phòng đã có
    * NGƯỜI KHÁC lên tiếng sau câu hỏi → coi như có người lo, agent đứng ngoài.

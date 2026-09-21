@@ -26,6 +26,20 @@ import { checkDailyBudget } from "../usage/gate.ts";
 import { UsageMeter } from "../usage/meter.ts";
 import type { WorkerContext } from "./types.ts";
 
+/**
+ * Root agent của lượt này: (kênh, nhóm) → agentType. Nhóm chuyên dụng thắng bảng kênh — nhóm xác
+ * nhận đơn nằm trên tài khoản đại lý nhưng KHÔNG do agent đại lý phục vụ.
+ *
+ * Chat 1-1 không có nhóm để tra → truyền undefined, rơi về bảng kênh như cũ.
+ */
+function agentTypeOf(ctx: WorkerContext, envelope: Envelope): string | undefined {
+  return resolveAgentType(
+    envelope.channel,
+    envelope.isGroup ? envelope.conversationId : undefined,
+    ctx.dedicatedRooms ?? [],
+  );
+}
+
 export async function handleEnvelope(
   ctx: WorkerContext,
   envelope: Envelope,
@@ -38,7 +52,7 @@ export async function handleEnvelope(
   // ở những vòng chạy xong thì tiền vẫn mất, không ghi là hụt đúng vào lúc hệ đang trục trặc.
   const meter = new UsageMeter();
   // Cũng khai ngoài try: `finally` cần agentType để ghi sổ. Chỉ là tra Map, không I/O, không throw.
-  const agent = ctx.agents.resolve(resolveAgentType(envelope.channel));
+  const agent = ctx.agents.resolve(agentTypeOf(ctx, envelope));
   try {
     // Envelope `distill` KHÔNG phải tin nhắn: bỏ qua AUTH/flash/agent, chỉ chưng cất rồi thoát.
     // Nằm trước AUTH vì không có ai "gõ" lượt này — resolve vai chỉ tốn I/O.
@@ -373,7 +387,7 @@ async function distillOnly(
 ): Promise<AgentResult> {
   if (ctx.memoryWriters === undefined) return { status: "ignored", reason: "memory_off" };
 
-  const agent = ctx.agents.resolve(resolveAgentType(envelope.channel));
+  const agent = ctx.agents.resolve(agentTypeOf(ctx, envelope));
   const writer = ctx.memoryWriters.for(agent.agentType);
   if (writer === undefined) return { status: "ignored", reason: "no_memory_writer" };
 

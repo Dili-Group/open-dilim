@@ -8,6 +8,7 @@
 
 import { checkDailyBudget } from "../usage/gate.ts";
 import { resolveAgentType } from "../agents/router.ts";
+import type { DedicatedRoom } from "../agents/dedicated-rooms.ts";
 import type { GroupCustomerLookup } from "../auth/types.ts";
 import type { UsagePort } from "../usage/types.ts";
 import type { ProactiveSpec } from "../agents/types.ts";
@@ -18,6 +19,11 @@ export type ProactiveVerify = (envelope: Envelope, spec: ProactiveSpec) => Promi
 
 export interface ProactiveVerifyDeps {
   readonly groups: GroupCustomerLookup;
+  /**
+   * Nhóm chuyên dụng (agents/dedicated-rooms.ts) — trần ngân sách khai theo AGENT, mà nhóm này
+   * do agent khác phục vụ so với kênh của nó. Bỏ qua là so nhầm trần của agent kênh.
+   */
+  readonly dedicatedRooms?: readonly DedicatedRoom[];
   /** undefined = hệ chưa nối đo chi phí → không có gì để so, cho qua (cùng semantics worker). */
   readonly usage?: {
     readonly port: UsagePort;
@@ -41,7 +47,11 @@ export function buildProactiveVerify(deps: ProactiveVerifyDeps): ProactiveVerify
     // nhưng chặn TRƯỚC: lượt proactive vượt trần mà để worker xử thì nó báo "hết ngân sách"
     // vào phòng không ai hỏi.
     if (deps.usage !== undefined) {
-      const agentType = resolveAgentType(envelope.channel);
+      const agentType = resolveAgentType(
+        envelope.channel,
+        envelope.conversationId,
+        deps.dedicatedRooms ?? [],
+      );
       if (agentType !== undefined) {
         const decision = await checkDailyBudget({
           usage: deps.usage.port,
