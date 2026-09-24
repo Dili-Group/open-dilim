@@ -80,6 +80,24 @@ describe("tra_gia_le", () => {
     expect(port.recommended).toEqual([[{ sku: "SCMNB", quantity: 3 }]]);
   });
 
+  test("mã trong danh mục → báo giá thẳng, không qua ô tìm kiếm", async () => {
+    // Ô tìm kiếm rỗng: mã vẫn phải khớp — ca khách gửi ảnh, model đọc nhãn ra mã AFCRICH.
+    const port = new FakePricing({});
+    const result = await buildRetailQuoteTool(ctxWith(port)).run({
+      gio_hang: [{ san_pham: "afcrich", so_luong: 2 }],
+    });
+    expect(result.isError).toBeUndefined();
+    expect(result.content).toContain("Rich Coenzyme Q10");
+    expect(port.recommended).toEqual([[{ sku: "AFCRICH", quantity: 2 }]]);
+  });
+
+  test("mô tả tool có danh mục SKU, không có vật tư", () => {
+    const { description } = buildRetailQuoteTool(ctxWith(new FakePricing({})));
+    expect(description).toContain("AFCRICH: Rich Coenzyme Q10");
+    expect(description).not.toContain("CARTON");
+    expect(description).not.toContain("BINHGN");
+  });
+
   test("tên khớp nhiều sản phẩm → hỏi lại khách, KHÔNG gọi báo giá", async () => {
     const port = new FakePricing({ sun: [SUN_KHOP, SUN_KHOP_PLUS] });
     const result = await buildRetailQuoteTool(ctxWith(port)).run({

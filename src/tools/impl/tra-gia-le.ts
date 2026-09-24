@@ -1,8 +1,9 @@
 // tra-gia-le.ts — `tra_gia_le` ĐỌC: báo giá LẺ một giỏ hàng cho khách Messenger — giá khách thực
 // trả sau khi áp chương trình tốt nhất (engine pricing-vector), kèm giá lẻ cộng dồn và quà.
 //
-// Model KHÔNG biết SKU: khách gõ tên ("sụn khớp", "mắt"). Tool tự tìm SKU theo tên rồi mới báo
-// giá; tên khớp nhiều sản phẩm → trả danh sách để model hỏi lại khách, KHÔNG tự chọn hộ.
+// Mô tả tool kèm danh mục SKU: model đối chiếu tên khách gõ hoặc nhãn trên ẢNH với danh mục rồi
+// truyền mã. Mã trong danh mục dùng thẳng; còn lại tool tìm theo tên, khớp nhiều sản phẩm → trả
+// danh sách để model hỏi lại khách, KHÔNG tự chọn hộ.
 //
 // Không có tham số danh tính nào: giá không phụ thuộc người hỏi, nên người nhắn chưa xác thực
 // gọi được mà không rò gì.
@@ -12,6 +13,7 @@ import type { RetailProduct, RetailQuote } from "../../operational/types.ts";
 import { readIntegerField, readStringField } from "../input.ts";
 import type { Tool, ToolContext, ToolResult } from "../types.ts";
 import { formatMoney } from "./order/scope.ts";
+import { findCatalogProduct, renderCatalog } from "./retail-catalog.ts";
 
 /** Giỏ khách lẻ vài dòng là cùng; quá mức này là model gửi rác. */
 const MAX_CART_LINES = 10;
@@ -65,9 +67,15 @@ export function buildRetailQuoteTool(ctx: ToolContext): Tool {
     description:
       "ĐỌC: báo giá lẻ cho một giỏ hàng — số tiền khách thực trả sau khi hệ thống tự áp chương " +
       "trình khuyến mãi tốt nhất, kèm giá lẻ cộng dồn, số tiết kiệm và quà tặng. Gọi khi khách hỏi " +
-      "giá, hỏi combo, hoặc trước khi tóm đơn. Truyền tên sản phẩm đúng như khách nói, tool tự tìm " +
-      "mã. CHỈ báo giá theo kết quả tool, không tự tính, không tự giảm.",
-          inputSchema: {
+      "giá, hỏi combo, hoặc trước khi tóm đơn. CHỈ báo giá theo kết quả tool, không tự tính, không " +
+      "tự giảm.\n" +
+      "Đối chiếu sản phẩm với danh mục dưới rồi truyền MÃ vào san_pham — kể cả khi khách gửi ẢNH: " +
+      "đọc nhãn (tên, hoạt chất, quy cách) và so với tên trong danh mục (vd hộp \"Coenzyme Q10 " +
+      "dạng khử\" = AFCRICH). Không chắc là mã nào thì truyền tên khách nói; ảnh không khớp sản " +
+      "phẩm nào trong danh mục thì đó không phải hàng bên mình bán.\n" +
+      "Danh mục (MÃ: tên):\n" +
+      renderCatalog(),
+    inputSchema: {
       type: "object",
       properties: {
         gio_hang: {
@@ -77,7 +85,7 @@ export function buildRetailQuoteTool(ctx: ToolContext): Tool {
             properties: {
               san_pham: {
                 type: "string",
-                description: "Tên sản phẩm khách nói (vd \"sụn khớp\") hoặc mã SKU nếu đã biết.",
+                description: "Mã trong danh mục (vd \"SCMNB\"), hoặc tên khách nói nếu chưa rõ mã.",
               },
               so_luong: { type: "integer", description: "Số lượng khách muốn mua, nguyên dương." },
             },
@@ -108,9 +116,11 @@ async function run(
   let quote: RetailQuote | null;
   try {
     matches = await Promise.all(
-      cart.map(async (line) =>
-        matchLine(line, await pricing.searchProducts(line.query, signal)),
-      ),
+      cart.map(async (line): Promise<LineMatch> => {
+        const known = findCatalogProduct(line.query);
+        if (known !== undefined) return { kind: "found", product: known, quantity: line.quantity };
+        return matchLine(line, await pricing.searchProducts(line.query, signal));
+      }),
     );
     const unresolved = renderUnresolved(matches);
     if (unresolved !== undefined) return unresolved;
