@@ -158,8 +158,9 @@ export class AgentApiClient {
    * GET một endpoint KHÔNG gắn phạm vi đại lý (không có `x-dealer-id`).
    *
    * CHỈ dùng cho endpoint mà việc của nó chính là TRA RA đại lý từ một mã (vd chủ sở hữu đơn
-   * hoàn) — ở đó chưa biết đại lý nào để mà gắn header. Endpoint đọc dữ liệu đơn/công nợ PHẢI đi
-   * qua `get`: bỏ header đại lý ở đó là mở toang dữ liệu của mọi đại lý cho một lượt chat.
+   * hoàn) — ở đó chưa biết đại lý nào để mà gắn header — hoặc endpoint dữ liệu không thuộc đại lý
+   * nào (danh mục sản phẩm cho báo giá lẻ). Endpoint đọc dữ liệu đơn/công nợ PHẢI đi qua `get`:
+   * bỏ header đại lý ở đó là mở toang dữ liệu của mọi đại lý cho một lượt chat.
    */
   async getUnscoped(
     path: string,
@@ -216,6 +217,7 @@ export class AgentApiClient {
    * CHỈ dùng cho ghi nhận thứ đến từ NGƯỜI CHƯA ĐỊNH DANH (khách lẻ nhắn vào Official Account):
    * ở đó không có đại lý nào để gắn phạm vi, cũng không có nhân viên nào đứng sau lượt chat.
    * Endpoint ghi dữ liệu đại lý PHẢI đi qua `post`; bỏ header phạm vi ở đó là ghi mù.
+   * Cũng dùng cho POST CHỈ ĐỌC không thuộc đại lý nào (báo giá một giỏ lẻ).
    *
    * KHÔNG RETRY như mọi đường ghi khác (xem `post`).
    */

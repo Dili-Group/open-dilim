@@ -819,3 +819,55 @@ export interface CustomerZaloLinkPort {
   /** Lỗi mạng/HTTP bubble lên để tool trả lỗi nghiệp vụ cho model, không nuốt. */
   link(input: CustomerZaloLink, signal?: AbortSignal): Promise<CustomerZaloLinkResult>;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Báo giá LẺ cho khách (Messenger) — `POST /pricing-vector/recommend` + `GET /products?search=`.
+//
+// Không nằm dưới `/agent/*` nhưng gọi bằng cùng service token (không gắn đại lý). Là nguồn giá duy
+// nhất đúng mà widget bán hàng cũng dùng. Cả hai CHỈ ĐỌC, không nhận danh tính — giỏ vào, giá
+// ra — nên an toàn cho người nhắn chưa xác thực.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Sản phẩm tìm theo tên. CHỈ giữ tên + SKU + đơn vị: backend trả cả giá vốn, bậc giá đại lý, tồn
+ * kho — agent khách lẻ không được cầm mấy thứ đó.
+ */
+export interface RetailProduct {
+  readonly sku: string;
+  readonly name: string;
+  /** "hộp", "lọ"… — vắng khi backend không trả. */
+  readonly unit?: string;
+}
+
+export interface RetailCartLine {
+  readonly sku: string;
+  readonly quantity: number;
+}
+
+/** Một chương trình góp vào giá tối ưu. `count` = số lần áp chương trình đó trong giỏ. */
+export interface RetailCampaign {
+  readonly label: string;
+  readonly price: number;
+  readonly count: number;
+  /** SKU → số lượng quà của MỘT lần áp. Vắng = không có quà. */
+  readonly gifts?: Readonly<Record<string, number>>;
+}
+
+/** Giá tốt nhất của giỏ. `optimal` là TIỀN HÀNG khách trả, chưa gồm phí ship. */
+export interface RetailQuote {
+  readonly optimal: number;
+  readonly retailTotal: number;
+  readonly savings: number;
+  readonly campaigns: readonly RetailCampaign[];
+  readonly pricingEpoch?: number;
+}
+
+export interface RetailPricingPort {
+  /** Sản phẩm ĐANG BÁN khớp tên/SKU (ILIKE). Rỗng = không khớp gì. */
+  searchProducts(search: string, signal?: AbortSignal): Promise<readonly RetailProduct[]>;
+  /**
+   * null = backend không đưa ra giá: không combo nào rẻ hơn giá lẻ, hoặc có SKU chưa có giá lẻ.
+   * Hai ca này backend KHÔNG phân biệt — nơi gọi không được đoán là ca nào.
+   */
+  recommend(items: readonly RetailCartLine[], signal?: AbortSignal): Promise<RetailQuote | null>;
+}

@@ -14,6 +14,7 @@ import type {
   InternalOrdersPort,
   OrderPort,
   PoscakePort,
+  RetailPricingPort,
 } from "../operational/types.ts";
 import type { PendingNotice } from "../context/pending-block.ts";
 import type { TurnSpeaker } from "../context/speaker-block.ts";
@@ -93,6 +94,8 @@ export interface AgentDeps {
   readonly announce?: AnnouncePort;
   /** Cổng GẮN zalo user id vào hồ sơ khách cho tool `ghi_nhan_khach`. undefined = chưa nối. */
   readonly customerZalo?: CustomerZaloLinkPort;
+  /** Cổng BÁO GIÁ LẺ cho tool `tra_gia_le`. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
+  readonly retailPricing?: RetailPricingPort;
 }
 
 export interface AgentRunInput {

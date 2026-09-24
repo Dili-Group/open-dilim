@@ -33,6 +33,7 @@ import { buildPoscakeRegisterTool } from "./impl/dealer/poscake.ts";
 import { buildImageReadTool } from "./impl/vision/xem-anh.ts";
 import { buildDocReadTool } from "./impl/doc/doc-file.ts";
 import { buildCustomerLeadTool } from "./impl/ghi-nhan-khach.ts";
+import { buildRetailQuoteTool } from "./impl/tra-gia-le.ts";
 import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
 import { buildWorkflowAnswerTool } from "./impl/workflow/answer.ts";
 import { buildWorkflowListTool } from "./impl/workflow/list.ts";
@@ -58,6 +59,17 @@ export const COMMON_TOOLS: readonly ToolFactory[] = [
  */
 export const CUSTOMER_LEAD_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildCustomerLeadTool(ctx),
+];
+
+/**
+ * Tool BÁO GIÁ LẺ của agent khách Messenger. Chỉ đọc, không tham số danh tính — giá không phụ thuộc
+ * người hỏi nên người chưa xác thực gọi được.
+ *
+ * KHÔNG khai cho agent đại lý: đại lý nói chuyện theo giá nhập/bậc chiết khấu, đưa giá lẻ vào đó
+ * là hai nguồn giá cãi nhau trong một phòng.
+ */
+export const RETAIL_PRICING_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildRetailQuoteTool(ctx),
 ];
 
 /**

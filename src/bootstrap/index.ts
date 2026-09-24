@@ -50,6 +50,7 @@ import { AgentApiInternalOrdersPort } from "../operational/internal-api.ts";
 import { AgentApiPoscakePort } from "../operational/poscake-api.ts";
 import { AgentApiCustomerZaloPort } from "../operational/customer-zalo-api.ts";
 import { AgentApiOrderOwnerPort } from "../operational/owner-api.ts";
+import { AgentApiRetailPricingPort } from "../operational/pricing-api.ts";
 import {
   SqlPendingStore,
   WorkflowService,
@@ -202,6 +203,9 @@ export async function bootstrap(): Promise<Services> {
   // Cổng GẮN zalo user id vào hồ sơ khách (tra theo số điện thoại) — không gắn đại lý lẫn nhân
   // viên: chính nó là bước tra ra đại lý. Tách port riêng để chỉ tool `ghi_nhan_khach` cầm được.
   const customerZalo = new AgentApiCustomerZaloPort(agentApi);
+  // Báo giá lẻ cho khách Messenger (`/products` + `/pricing-vector/recommend`). Cùng client, chỉ
+  // service token — không gắn đại lý: giá lẻ không thuộc đại lý nào.
+  const retailPricing = new AgentApiRetailPricingPort(agentApi);
 
   // Egress dựng TRƯỚC agent vì tầng workflows cần broadcaster (báo kết quả về phòng đã hỏi, có
   // khi 2 ngày sau — lúc đó không còn lượt agent nào đang chạy để nhờ gửi hộ).
@@ -289,6 +293,7 @@ export async function bootstrap(): Promise<Services> {
     workflow,
     announce,
     customerZalo,
+    retailPricing,
   });
   assertSkillAgentScopes(skills, agents);
 

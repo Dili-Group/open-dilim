@@ -14,6 +14,7 @@ import type {
   InternalOrdersPort,
   OrderPort,
   PoscakePort,
+  RetailPricingPort,
 } from "../operational/types.ts";
 import type { SkillRegistry } from "../skills/registry.ts";
 import type { DocPort } from "../doc/types.ts";
@@ -127,6 +128,11 @@ export interface ToolContext {
    * undefined = chưa nối → tool trả lỗi nghiệp vụ, không throw.
    */
   readonly customerZalo?: CustomerZaloLinkPort;
+  /**
+   * Cổng BÁO GIÁ LẺ (tìm SKU theo tên + giá tốt nhất của giỏ). Chỉ đọc, không nhận danh tính —
+   * an toàn cho người nhắn chưa xác thực. undefined = chưa nối → tool trả lỗi nghiệp vụ.
+   */
+  readonly retailPricing?: RetailPricingPort;
 }
 
 export type ToolFactory = (ctx: ToolContext) => Tool;
