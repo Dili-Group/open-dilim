@@ -14,7 +14,7 @@ export const SITE = {
   locale: "vi_VN",
   title: "DiLiM — Agent AI vận hành đơn hàng cho đại lý, trực 24/7",
   description:
-    "DiLiM là hệ agent AI vận hành đơn hàng cho đại lý: tra đơn, báo hết hàng, chốt sổ cuối ngày, trả lời ngay trên nhóm chat kể cả 2 giờ sáng. 6 agent chuyên trách, 200+ đại lý đang chạy.",
+    "DiLiM là hệ agent AI vận hành đơn hàng cho đại lý: tra đơn, báo hết hàng, chốt sổ cuối ngày, trả lời ngay trên nhóm chat kể cả 2 giờ sáng. 6 agent chuyên trách, 200+ đại lý đang hoạt động.",
   /**
    * Ba nhóm từ khoá theo mức khả thi giảm dần: brand (top 1 khả thi) →
    * long-tail tiếng Việt (khả thi) → từ rộng (chỉ phủ on-page).

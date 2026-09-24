@@ -6,8 +6,8 @@
  * `6 agent` khớp đúng số root agent trong src/agents/registry.ts — kiểm chứng được.
  */
 export const STATS = [
-  { value: 200, suffix: "+", label: "đại lý đang chạy" },
-  { value: 300, suffix: "+", label: "đơn xử lý mỗi ngày" },
+  { value: 200, suffix: "+", label: "đại lý đang hoạt động" },
+  { value: 300, suffix: "+", label: "đơn được xử lý mỗi ngày" },
   { value: 6, suffix: "", label: "agent chuyên trách" },
 ] as const;
 
@@ -20,7 +20,7 @@ export const HERO = {
   sub: "DiLiM vận hành bằng đội agent AI chuyên trách — tra đơn, báo hết hàng, chốt sổ cuối ngày. Nhắn là có trả lời, không chờ giờ hành chính, không “để em hỏi lại”.",
   ctaPrimary: "Đăng ký làm đại lý",
   ctaSecondary: "Chat thử agent ngay",
-  ctaNote: "Miễn phí. Không cần nhập gì trước khi chat.",
+  ctaNote: "Miễn phí. Không cần nhập gì trước khi chat trong nhóm hỗ trợ.",
 } as const;
 
 /** TODO(link): thay bằng URL thật — form đăng ký và deep-link Zalo OA. */
@@ -167,19 +167,19 @@ export const FAQ = {
   heading: "Hỏi gì trước khi bắt đầu?",
   items: [
     {
-      q: "DiLiM là gì?",
-      a: "DiLiM là hệ vận hành chạy bằng đội agent AI cho đại lý của DiLi Supplement. Bạn nhắn trong nhóm như nhắn cho người hỗ trợ, agent tra dữ liệu thật trong hệ thống rồi trả lời ngay — tra đơn, kiểm hết hàng, chốt sổ cuối ngày, bất kể mấy giờ.",
+      q: "Open DiLiM Agent là gì?",
+      a: "Open DiLiM Agent là hệ vận hành chạy bằng đội agent AI cho đại lý của DiLi Supplement. Bạn nhắn trong nhóm như nhắn cho người hỗ trợ, agent tra dữ liệu thật trong hệ thống rồi trả lời ngay — tra đơn, kiểm hết hàng, chốt sổ cuối ngày, bất kể mấy giờ.",
     },
     {
       q: "Agent AI của DiLiM khác chatbot thường ở chỗ nào?",
       a: "Chatbot đọc kịch bản có sẵn. Agent DiLiM tra dữ liệu thật trong hệ thống đơn hàng, mở quy trình xử lý nhiều bước, hẹn giờ chạy lại và nhắn cho bạn trước khi bạn kịp hỏi. Không có câu trả lời thì nói không biết, không đoán.",
     },
     {
-      q: "DiLiM có bao nhiêu agent và mỗi agent làm gì?",
+      q: "Open DiLiM có bao nhiêu agent và mỗi agent làm gì?",
       a: "6 agent chuyên trách: agent đại lý (nhóm chat hỗ trợ của bạn), agent vận hành (Sales Admin), agent kho, agent lãnh đạo, trợ lý riêng 1-1 và agent điều phối chạy nền. Mỗi agent có prompt riêng, quyền riêng và trí nhớ riêng.",
     },
     {
-      q: "Dùng DiLiM ở đâu, có phải cài app không?",
+      q: "Dùng Open DiLiM ở đâu, có phải cài app không?",
       a: "Không cài gì. Agent nằm sẵn trong nhóm chat của bạn. Nhắn tin bình thường là dùng được.",
     },
     {
