@@ -13,7 +13,7 @@ import type { RetailProduct, RetailQuote } from "../../operational/types.ts";
 import { readIntegerField, readStringField } from "../input.ts";
 import type { Tool, ToolContext, ToolResult } from "../types.ts";
 import { formatMoney } from "./order/scope.ts";
-import { findCatalogProduct, renderCatalog } from "./retail-catalog.ts";
+import { findCatalogProduct, quoteAtRetailPrice, renderCatalog } from "./retail-catalog.ts";
 
 /** Giỏ khách lẻ vài dòng là cùng; quá mức này là model gửi rác. */
 const MAX_CART_LINES = 10;
@@ -42,8 +42,9 @@ const INVALID_INPUT: ToolResult = {
 };
 
 /**
- * Backend trả null ở hai ca nó không tách: giỏ không có chương trình nào rẻ hơn giá lẻ, hoặc có
- * sản phẩm chưa có giá lẻ. Cả hai đều = không có con số nào đáng tin để nói.
+ * Backend trả null khi giỏ không có chương trình nào rẻ hơn giá lẻ, hoặc có sản phẩm chưa có giá
+ * lẻ. Ca đầu tool tự tính theo bảng giá lẻ; tới đây là giỏ có SKU ngoài bảng giá — không có con
+ * số nào đáng tin để nói.
  */
 const NO_QUOTE: ToolResult = {
   content:
@@ -124,7 +125,8 @@ async function run(
     );
     const unresolved = renderUnresolved(matches);
     if (unresolved !== undefined) return unresolved;
-    quote = await pricing.recommend(toCartLines(matches), signal);
+    const cartLines = toCartLines(matches);
+    quote = (await pricing.recommend(cartLines, signal)) ?? quoteAtRetailPrice(cartLines) ?? null;
   } catch (err) {
     if (err instanceof AgentApiError) {
       // message chỉ có method/path/status/code — KHÔNG có token.

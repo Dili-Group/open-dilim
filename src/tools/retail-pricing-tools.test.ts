@@ -119,10 +119,21 @@ describe("tra_gia_le", () => {
     expect(port.recommended).toHaveLength(0);
   });
 
-  test("backend trả null → không có con số nào, hẹn nhân viên báo giá", async () => {
-    const port = new FakePricing({ "sụn khớp": [SUN_KHOP] }, null);
+  test("backend trả null, SKU có giá lẻ → báo giá lẻ × số lượng, không chương trình", async () => {
+    const port = new FakePricing({}, null);
     const result = await buildRetailQuoteTool(ctxWith(port)).run({
-      gio_hang: [{ san_pham: "sụn khớp", so_luong: 1 }],
+      gio_hang: [{ san_pham: "AFCRICH", so_luong: 2 }],
+    });
+    expect(result.isError).toBeUndefined();
+    expect(result.content).toContain("5.780.000");
+    expect(result.content).not.toContain("Chương trình áp dụng");
+    expect(result.content).not.toContain("tiết kiệm");
+  });
+
+  test("backend trả null, SKU ngoài bảng giá lẻ → không có con số nào, hẹn nhân viên", async () => {
+    const port = new FakePricing({ "sụn khớp plus": [SUN_KHOP_PLUS] }, null);
+    const result = await buildRetailQuoteTool(ctxWith(port)).run({
+      gio_hang: [{ san_pham: "sụn khớp plus", so_luong: 1 }],
     });
     expect(result.content).toContain("chưa tính được giá");
     expect(result.content).not.toMatch(/\d{3}\.\d{3}/);
