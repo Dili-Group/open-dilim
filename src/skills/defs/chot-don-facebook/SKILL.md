@@ -1,6 +1,6 @@
 ---
 name: chot-don-facebook
-description: Nhịp tư vấn và chốt đơn cho khách nhắn Facebook Page — khi nào chuyển từ hỗ trợ sang đặt hàng, gom thông tin lên đơn theo thứ tự nào, tóm đơn cho khách xác nhận, rồi cảm ơn và dừng để nhân viên lên đơn. Load ở lượt đầu của mọi cuộc chat Messenger, và ngay khi khách hỏi giá, hỏi cách mua, hỏi ship, nói "lấy cho chị", "đặt thế nào", hoặc báo hàng có vấn đề.
+description: Nhịp tư vấn và chốt đơn cho khách nhắn Facebook Page — khi nào chuyển từ hỗ trợ sang đặt hàng, gom thông tin lên đơn theo thứ tự nào, tóm đơn cho khách xác nhận, rồi cảm ơn và dừng để nhân viên lên đơn. Load ở lượt đầu của mọi cuộc chat Messenger, và ngay khi khách hỏi giá (để KHÔNG báo giá sớm), hỏi cách mua, hỏi ship, nói "lấy cho chị", "đặt thế nào", hoặc báo hàng có vấn đề.
 agents: sale-facebook
 ---
 
@@ -16,12 +16,13 @@ Hỏi gì trả lời nấy cho yên tâm (skill `khach-hay-hoi`, `tpbs-dung-lua
 
 Chỉ khi khách tự có dấu hiệu mua:
 
-- Hỏi giá, hỏi combo, hỏi khuyến mãi
 - Hỏi cách mua, hỏi ship, hỏi bao lâu nhận
 - Nói thẳng: "lấy cho chị 2 hộp", "đặt thế nào", "gửi về cho mẹ"
 
-Chưa có dấu hiệu mua — khách kể triệu chứng, hỏi "uống có đỡ không", hỏi chung chung
-— thì đi nhánh khai thác nhu cầu rồi xin số điện thoại: skill `khai-thac-nhu-cau`. Đang
+Hỏi giá, hỏi combo, hỏi khuyến mãi **chưa phải** dấu hiệu mua — xem mục Giá.
+
+Chưa có dấu hiệu mua — khách kể triệu chứng, hỏi "uống có đỡ không", hỏi giá, hỏi chung
+chung — thì đi nhánh khai thác nhu cầu rồi xin số điện thoại: skill `khai-thac-nhu-cau`. Đang
 khai thác mà khách nói muốn mua thì quay về đây chốt luôn.
 
 ## Gom thông tin — một lần hỏi một thứ
@@ -43,12 +44,32 @@ Luật hỏi:
 - Số điện thoại sai dạng (không đủ 10 số, không bắt đầu bằng 0) thì nói thẳng là số chưa
   đủ, xin lại. Số đúng dạng thì nhận luôn, KHÔNG đọc lại số để hỏi "đúng không ạ".
 
-## Giá
+## Giá — chỉ báo khi khách đã chốt mua
 
-Khách hỏi giá, hỏi combo, hoặc đã chốt sản phẩm + số lượng → gọi `tra_gia_le` với tên
-sản phẩm đúng như khách nói. Báo đúng số "khách trả" tool đưa ra, kèm tên chương trình
-và quà nếu có. Số đó ĐÃ gồm phí ship — bên mình chịu ship, không bao giờ thu thêm phí ship
-của khách. Khách hỏi ship → "giá này đã bao gồm phí giao hàng rồi ạ".
+**Không bao giờ báo giá khi khách mới hỏi giá.** Hỏi giá chưa phải chốt: báo số sớm thì
+khách chỉ nhớ con số, so giá rồi đi, mình mất cơ hội tư vấn và mất số điện thoại.
+
+Khách hỏi giá, combo, khuyến mãi khi chưa chốt → KHÔNG gọi `tra_gia_le`, không nêu con
+số nào (kể cả giá khoảng, giá mỗi ngày, số tiền tiết kiệm). Làm theo thứ tự:
+
+1. Nhận câu hỏi, nói giá tùy liệu trình hợp với tình trạng của mình.
+2. Hỏi một câu tư vấn (skill `khai-thac-nhu-cau`) hoặc xin số điện thoại để bạn tư vấn
+   báo chương trình đang có.
+
+> "Dạ giá bên em tùy liệu trình hợp với tình trạng của mình, và đang có chương trình ưu đãi
+> theo số lượng ạ. Mình đang muốn cải thiện chuyện gì nhất ạ, để em tư vấn đúng loại cho mình?"
+
+> "Dạ cô cho em xin số điện thoại, bạn tư vấn bên em gọi báo chương trình đang có cho chính
+> xác, rồi hướng dẫn cô dùng luôn ạ."
+
+Khách hỏi lại giá lần hai, ba → vẫn không nêu số; nói ngắn gọn, thật lòng rồi xin số, đừng
+lặp y câu cũ. Khách đưa số điện thoại → nhận, nói bạn tư vấn sẽ gọi báo giá.
+
+**Khi nào được báo giá:** khách đã nói chốt mua — có sản phẩm + số lượng ("lấy cho chị 2
+hộp", "đặt 1 combo"), hoặc đồng ý đặt sau khi được tư vấn. Lúc đó gọi `tra_gia_le` với tên
+sản phẩm đúng như khách nói, báo đúng số "khách trả" tool đưa ra, kèm tên chương trình và
+quà nếu có, rồi gom thông tin tiếp. Số đó ĐÃ gồm phí ship — bên mình chịu ship, không bao
+giờ thu thêm phí ship của khách. Khách hỏi ship → "giá này đã bao gồm phí giao hàng rồi ạ".
 
 - Tool báo tên khớp nhiều sản phẩm → hỏi khách đúng một câu để chọn, đừng tự chọn.
 - Có tiết kiệm thì nói một câu cho khách thấy lợi ("mua 2 hộp được giảm 420.000đ ạ"),
@@ -59,16 +80,14 @@ của khách. Khách hỏi ship → "giá này đã bao gồm phí giao hàng r�
   đã là giá tốt nhất cho số lượng đó; muốn rẻ hơn thì gợi ý mức combo tool báo.
 
 **Khách chê giá** ("giá cao quá", "mắc"): đây là lời từ chối, xử lý theo skill
-`xu-ly-tu-choi`. Khách đã nói tên sản phẩm thì gọi `tra_gia_le` NGAY trong lượt đó,
-đừng hỏi lại tên. Có combo tiết kiệm thì nói ra, đó là câu trả lời đúng nhất cho chuyện
-giá. Đừng chỉ kể công dụng sản phẩm để né con số.
+`xu-ly-tu-choi`. Khách chưa chốt thì vẫn không nêu số mới; đã chốt thì được gọi
+`tra_gia_le` để nói combo tiết kiệm.
 
 ## Việc bạn KHÔNG làm được — đừng hứa
 
 Bạn không tra được đơn, không xem được lịch sử mua, không sửa được đơn đã lên.
 
-- KHÔNG xin mã đơn "để em kiểm tra": bạn không kiểm tra được. Khách hỏi giá thì chỉ cần
-  tên sản phẩm.
+- KHÔNG xin mã đơn "để em kiểm tra": bạn không kiểm tra được.
 - Khách hỏi đơn cũ (đang giao tới đâu, đã thanh toán chưa): nói nhân viên sẽ kiểm tra và
   nhắn lại, đừng hứa giờ.
 

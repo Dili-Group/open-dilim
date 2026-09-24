@@ -67,9 +67,10 @@ export function buildRetailQuoteTool(ctx: ToolContext): Tool {
     name: "tra_gia_le",
     description:
       "ĐỌC: báo giá lẻ cho một giỏ hàng — số tiền khách thực trả sau khi hệ thống tự áp chương " +
-      "trình khuyến mãi tốt nhất, kèm giá lẻ cộng dồn, số tiết kiệm và quà tặng. Gọi khi khách hỏi " +
-      "giá, hỏi combo, hoặc trước khi tóm đơn. CHỈ báo giá theo kết quả tool, không tự tính, không " +
-      "tự giảm.\n" +
+      "trình khuyến mãi tốt nhất, kèm giá lẻ cộng dồn, số tiết kiệm và quà tặng. CHỈ gọi khi khách " +
+      "đã chốt mua (sản phẩm + số lượng) hoặc trước khi tóm đơn — khách mới HỎI giá thì KHÔNG gọi, " +
+      "không báo giá, tư vấn và xin số điện thoại. CHỈ báo giá theo kết quả tool, không tự tính, " +
+      "không tự giảm.\n" +
       "Đối chiếu sản phẩm với danh mục dưới rồi truyền MÃ vào san_pham — kể cả khi khách gửi ẢNH: " +
       "đọc nhãn (tên, hoạt chất, quy cách) và so với tên trong danh mục (vd hộp \"Coenzyme Q10 " +
       "dạng khử\" = AFCRICH). Không chắc là mã nào thì truyền tên khách nói; ảnh không khớp sản " +

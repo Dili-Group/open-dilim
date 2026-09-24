@@ -69,9 +69,10 @@ hợp đổi trả được không", "ship bao lâu, có COD không".
 
 Nỗi lo thật: **sợ hớ, hoặc đang so sánh với nơi khác.**
 
-Chỉ nêu giá và chương trình **đã có trong dữ liệu**. Không tự thương lượng, không tự
-hứa. Đây cũng là nhóm câu hỏi nên chuyển sang xin số điện thoại sớm nhất: giá và chương
-trình để bạn phụ trách báo cho chính xác.
+**Không báo giá khi khách mới hỏi giá** — không nêu con số nào. Đây là nhóm câu hỏi nên
+chuyển sang xin số điện thoại sớm nhất: giá và chương trình để bạn phụ trách báo cho chính
+xác. Chỉ khi khách đã chốt mua mới cho biết giá (skill chốt đơn của kênh, nếu có). Không
+tự thương lượng, không tự hứa.
 
 ## Nguyên tắc chung khi trả lời
 

@@ -7,7 +7,7 @@ Mọi câu đã lọc qua luật. Mã nguồn chỉ để đối chiếu, không
 
 | Mã | Khách nói | Cách trả lời | Nguồn |
 |---|---|---|---|
-| G3 | "Cao cấp quá, tôi tìm loại giá mềm hơn" | Hỏi lại mục tiêu: "Điều mình muốn giải quyết nhất lúc này là gì ạ?" Rồi quy ra chi phí mỗi ngày theo liều nhãn. Không chủ động nói tiền trước khi khách hỏi. | DT03 2:24:36 |
+| G3 | "Cao cấp quá, tôi tìm loại giá mềm hơn" | Hỏi lại mục tiêu: "Điều mình muốn giải quyết nhất lúc này là gì ạ?" Không nêu con số khi khách chưa chốt mua; đã chốt thì quy ra chi phí mỗi ngày theo liều nhãn. | DT03 2:24:36 |
 | G4 | "Sao giá cao hơn thị trường?" (hoặc dùng trước khi khách kịp hỏi) | "Mình biết vì sao sản phẩm bên em giá cao hơn thị trường mà nhiều khách vẫn dùng đi dùng lại không ạ?" → nói khác biệt bằng số trong `theo-san-pham.md`. "Hàng nội địa Nhật mà giá rẻ bất thường thì mình có yên tâm không ạ?" | DT14 38:59; DT13 1:19:50 |
 | G5 | "Chỗ khác / Shopee / nhà thuốc rẻ hơn" | Không chê nơi khác. So bằng công thức và dạng bào chế, không so số hộp. Giữ khách bằng sự đồng hành, không đua giá. | TH02 1:47:56; XK01 1:54:01; TM05 34:11 |
 | G6 | "Nhiều tiền quá, chưa mua được" | Tôn trọng khả năng của khách. Đề xuất lựa chọn nhỏ hơn nhưng nói rõ liệu trình đầy đủ cần dài hơn. | TH05 1:28:16; DT07 1:04:14 |
@@ -16,7 +16,7 @@ Mọi câu đã lọc qua luật. Mã nguồn chỉ để đối chiếu, không
 
 **Ba lựa chọn** khi khách chần chừ giữa các mức [DT19 1:05:00]: đưa lớn / vừa / nhỏ nhất,
 để khách chọn. Lựa chọn lớn luôn nêu trước; không đạt thì vẫn còn lựa chọn nhỏ nhất.
-Giá từng mức lấy từ `tra_gia_le`; không tự cộng hay tự giảm.
+Giá từng mức lấy từ `tra_gia_le`, chỉ nêu khi khách đã chốt mua; không tự cộng hay tự giảm.
 
 ## Nhóm NIỀM TIN
 
@@ -31,7 +31,7 @@ Giá từng mức lấy từ `tra_gia_le`; không tự cộng hay tự giảm.
 | N13 | "Bác sĩ bảo ngừng thực phẩm chức năng" | Không phản bác bác sĩ. Hỏi khách dùng thấy thế nào, đưa thông tin (sản phẩm được cấp phép, có nhãn phụ), để khách tự quyết và trao đổi lại với bác sĩ. | DT01 1:06:35 |
 | N14 | "Cứ gửi thông tin chị xem" | Dấu hiệu mình đã nói nhiều về sản phẩm. Gửi gọn một tin, rồi hỏi lại đúng vấn đề chính của khách. | DT01 1:38:28 |
 | N15 | "Uống lâu có bị phụ thuộc không?" | Thực phẩm bổ sung là thực phẩm, không phải thuốc; dùng như bữa ăn, theo hướng dẫn. Không nói "an toàn tuyệt đối". | TH06 1:56:32; DT13 1:37:00 |
-| N16 | Chỉ hỏi giá, không kể tình trạng | Báo giá theo `tra_gia_le` ngay (khách hỏi thì trả), rồi xin một câu: "Mình dùng cho tình trạng gì ạ, để em gợi ý đúng liệu trình?" | DT14 1:03:51, 1:18:53 |
+| N16 | Chỉ hỏi giá, không kể tình trạng | KHÔNG báo giá. Nói giá tùy liệu trình, hỏi một câu: "Mình dùng cho tình trạng gì ạ, để em gợi ý đúng liệu trình?" rồi xin số điện thoại để bạn tư vấn báo giá. Chỉ báo khi khách chốt mua. | DT14 1:03:51, 1:18:53 |
 | N17 | Khách nổi nóng, nói nặng | Không đáp trả. Một câu nhận cảm xúc, một câu hỏi để hiểu chuyện. Không gửi dồn tin. | DT19 1:41:27 |
 | N18 | Khách quá sợ, đòi mua ngay | Cho khách dừng một nhịp: giải thích rõ sản phẩm hỗ trợ được gì, không được gì. Nhóm này mua nhanh nhưng dễ bỏ nhất. Triệu chứng nặng, cấp → khuyên đi khám (skill `tpbs-dung-luat`). | DT07 1:11:47 |
 
