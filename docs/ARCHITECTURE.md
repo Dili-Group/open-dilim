@@ -54,5 +54,6 @@ Chi tiết tách theo mục, mỗi mục 1 file trong [`architecture/`](./archit
 | 8 | [Scheduler (cron)](./architecture/08-scheduler.md) | Job định kỳ tái dùng pipeline thế nào, fire-once, không bypass quyền |
 | 9 | [Nguyên tắc thiết kế](./architecture/09-nguyen-tac-thiet-ke.md) | 14 chốt bất biến của hệ thống |
 | 10 | [Tool ngoài qua MCP](./architecture/10-mcp.md) | Nối server MCP, allowlist tool, vì sao không dùng connector của provider |
+| 12 | [SSE đồng bộ dealer-customer](./architecture/12-dealer-customer-sse.md) | Route `POST /agent/dealer-customer` cho sale-widget: vì sao không qua gateway, sink SSE, mã lỗi, core phải đổi gì |
 
 Sơ đồ: [`arch.png`](./arch.png) · [`dilim-architecture.excalidraw`](./dilim-architecture.excalidraw)
