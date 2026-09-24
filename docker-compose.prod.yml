@@ -44,7 +44,9 @@ services:
         - CMD
         - bun
         - -e
-        - "const r = await fetch('http://127.0.0.1:3000/'); process.exit(r.status === 405 ? 0 : 1)"
+        # Liveness: server trả lời HTTP là sống. Không ghim mã cụ thể — GET / đổi từ 405 sang 404
+        # khi gateway thêm bắt tay GET cho webhook; image cũ (rollback) vẫn trả 405, cả hai phải qua.
+        - "const r = await fetch('http://127.0.0.1:3000/'); process.exit(r.status < 500 ? 0 : 1)"
       interval: 15s
       timeout: 5s
       retries: 5
