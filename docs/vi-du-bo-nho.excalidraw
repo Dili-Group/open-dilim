@@ -1,0 +1,557 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "https://excalidraw.com",
+  "elements": [
+    {
+      "id": "title", "type": "text", "x": 60, "y": 30, "width": 1250, "height": 40,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700001, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 32, "fontFamily": 3, "text": "Có bộ nhớ & assembler vs không — cùng một LLM",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "Có bộ nhớ & assembler vs không — cùng một LLM", "lineHeight": 1.25
+    },
+    {
+      "id": "hdr_left", "type": "text", "x": 200, "y": 110, "width": 500, "height": 30,
+      "angle": 0, "strokeColor": "#b91c1c", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700002, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 24, "fontFamily": 3, "text": "KHÔNG: history thô, không nhớ",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "KHÔNG: history thô, không nhớ", "lineHeight": 1.25
+    },
+    {
+      "id": "hdr_right", "type": "text", "x": 1180, "y": 110, "width": 520, "height": 30,
+      "angle": 0, "strokeColor": "#047857", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700003, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 24, "fontFamily": 3, "text": "CÓ: memory + assembler.ts",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "CÓ: memory + assembler.ts", "lineHeight": 1.25
+    },
+    {
+      "id": "divider", "type": "line", "x": 960, "y": 100, "width": 0, "height": 1200,
+      "angle": 0, "strokeColor": "#64748b", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 1, "strokeStyle": "dashed", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700004, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "points": [[0, 0], [0, 1200]], "lastCommittedPoint": null,
+      "startBinding": null, "endBinding": null, "startArrowhead": null, "endArrowhead": null
+    },
+    {
+      "id": "ex1_label", "type": "text", "x": 60, "y": 170, "width": 660, "height": 23,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700005, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 18, "fontFamily": 3, "text": "VÍ DỤ 1 — HỖ TRỢ BÁN HÀNG: khách đặt lại đơn quen thuộc",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "VÍ DỤ 1 — HỖ TRỢ BÁN HÀNG: khách đặt lại đơn quen thuộc", "lineHeight": 1.25
+    },
+    {
+      "id": "e1L_u1", "type": "rectangle", "x": 80, "y": 210, "width": 410, "height": 40,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "#dbeafe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 700010, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e1L_u1_txt", "type": "text", "x": 95, "y": 220, "width": 380, "height": 20,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700011, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Khách A: Cho tôi đặt lại đơn như lần trước", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Khách A: Cho tôi đặt lại đơn như lần trước", "lineHeight": 1.25
+    },
+    {
+      "id": "e1L_a1", "type": "rectangle", "x": 260, "y": 270, "width": 390, "height": 56,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "#ddd6fe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 700012, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e1L_a1_txt", "type": "text", "x": 275, "y": 278, "width": 360, "height": 40,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700013, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Agent: Dạ, anh muốn đặt sản phẩm nào,\nsố lượng bao nhiêu ạ?", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Agent: Dạ, anh muốn đặt sản phẩm nào,\nsố lượng bao nhiêu ạ?", "lineHeight": 1.25
+    },
+    {
+      "id": "e1L_u2", "type": "rectangle", "x": 80, "y": 350, "width": 460, "height": 40,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "#dbeafe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 700014, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e1L_u2_txt", "type": "text", "x": 95, "y": 360, "width": 430, "height": 20,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700015, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Khách A: Sản phẩm A, 10 thùng... (kể lại từ đầu)", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Khách A: Sản phẩm A, 10 thùng... (kể lại từ đầu)", "lineHeight": 1.25
+    },
+    {
+      "id": "e1L_a2", "type": "rectangle", "x": 260, "y": 410, "width": 410, "height": 40,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "#ddd6fe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 700016, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e1L_a2_txt", "type": "text", "x": 275, "y": 420, "width": 380, "height": 20,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700017, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Agent: Dạ anh cho em xin địa chỉ giao ạ?", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Agent: Dạ anh cho em xin địa chỉ giao ạ?", "lineHeight": 1.25
+    },
+    {
+      "id": "e1L_out", "type": "text", "x": 80, "y": 490, "width": 580, "height": 20,
+      "angle": 0, "strokeColor": "#b91c1c", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700018, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 15, "fontFamily": 3, "text": "=> 4+ vòng hỏi — khách mệt, không bán thêm được gì",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "=> 4+ vòng hỏi — khách mệt, không bán thêm được gì", "lineHeight": 1.25
+    },
+    {
+      "id": "e1R_u1", "type": "rectangle", "x": 1020, "y": 210, "width": 410, "height": 40,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "#dbeafe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 700020, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e1R_u1_txt", "type": "text", "x": 1035, "y": 220, "width": 380, "height": 20,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700021, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Khách A: Cho tôi đặt lại đơn như lần trước", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Khách A: Cho tôi đặt lại đơn như lần trước", "lineHeight": 1.25
+    },
+    {
+      "id": "e1R_chip", "type": "rectangle", "x": 1120, "y": 270, "width": 470, "height": 56,
+      "angle": 0, "strokeColor": "#047857", "backgroundColor": "#a7f3d0",
+      "fillStyle": "solid", "strokeWidth": 1, "strokeStyle": "dashed", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 700022, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e1R_chip_txt", "type": "text", "x": 1135, "y": 278, "width": 440, "height": 40,
+      "angle": 0, "strokeColor": "#047857", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700023, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 13, "fontFamily": 3, "text": "recall: Khách A tháng trước mua A x10 + B x5,\nthích giao buổi sáng", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "recall: Khách A tháng trước mua A x10 + B x5,\nthích giao buổi sáng", "lineHeight": 1.25
+    },
+    {
+      "id": "e1R_ar_chip", "type": "arrow", "x": 1300, "y": 330, "width": 0, "height": 20,
+      "angle": 0, "strokeColor": "#047857", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 1, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 2 }, "seed": 700024, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "points": [[0, 0], [0, 20]], "lastCommittedPoint": null,
+      "startBinding": null, "endBinding": null, "startArrowhead": null, "endArrowhead": "arrow"
+    },
+    {
+      "id": "e1R_a1", "type": "rectangle", "x": 1120, "y": 355, "width": 490, "height": 72,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "#ddd6fe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 700025, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e1R_a1_txt", "type": "text", "x": 1135, "y": 363, "width": 460, "height": 56,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700026, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Agent: A x10 + B x5 như lần trước, giao sáng\nnhư cũ? Sản phẩm C đang giảm 10%,\nanh lấy thêm không ạ?", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Agent: A x10 + B x5 như lần trước, giao sáng\nnhư cũ? Sản phẩm C đang giảm 10%,\nanh lấy thêm không ạ?", "lineHeight": 1.25
+    },
+    {
+      "id": "e1R_u2", "type": "rectangle", "x": 1020, "y": 450, "width": 310, "height": 40,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "#dbeafe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 700027, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e1R_u2_txt", "type": "text", "x": 1035, "y": 460, "width": 280, "height": 20,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700028, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Khách A: Ok chốt, thêm C luôn", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Khách A: Ok chốt, thêm C luôn", "lineHeight": 1.25
+    },
+    {
+      "id": "e1R_out", "type": "text", "x": 1020, "y": 520, "width": 640, "height": 20,
+      "angle": 0, "strokeColor": "#047857", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 700029, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 15, "fontFamily": 3, "text": "=> chốt 1 vòng + UPSELL sản phẩm C nhờ nhớ lịch sử mua",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "=> chốt 1 vòng + UPSELL sản phẩm C nhờ nhớ lịch sử mua", "lineHeight": 1.25
+    },
+    {
+      "id": "ex2_label", "type": "text", "x": 60, "y": 590, "width": 620, "height": 23,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 800001, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 18, "fontFamily": 3, "text": "VÍ DỤ 2 — CHĂM SÓC KHÁCH HÀNG: khiếu nại hàng lỗi",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "VÍ DỤ 2 — CHĂM SÓC KHÁCH HÀNG: khiếu nại hàng lỗi", "lineHeight": 1.25
+    },
+    {
+      "id": "e2L_u1", "type": "rectangle", "x": 80, "y": 630, "width": 390, "height": 40,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "#dbeafe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 800002, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e2L_u1_txt", "type": "text", "x": 95, "y": 640, "width": 360, "height": 20,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 800003, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Khách B: Hàng tôi lỗi, xử lý sao rồi??", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Khách B: Hàng tôi lỗi, xử lý sao rồi??", "lineHeight": 1.25
+    },
+    {
+      "id": "e2L_a1", "type": "rectangle", "x": 260, "y": 690, "width": 350, "height": 56,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "#ddd6fe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 800004, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e2L_a1_txt", "type": "text", "x": 275, "y": 698, "width": 320, "height": 40,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 800005, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Agent: Anh cho biết sản phẩm nào,\nmua khi nào ạ?", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Agent: Anh cho biết sản phẩm nào,\nmua khi nào ạ?", "lineHeight": 1.25
+    },
+    {
+      "id": "e2L_u2", "type": "rectangle", "x": 80, "y": 770, "width": 450, "height": 40,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "#dbeafe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 800006, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e2L_u2_txt", "type": "text", "x": 95, "y": 780, "width": 420, "height": 20,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 800007, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Khách B: Sản phẩm B! Tôi báo tuần trước rồi!!", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Khách B: Sản phẩm B! Tôi báo tuần trước rồi!!", "lineHeight": 1.25
+    },
+    {
+      "id": "e2L_a2", "type": "rectangle", "x": 260, "y": 830, "width": 400, "height": 40,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "#ddd6fe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 800008, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e2L_a2_txt", "type": "text", "x": 275, "y": 840, "width": 370, "height": 20,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 800009, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Agent: Dạ để em kiểm tra rồi báo lại ạ", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Agent: Dạ để em kiểm tra rồi báo lại ạ", "lineHeight": 1.25
+    },
+    {
+      "id": "e2L_out", "type": "text", "x": 80, "y": 910, "width": 560, "height": 20,
+      "angle": 0, "strokeColor": "#b91c1c", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 800010, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 15, "fontFamily": 3, "text": "=> khách kể lại từ đầu mỗi lần — bực, mất niềm tin",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "=> khách kể lại từ đầu mỗi lần — bực, mất niềm tin", "lineHeight": 1.25
+    },
+    {
+      "id": "e2R_u1", "type": "rectangle", "x": 1020, "y": 630, "width": 390, "height": 40,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "#dbeafe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 800011, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e2R_u1_txt", "type": "text", "x": 1035, "y": 640, "width": 360, "height": 20,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 800012, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Khách B: Hàng tôi lỗi, xử lý sao rồi??", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Khách B: Hàng tôi lỗi, xử lý sao rồi??", "lineHeight": 1.25
+    },
+    {
+      "id": "e2R_chip", "type": "rectangle", "x": 1120, "y": 690, "width": 470, "height": 56,
+      "angle": 0, "strokeColor": "#047857", "backgroundColor": "#a7f3d0",
+      "fillStyle": "solid", "strokeWidth": 1, "strokeStyle": "dashed", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 800013, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e2R_chip_txt", "type": "text", "x": 1135, "y": 698, "width": 440, "height": 40,
+      "angle": 0, "strokeColor": "#047857", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 800014, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 13, "fontFamily": 3, "text": "recall: 18/8 Khách B báo lỗi sản phẩm B\npending: đã hứa đổi hàng, đang nợ phản hồi", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "recall: 18/8 Khách B báo lỗi sản phẩm B\npending: đã hứa đổi hàng, đang nợ phản hồi", "lineHeight": 1.25
+    },
+    {
+      "id": "e2R_ar_chip", "type": "arrow", "x": 1300, "y": 750, "width": 0, "height": 20,
+      "angle": 0, "strokeColor": "#047857", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 1, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 2 }, "seed": 800015, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "points": [[0, 0], [0, 20]], "lastCommittedPoint": null,
+      "startBinding": null, "endBinding": null, "startArrowhead": null, "endArrowhead": "arrow"
+    },
+    {
+      "id": "e2R_a1", "type": "rectangle", "x": 1120, "y": 775, "width": 490, "height": 72,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "#ddd6fe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 800016, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e2R_a1_txt", "type": "text", "x": 1135, "y": 783, "width": 460, "height": 56,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 800017, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Agent: Sản phẩm B anh báo lỗi hôm 18/8 —\nhàng đổi đã gửi sáng nay, mã vận đơn XYZ.\nEm xin lỗi vì phản hồi trễ ạ.", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Agent: Sản phẩm B anh báo lỗi hôm 18/8 —\nhàng đổi đã gửi sáng nay, mã vận đơn XYZ.\nEm xin lỗi vì phản hồi trễ ạ.", "lineHeight": 1.25
+    },
+    {
+      "id": "e2R_out", "type": "text", "x": 1020, "y": 910, "width": 620, "height": 20,
+      "angle": 0, "strokeColor": "#047857", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 800018, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 15, "fontFamily": 3, "text": "=> biết lịch sử + việc treo — trả lời thẳng, giữ khách",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "=> biết lịch sử + việc treo — trả lời thẳng, giữ khách", "lineHeight": 1.25
+    },
+    {
+      "id": "ex3_label", "type": "text", "x": 60, "y": 990, "width": 800, "height": 23,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 900001, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 18, "fontFamily": 3, "text": "VÍ DỤ 3 — ASSEMBLER.TS: lắp context có cấu trúc thay vì đổ history thô",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "VÍ DỤ 3 — ASSEMBLER.TS: lắp context có cấu trúc thay vì đổ history thô", "lineHeight": 1.25
+    },
+    {
+      "id": "e3L_prompt", "type": "rectangle", "x": 80, "y": 1030, "width": 560, "height": 120,
+      "angle": 0, "strokeColor": "#0f172a", "backgroundColor": "#1e293b",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 900002, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e3L_prompt_txt", "type": "text", "x": 95, "y": 1040, "width": 530, "height": 100,
+      "angle": 0, "strokeColor": "#e2e8f0", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 900003, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 13, "fontFamily": 3, "text": "PROMPT = đổ 20 tin nhắn thô:\n  Chị Hoa: cho 5 thùng A nhé\n  Anh Tú: lấy B đi, A hết hot rồi\n  Chị Hoa: ừm để nghĩ...\n(không biết ai là ai, việc gì đang treo)", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "PROMPT = đổ 20 tin nhắn thô:\n  Chị Hoa: cho 5 thùng A nhé\n  Anh Tú: lấy B đi, A hết hot rồi\n  Chị Hoa: ừm để nghĩ...\n(không biết ai là ai, việc gì đang treo)", "lineHeight": 1.25
+    },
+    {
+      "id": "e3L_a1", "type": "rectangle", "x": 260, "y": 1180, "width": 430, "height": 40,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "#ddd6fe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 900004, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e3L_a1_txt", "type": "text", "x": 275, "y": 1190, "width": 400, "height": 20,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 900005, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Agent: Dạ anh/chị muốn đặt sản phẩm gì ạ?", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Agent: Dạ anh/chị muốn đặt sản phẩm gì ạ?", "lineHeight": 1.25
+    },
+    {
+      "id": "e3L_out", "type": "text", "x": 80, "y": 1260, "width": 560, "height": 20,
+      "angle": 0, "strokeColor": "#b91c1c", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 900006, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 15, "fontFamily": 3, "text": "=> không biết ai nói, vai gì — trả lời ngây ngô",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "=> không biết ai nói, vai gì — trả lời ngây ngô", "lineHeight": 1.25
+    },
+    {
+      "id": "e3R_b1", "type": "rectangle", "x": 1020, "y": 1030, "width": 400, "height": 34,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "#dbeafe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 900010, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e3R_b1_txt", "type": "text", "x": 1032, "y": 1038, "width": 380, "height": 18,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 900011, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 13, "fontFamily": 3, "text": "speaker-block: Chị Hoa — chủ đại lý X", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "speaker-block: Chị Hoa — chủ đại lý X", "lineHeight": 1.25
+    },
+    {
+      "id": "e3R_b2", "type": "rectangle", "x": 1020, "y": 1074, "width": 400, "height": 34,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "#dbeafe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 900012, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e3R_b2_txt", "type": "text", "x": 1032, "y": 1082, "width": 380, "height": 18,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 900013, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 13, "fontFamily": 3, "text": "pending-block: đơn #45 chờ chuyển khoản", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "pending-block: đơn #45 chờ chuyển khoản", "lineHeight": 1.25
+    },
+    {
+      "id": "e3R_b3", "type": "rectangle", "x": 1020, "y": 1118, "width": 400, "height": 34,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "#ddd6fe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 900014, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e3R_b3_txt", "type": "text", "x": 1032, "y": 1126, "width": 380, "height": 18,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 900015, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 13, "fontFamily": 3, "text": "memory-block: tháng trước mua A x10", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "memory-block: tháng trước mua A x10", "lineHeight": 1.25
+    },
+    {
+      "id": "e3R_asm", "type": "rectangle", "x": 1490, "y": 1050, "width": 160, "height": 80,
+      "angle": 0, "strokeColor": "#1e3a5f", "backgroundColor": "#3b82f6",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 900016, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e3R_asm_txt", "type": "text", "x": 1502, "y": 1080, "width": 140, "height": 20,
+      "angle": 0, "strokeColor": "#ffffff", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 900017, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "assembler.ts", "textAlign": "center", "verticalAlign": "middle",
+      "containerId": null, "originalText": "assembler.ts", "lineHeight": 1.25
+    },
+    {
+      "id": "e3R_cv1", "type": "arrow", "x": 1425, "y": 1047, "width": 60, "height": 28,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 1, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 2 }, "seed": 900018, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "points": [[0, 0], [60, 28]], "lastCommittedPoint": null,
+      "startBinding": null, "endBinding": null, "startArrowhead": null, "endArrowhead": "arrow"
+    },
+    {
+      "id": "e3R_cv2", "type": "arrow", "x": 1425, "y": 1091, "width": 60, "height": 0,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 1, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 2 }, "seed": 900019, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "points": [[0, 0], [60, 0]], "lastCommittedPoint": null,
+      "startBinding": null, "endBinding": null, "startArrowhead": null, "endArrowhead": "arrow"
+    },
+    {
+      "id": "e3R_cv3", "type": "arrow", "x": 1425, "y": 1135, "width": 60, "height": -28,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 1, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 2 }, "seed": 900020, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "points": [[0, 0], [60, -28]], "lastCommittedPoint": null,
+      "startBinding": null, "endBinding": null, "startArrowhead": null, "endArrowhead": "arrow"
+    },
+    {
+      "id": "e3R_ar_agent", "type": "arrow", "x": 1555, "y": 1135, "width": -100, "height": 40,
+      "angle": 0, "strokeColor": "#1e3a5f", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 2 }, "seed": 900021, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "points": [[0, 0], [-100, 40]], "lastCommittedPoint": null,
+      "startBinding": null, "endBinding": null, "startArrowhead": null, "endArrowhead": "arrow"
+    },
+    {
+      "id": "e3R_a1", "type": "rectangle", "x": 1020, "y": 1180, "width": 530, "height": 56,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "#ddd6fe",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": { "type": 3 }, "seed": 900022, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false
+    },
+    {
+      "id": "e3R_a1_txt", "type": "text", "x": 1035, "y": 1188, "width": 500, "height": 40,
+      "angle": 0, "strokeColor": "#6d28d9", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 900023, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 14, "fontFamily": 3, "text": "Agent: Chị Hoa ơi, đơn #45 đang chờ chuyển khoản —\nchị thêm 5 thùng A vào đơn này hay tạo đơn mới ạ?", "textAlign": "left", "verticalAlign": "middle",
+      "containerId": null, "originalText": "Agent: Chị Hoa ơi, đơn #45 đang chờ chuyển khoản —\nchị thêm 5 thùng A vào đơn này hay tạo đơn mới ạ?", "lineHeight": 1.25
+    },
+    {
+      "id": "e3R_out", "type": "text", "x": 1020, "y": 1270, "width": 640, "height": 20,
+      "angle": 0, "strokeColor": "#047857", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 900024, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 15, "fontFamily": 3, "text": "=> biết ai nói + vai + việc treo — hỏi đúng trọng tâm",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "=> biết ai nói + vai + việc treo — hỏi đúng trọng tâm", "lineHeight": 1.25
+    },
+    {
+      "id": "note_bottom", "type": "text", "x": 320, "y": 1350, "width": 1150, "height": 23,
+      "angle": 0, "strokeColor": "#1e40af", "backgroundColor": "transparent",
+      "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid", "roughness": 0, "opacity": 100,
+      "groupIds": [], "frameId": null, "roundness": null, "seed": 900025, "version": 1, "versionNonce": 1,
+      "isDeleted": false, "boundElements": null, "updated": 1, "link": null, "locked": false,
+      "fontSize": 16, "fontFamily": 3, "text": "Khác biệt không nằm ở model — nằm ở context được assembler.ts lắp đúng cách mỗi turn",
+      "textAlign": "left", "verticalAlign": "top", "containerId": null,
+      "originalText": "Khác biệt không nằm ở model — nằm ở context được assembler.ts lắp đúng cách mỗi turn", "lineHeight": 1.25
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff",
+    "gridSize": 20
+  },
+  "files": {}
+}
