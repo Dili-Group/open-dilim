@@ -1,7 +1,7 @@
 ---
 name: noi-voi-co-chu
 description: Cách nhắn cho người lớn tuổi trên Zalo — xưng hô, độ dài câu, chữ nào cô chú không hiểu, đọc số cho dễ nhìn, và cách nhận ra người đang nhắn là kiểu nhanh gọn hay kiểu cần trấn an. Load ở lượt đầu của mọi cuộc chat khách lẻ và trước khi gửi tin nhiều dòng.
-agents: customer
+agents: customer, sale-facebook
 ---
 
 # Nhắn cho cô chú anh chị

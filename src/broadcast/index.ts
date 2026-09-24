@@ -3,6 +3,8 @@
 export { ConsoleBroadcaster } from "./console.ts";
 export { ZaloBroadcaster } from "./zalo.ts";
 export { ZaloOaBroadcaster } from "./zalo-oa.ts";
+export { MessengerBroadcaster } from "./messenger.ts";
+export { MessengerTypingSender } from "./messenger-typing.ts";
 export { ZaloOaTokenSource } from "./zalo-oa-token.ts";
 export type { ZaloOaTokenConfig, ZaloOaTokenPort } from "./zalo-oa-token.ts";
 export { BroadcastRouter } from "./router.ts";

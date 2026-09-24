@@ -126,6 +126,45 @@ function zaloOaChannel(prefix: string): ZaloOaChannelConfig | undefined {
   };
 }
 
+/**
+ * Facebook Page qua Messenger Platform (Graph API v26.0). Chat 1-1, không nhóm.
+ *
+ * `agentUid` = Page ID (đúng `recipient.id` của tin khách gửi tới page). Tin page gửi vọng lại
+ * webhook mang cờ `is_echo`, adapter lọc theo cờ đó.
+ */
+export interface MessengerChannelConfig extends BaseChannelConfig {
+  readonly platform: "messenger";
+  /** App Secret của Meta app — ký webhook: `X-Hub-Signature-256: sha256=HMAC(rawBody)`. */
+  readonly appSecret: string;
+  /** Chuỗi tự đặt, khai y hệt bên Meta lúc đăng ký webhook — bắt tay GET phải khớp. */
+  readonly verifyToken: string;
+  /** Page Access Token để gọi Send API. undefined = kênh chỉ nhận, egress rơi về console. */
+  readonly pageAccessToken?: string;
+}
+
+/**
+ * Đọc config kênh Messenger theo tiền tố env: `<PREFIX>_PAGE_ID`, `<PREFIX>_APP_SECRET`,
+ * `<PREFIX>_VERIFY_TOKEN`, `<PREFIX>_PAGE_ACCESS_TOKEN` (tuỳ chọn).
+ *
+ * Thiếu 1 trong 3 cái đầu → undefined = kênh KHÔNG đăng ký, webhook 404. Mặc định đóng: không
+ * có App Secret thì không verify được chữ ký, mà nhận tin chưa verify là ai cũng giả được khách.
+ */
+function messengerChannel(prefix: string): MessengerChannelConfig | undefined {
+  const pageId = optional(`${prefix}_PAGE_ID`);
+  const appSecret = optional(`${prefix}_APP_SECRET`);
+  const verifyToken = optional(`${prefix}_VERIFY_TOKEN`);
+  if (pageId === undefined || appSecret === undefined || verifyToken === undefined) return undefined;
+  const pageAccessToken = optional(`${prefix}_PAGE_ACCESS_TOKEN`);
+  return {
+    platform: "messenger",
+    agentUid: pageId,
+    selfUid: pageId,
+    appSecret,
+    verifyToken,
+    ...(pageAccessToken === undefined ? {} : { pageAccessToken }),
+  };
+}
+
 // Mỗi key = 1 kênh = 1 tài khoản Zalo riêng, và là KHOÁ ĐỊNH TUYẾN root agent (agents/router.ts).
 // Tên key đi vào: path webhook `/webhook/:channel`, cột `channel` của user_binding/group_map/
 // group_member, và key egress. ĐỔI TÊN KÊNH ĐANG CHẠY = mồ côi toàn bộ định danh đã bind.
@@ -146,6 +185,9 @@ const channels = {
   "zalo-canhan": zaloChannel("ZALO_CANHAN"), // trợ lý riêng 1-1
   "zalo-kho": zaloChannel("ZALO_KHO"), // kho — nhóm nhận mã vận đơn hoàn
   "zalo-oa": zaloOaChannel("ZALO_OA"), // Official Account — khách lẻ, chat 1-1
+  // Tên `meta` vì URL webhook `/webhook/meta` đã đăng ký bên Meta — đổi tên là phải đăng ký lại.
+  // Phục vụ bởi agent `sale-facebook` (agents/router.ts).
+  meta: messengerChannel("MESSENGER"), // Facebook Page — khách lẻ, chat 1-1
 } as const;
 
 // Egress Zalo qua bridge HTTP nội bộ (send text + typing). Ingest = verify webhook đến; bridge =

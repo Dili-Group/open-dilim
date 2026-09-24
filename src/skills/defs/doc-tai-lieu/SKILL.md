@@ -1,7 +1,7 @@
 ---
 name: doc-tai-lieu
 description: Người dùng gửi FILE tài liệu (PDF, Word, Excel, PowerPoint, CSV) và hỏi về nội dung bên trong — bảng kê đơn, hoá đơn PDF, danh sách Excel, hợp đồng, phiếu xuất kho, đơn thuốc scan. Load khi trong chat có ghi chú "[file đính kèm ... url: ...]" và câu hỏi dính tới nội dung file đó, hoặc khi người dùng nhắc "file em gửi", "xem giúp cái bảng kê", "trong hoá đơn có gì", "đọc giúp cái này".
-agents: dealer, warehouse, customer
+agents: dealer, warehouse, customer, sale-facebook
 ---
 
 # Đọc file tài liệu người dùng gửi

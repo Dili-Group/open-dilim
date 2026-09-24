@@ -292,6 +292,20 @@ describe("agent customer (Official Account)", () => {
     await registry.resolve(AgentType.Customer).run({ identity: GUEST, history: HISTORY });
     expect(systemText(provider.seen[0])).toContain("CHƯA được xác thực");
   });
+
+  test("sale-facebook: cùng hàng rào người chưa xác thực, và không tự tạo đơn", async () => {
+    const provider = new ScriptedProvider([
+      { stopReason: "end_turn", content: [{ type: "text", text: "dạ" }] },
+    ]);
+    const registry = buildAgentRegistry(agentDeps(provider));
+    await registry.resolve(AgentType.SaleFacebook).run({ identity: GUEST, history: HISTORY });
+    const system = systemText(provider.seen[0]);
+    expect(system).toContain("CHƯA được xác thực");
+    expect(system).toContain("KHÔNG tự tạo đơn");
+    // Khách Messenger xưng "mình" → agent từng đáp "Chào bạn, mình đây"; gọi "e" → agent tự chọn "chị".
+    expect(system).toContain('KHÔNG BAO GIỜ dùng cặp "bạn/mình"');
+    expect(system).toContain("tự chọn \"chị\" hay \"anh\" là đoán giới tính");
+  });
 });
 
 describe("resolveAgentType", () => {
@@ -302,6 +316,7 @@ describe("resolveAgentType", () => {
     // Khoá phải khớp key trong CONFIG.channels: lệch tên = OperationsAgent không ai gọi tới.
     expect(resolveAgentType("van-hanh")).toBe(AgentType.Operations);
     expect(resolveAgentType("zalo-oa")).toBe(AgentType.Customer);
+    expect(resolveAgentType("meta")).toBe(AgentType.SaleFacebook);
   });
 
   test("channel lạ → undefined (registry rơi về default, không đoán agent)", () => {

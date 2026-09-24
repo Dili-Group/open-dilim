@@ -1,7 +1,7 @@
 ---
 name: tpbs-dung-luat
 description: Ranh giới pháp lý khi nói về thực phẩm bảo vệ sức khỏe. Load TRƯỚC KHI gửi bất kỳ câu nào nói về công dụng, hiệu quả, cơ chế sản phẩm, hoặc khi khách kể triệu chứng và hỏi "dùng cái này có khỏi không". Có bảng thay lời cho từ cấm (chữa, điều trị, thay thế thuốc) và mốc phải dừng để khuyên đi khám.
-agents: customer
+agents: customer, sale-facebook
 ---
 
 # Nói về sản phẩm đúng chuẩn luật

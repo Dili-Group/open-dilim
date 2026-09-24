@@ -35,6 +35,11 @@ export interface Ingestor {
   verify(headers: Headers, rawBody: string): boolean;
   /** 1 webhook có thể gói NHIỀU event → mảng. Bỏ event không phải tin nhắn (trả []). */
   parse(payload: unknown): ParsedMessage[];
+  /**
+   * Bắt tay GET lúc đăng ký webhook (Meta: `hub.verify_token` → echo `hub.challenge`). Trả chuỗi
+   * phải echo, null = từ chối (403). Platform không bắt tay kiểu này thì không khai → GET 405.
+   */
+  handshake?(params: URLSearchParams): string | null;
 }
 
 /**

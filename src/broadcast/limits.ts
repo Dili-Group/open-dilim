@@ -4,6 +4,8 @@
 /** Trần mỗi tin theo channel. Channel chưa khai → DEFAULT_MAX_CHARS. */
 const CHANNEL_MAX_CHARS: Readonly<Record<string, number>> = {
   zalo: 4500,
+  // Messenger từ chối text > 2000 ký tự (Send API).
+  meta: 2000,
 };
 
 const DEFAULT_MAX_CHARS = 4500;

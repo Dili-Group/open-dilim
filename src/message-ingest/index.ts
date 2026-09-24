@@ -10,6 +10,7 @@ import { ChannelFactory } from "./factory.ts";
 import { createGateway } from "./gateway.ts";
 import { ZaloIngestor } from "./adapters/zalo.ts";
 import { ZaloOaIngestor } from "./adapters/zalo-oa.ts";
+import { MessengerIngestor } from "./adapters/messenger.ts";
 
 /**
  * Register adapter cho từng kênh ĐÃ cấu hình (bỏ kênh thiếu agentUid/secret → webhook 404).
@@ -28,6 +29,9 @@ export function buildChannelFactory(): ChannelFactory {
         break;
       case "zalo-oa":
         factory.register(new ZaloOaIngestor(channel, config));
+        break;
+      case "messenger":
+        factory.register(new MessengerIngestor(channel, config));
         break;
     }
   }

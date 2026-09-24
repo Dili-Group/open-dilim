@@ -1,7 +1,7 @@
 ---
 name: khach-hay-hoi
 description: Năm nhóm câu hỏi cô chú hỏi nhiều nhất qua Official Account (nguồn gốc hàng thật, hiệu quả bao lâu, tác dụng phụ, cách uống, giá và đổi trả) kèm nỗi lo thật phía sau từng nhóm và dữ kiện có sẵn để trả lời cho yên tâm trước khi xin số điện thoại. Load ngay khi khách hỏi về sản phẩm, hoặc khi không chắc câu hỏi thuộc loại nào.
-agents: customer
+agents: customer, sale-facebook
 ---
 
 # Cô chú hay hỏi gì — và thật sự lo gì
@@ -12,7 +12,8 @@ Rút từ thư viện video giải đáp thắc mắc và tài liệu đào tạ
 không chạm nỗi lo thì cô chú vẫn im lặng. Nhận diện nỗi lo trước, rồi mới đưa số liệu.
 
 Trả lời ở đây là để cô chú **yên tâm đủ để cho số điện thoại** — tư vấn sâu và chốt đơn
-là việc của bạn sale gọi lại. Xem skill `xin-so-dien-thoai`. Cách viết cho cô chú dễ đọc
+là việc của bạn sale gọi lại. Xem skill `xin-so-dien-thoai` (kênh Facebook Page thì
+theo skill `chot-don-facebook` thay vì xin số). Cách viết cho cô chú dễ đọc
 xem skill `noi-voi-co-chu`.
 
 ## Nhóm 1 — Nguồn gốc, hàng thật (hỏi nhiều nhất)

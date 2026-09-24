@@ -19,6 +19,7 @@ describe("registry (defs thật)", () => {
       "bao-het-hang",
       "chiet-khau",
       "chinh-sach-hoa-hong",
+      "chot-don-facebook",
       "doc-tai-lieu",
       "don-hang",
       "don-hoan",
@@ -31,6 +32,7 @@ describe("registry (defs thật)", () => {
       "huong-dan",
       "khach-bao-hang-loi",
       "khach-hay-hoi",
+      "khai-thac-nhu-cau",
       "kiem-tra-gia-cod",
       "lap-lich",
       "nhan-tin-nhieu-doan",
@@ -38,6 +40,7 @@ describe("registry (defs thật)", () => {
       "thong-bao-chung",
       "tpbs-dung-luat",
       "xin-so-dien-thoai",
+      "xu-ly-tu-choi",
     ]);
   });
 
@@ -50,6 +53,23 @@ describe("registry (defs thật)", () => {
     // Skill khách lẻ KHÔNG rò sang agent nội bộ: nội dung viết cho người chưa xác thực.
     const forDealer = registry.catalog().filter((m) => visibleTo(m, "dealer")).map((m) => m.name);
     expect(forDealer).not.toContain("khach-hay-hoi");
+  });
+
+  test("agent sale-facebook: skill chốt đơn + tư vấn, KHÔNG thấy skill cần ghi_nhan_khach", async () => {
+    const registry = await buildSkillRegistry();
+    const forSale = registry.catalog().filter((m) => visibleTo(m, "sale-facebook")).map((m) => m.name);
+    for (const name of ["chot-don-facebook", "khai-thac-nhu-cau", "khach-hay-hoi", "tpbs-dung-luat", "noi-voi-co-chu", "xu-ly-tu-choi"]) {
+      expect(forSale).toContain(name);
+    }
+    // Hai skill này dẫn tới `ghi_nhan_khach` (gắn zalo_user_id) — agent Messenger không có tool đó.
+    expect(forSale).not.toContain("xin-so-dien-thoai");
+    expect(forSale).not.toContain("khach-bao-hang-loi");
+    const forCustomer = registry.catalog().filter((m) => visibleTo(m, "customer")).map((m) => m.name);
+    expect(forCustomer).not.toContain("chot-don-facebook");
+    // Xử lý từ chối dẫn khách sang chốt đơn Messenger — kênh OA đi luồng xin số, không dùng.
+    expect(forCustomer).not.toContain("xu-ly-tu-choi");
+    // Khai thác nhu cầu kết bằng xin số KHÔNG ghi tool — kênh OA có luồng xin số riêng qua ghi_nhan_khach.
+    expect(forCustomer).not.toContain("khai-thac-nhu-cau");
   });
 
   test("huong-dan: hub định tuyến, mọi link chuẩn nằm trong body", async () => {

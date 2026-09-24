@@ -43,6 +43,11 @@ export const AgentType = {
   Warehouse: "warehouse",
   /** Khách lẻ nhắn vào Official Account — người nhắn CHƯA được xác thực. */
   Customer: "customer",
+  /**
+   * Khách lẻ nhắn Facebook Page (Messenger) — người nhắn CHƯA được xác thực, như Customer. Khác
+   * Customer ở đích: gom đủ thông tin lên đơn rồi dừng cho nhân viên lên đơn, thay vì xin số bàn giao.
+   */
+  SaleFacebook: "sale-facebook",
 } as const;
 export type AgentType = (typeof AgentType)[keyof typeof AgentType];
 

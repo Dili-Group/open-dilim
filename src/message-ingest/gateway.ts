@@ -16,14 +16,21 @@ const WEBHOOK_PREFIX = "/webhook/";
 /** Gateway = closure ôm factory + deps. Channel-agnostic. `handle` test được không cần mở port. */
 export function createGateway(factory: ChannelFactory, deps: IngestDeps) {
   async function handle(req: Request): Promise<Response> {
-    if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
-
-    const channel = channelFromPath(new URL(req.url).pathname);
+    const url = new URL(req.url);
+    const channel = channelFromPath(url.pathname);
     if (channel === null) return json(404, { error: "not_found" });
 
     // Adapter chỉ register khi kênh đã cấu hình → miss = kênh lạ HOẶC chưa bật. 404 cả hai.
     const ingestor = factory.get(channel);
     if (ingestor === undefined) return json(404, { error: "unknown_channel" });
+
+    if (req.method === "GET" && ingestor.handshake !== undefined) {
+      const challenge = ingestor.handshake(url.searchParams);
+      return challenge === null
+        ? json(403, { error: "handshake_rejected" })
+        : new Response(challenge, { status: 200 });
+    }
+    if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
 
     const rawBody = await req.text();
     if (!ingestor.verify(req.headers, rawBody)) {

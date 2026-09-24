@@ -30,6 +30,8 @@ import {
   TypingFactory,
   ZaloBroadcaster,
   ZaloOaBroadcaster,
+  MessengerBroadcaster,
+  MessengerTypingSender,
   ZaloOaTokenSource,
   ZaloTypingSender,
 } from "../broadcast/index.ts";
@@ -227,6 +229,16 @@ export async function bootstrap(): Promise<Services> {
         serviceToken: config.agentApi.serviceToken,
       });
       broadcaster.register(channel, new ZaloOaBroadcaster(token));
+      continue;
+    }
+    // Messenger gửi qua Send API bằng Page Access Token trong env (token tĩnh, không refresh).
+    if (channelConfig.platform === "messenger") {
+      if (channelConfig.pageAccessToken === undefined) {
+        console.warn(`[bootstrap] kênh ${channel} thiếu *_PAGE_ACCESS_TOKEN → egress dùng console.`);
+        continue;
+      }
+      broadcaster.register(channel, new MessengerBroadcaster(channelConfig.pageAccessToken));
+      typing.register(channel, new MessengerTypingSender(channelConfig.pageAccessToken));
       continue;
     }
     if (channelConfig.bridge === undefined) {

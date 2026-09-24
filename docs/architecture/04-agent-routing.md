@@ -36,6 +36,7 @@ agent:   vẫn gate TỪNG tool theo identity (defense-in-depth)
 | `van-hanh` | `operations` | Nhân viên vận hành Dili (Sales Admin, quản lý) | false | `internalOpsSpec` |
 | `zalo-sep` | `boss` | Ban lãnh đạo — hỏi để ra quyết định | false | `internalOpsSpec` |
 | `zalo-canhan` | `personal` | Trợ lý riêng, CHỈ chat 1-1 | **true** | `personalSpec` |
+| `meta` | `sale-facebook` | Khách lẻ nhắn Facebook Page (Messenger) — tư vấn + gom đơn cho nhân viên lên | **true** | `customerSupportSpec` |
 | *(khác)* | *(default)* | Channel chưa map — lượt vẫn chạy được | false | `customerSupportSpec` |
 
 **1 kênh = 1 tài khoản Zalo riêng** (`agentUid` + `webhookSecret` + bridge egress riêng, khai

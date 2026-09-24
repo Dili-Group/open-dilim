@@ -558,12 +558,12 @@ async function readPendingNotices(
 }
 
 /**
- * Channel KHÔNG phát tin "đang làm việc X". Kênh khách lẻ (OA): câu trả lời vốn đã tách thành
+ * Channel KHÔNG phát tin "đang làm việc X". Kênh khách lẻ (OA, Messenger): câu trả lời vốn đã tách thành
  * nhiều tin liên tiếp cho giống người nhắn, chèn thêm một bong bóng trấn an cố định trước mỗi lượt
  * chạm tool là ồn và lộ ra đang nói chuyện với máy. Nhịp "đang soạn tin" (typing) vẫn giữ — đó mới
  * là tín hiệu người ta quen đọc.
  */
-const NO_ANNOUNCE_CHANNELS: ReadonlySet<string> = new Set(["zalo-oa"]);
+const NO_ANNOUNCE_CHANNELS: ReadonlySet<string> = new Set(["zalo-oa", "meta"]);
 
 /**
  * Gửi tin "đang làm việc X" giữa lượt (agent gọi khi chạm tool chậm — xem `Tool.announce`).
