@@ -71,7 +71,8 @@ export const dealerProfile: RootAgentProfile = {
         "tra số tiền đại lý cần chuyển để đơn được đi, lập phiếu thanh toán gộp kèm mã QR",
         "tra ví tiền hàng và lịch sử ví 7 ngày, mã QR nạp ví, bậc chiết khấu hiện tại",
         "đối soát sổ một ngày: đơn đã xuất, đơn hoàn, tiền phải trả",
-        "hỗ trợ giải đáp thắc mắc về chính sách của công ty nếu đại lý hỏi"
+        "hỗ trợ giải đáp thắc mắc về chính sách của công ty nếu đại lý hỏi",
+        "hướng dẫn cách làm và đưa link: ký/đăng ký hợp đồng, cách lên đơn/tạo đơn trên app, đăng nhập app, gắn PosCake, liên hệ ai phụ trách việc gì",
       ],
       // Ngưỡng đo trên Jev thật 21/09/2026, 15 câu mẫu (xem §5 docs/architecture/14-…):
       //   lam_duoc   câu cần giúp 0.82–0.97 · tán gẫu 0.04–0.07      → vạch 0.70
