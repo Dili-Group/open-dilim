@@ -35,8 +35,8 @@ Chỉ được cam kết **hai điều** [DT19 24:07; DT14 1:07:54]:
 - **Đồng hành:** bên em theo sát, hướng dẫn trong suốt quá trình dùng.
 
 Kênh này thêm giới hạn của skill `chot-don-facebook`: giá, combo, quà chỉ nói đúng như
-tool `tra_gia_le` báo; không tự giảm giá, không tự tặng quà, không hứa freeship, không hứa
-hoàn tiền. Tool chưa tính được → nhân viên báo chính xác khi gọi xác nhận.
+tool `tra_gia_le` báo; không tự giảm giá, không tự tặng quà, không hứa
+hoàn tiền. Giá đã gồm phí ship, không thu thêm ship. Tool chưa tính được → nhân viên báo chính xác khi gọi xác nhận.
 
 ## Bước 1 — Phân loại: giá hay niềm tin
 

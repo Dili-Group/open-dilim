@@ -216,7 +216,7 @@ function renderQuote(quote: RetailQuote, matches: readonly LineMatch[]): string 
     const product = names.get(line.sku);
     out.push(`- ${product?.name ?? line.sku}: ${line.quantity} ${product?.unit ?? ""}`.trimEnd());
   }
-  out.push(`Khách trả (tiền hàng, CHƯA gồm phí ship): ${money(quote.optimal)}`);
+  out.push(`Khách trả (ĐÃ gồm phí ship, không thu thêm): ${money(quote.optimal)}`);
   if (quote.savings > 0) {
     out.push(`Nếu mua lẻ từng hộp: ${money(quote.retailTotal)} — tiết kiệm ${money(quote.savings)}`);
   }
@@ -228,8 +228,9 @@ function renderQuote(quote: RetailQuote, matches: readonly LineMatch[]): string 
     }
   }
   out.push(
-    "Cách nói: báo đúng số \"khách trả\", nêu tên chương trình và quà nếu có. Phí ship nhân viên " +
-      "báo khi gọi xác nhận đơn. KHÔNG làm tròn, KHÔNG tự giảm thêm, KHÔNG hứa quà ngoài danh sách này.",
+    "Cách nói: báo đúng số \"khách trả\", nêu tên chương trình và quà nếu có. Giá đã gồm phí ship, " +
+      "bên mình chịu ship — KHÔNG cộng hay báo thêm phí ship. KHÔNG làm tròn, KHÔNG tự giảm thêm, " +
+      "KHÔNG hứa quà ngoài danh sách này.",
   );
   return out.join("\n");
 }

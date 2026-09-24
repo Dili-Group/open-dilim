@@ -66,7 +66,8 @@ describe("tra_gia_le", () => {
     expect(result.content).toContain("3.780.000 ₫");
     expect(result.content).toContain("tiết kiệm 420.000 ₫");
     expect(result.content).toContain("Sụn x2");
-    expect(result.content).toContain("CHƯA gồm phí ship");
+    expect(result.content).toContain("ĐÃ gồm phí ship");
+    expect(result.content).not.toContain("CHƯA gồm phí ship");
   });
 
   test("hai cách gọi cùng một sản phẩm → gộp một dòng SKU", async () => {
