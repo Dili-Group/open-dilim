@@ -305,6 +305,8 @@ describe("agent customer (Official Account)", () => {
     // Khách Messenger xưng "mình" → agent từng đáp "Chào bạn, mình đây"; gọi "e" → agent tự chọn "chị".
     expect(system).toContain('KHÔNG BAO GIỜ dùng cặp "bạn/mình"');
     expect(system).toContain("tự chọn \"chị\" hay \"anh\" là đoán giới tính");
+    // Kênh chỉ bán bốn sản phẩm — thiếu dòng này model gợi cả catalog.
+    expect(system).toContain("CHỈ tư vấn và bán bốn sản phẩm");
   });
 });
 

@@ -37,6 +37,7 @@ describe("registry (defs thật)", () => {
       "lap-lich",
       "nhan-tin-nhieu-doan",
       "noi-voi-co-chu",
+      "san-pham-facebook",
       "thong-bao-chung",
       "tpbs-dung-luat",
       "xin-so-dien-thoai",
@@ -58,9 +59,11 @@ describe("registry (defs thật)", () => {
   test("agent sale-facebook: skill chốt đơn + tư vấn, KHÔNG thấy skill cần ghi_nhan_khach", async () => {
     const registry = await buildSkillRegistry();
     const forSale = registry.catalog().filter((m) => visibleTo(m, "sale-facebook")).map((m) => m.name);
-    for (const name of ["chot-don-facebook", "khai-thac-nhu-cau", "khach-hay-hoi", "tpbs-dung-luat", "noi-voi-co-chu", "xu-ly-tu-choi"]) {
+    for (const name of ["chot-don-facebook", "khai-thac-nhu-cau", "san-pham-facebook", "tpbs-dung-luat", "noi-voi-co-chu", "xu-ly-tu-choi"]) {
       expect(forSale).toContain(name);
     }
+    // Kênh chỉ bán bốn sản phẩm: `khach-hay-hoi` nạp cả catalog → agent gợi nhầm sản phẩm ngoài kênh.
+    expect(forSale).not.toContain("khach-hay-hoi");
     // Hai skill này dẫn tới `ghi_nhan_khach` (gắn zalo_user_id) — agent Messenger không có tool đó.
     expect(forSale).not.toContain("xin-so-dien-thoai");
     expect(forSale).not.toContain("khach-bao-hang-loi");
@@ -70,6 +73,7 @@ describe("registry (defs thật)", () => {
     expect(forCustomer).not.toContain("xu-ly-tu-choi");
     // Khai thác nhu cầu kết bằng xin số KHÔNG ghi tool — kênh OA có luồng xin số riêng qua ghi_nhan_khach.
     expect(forCustomer).not.toContain("khai-thac-nhu-cau");
+    expect(forCustomer).not.toContain("san-pham-facebook");
   });
 
   test("huong-dan: hub định tuyến, mọi link chuẩn nằm trong body", async () => {

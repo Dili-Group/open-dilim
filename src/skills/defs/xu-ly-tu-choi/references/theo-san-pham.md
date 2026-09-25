@@ -4,70 +4,10 @@ Giá lẻ theo PIM 21/07/2026, chi phí/ngày tính theo liều trên nhãn — 
 và giải thích. Báo giá, combo, quà: theo `tra_gia_le`; lệch với số dưới đây thì theo tool.
 Công dụng chỉ nói đúng câu "Được nói" dưới đây.
 
-## Men Xơ Nhật Bản (Intestines Beauty Queen)
-
-- **Giá:** 1.290.000đ/hộp 30 gói → **43.000đ/gói**. Liều 2 gói/ngày → khoảng
-  **86.000đ/ngày**, 1 hộp dùng khoảng 15 ngày. Không nói "43.000đ/ngày" (đó là giá một
-  gói) và không nói "3 hộp = 3 tháng" (3 hộp chỉ khoảng 45 ngày) [DONLON §9].
-- **Số liệu:** mỗi gói 2.600mg inulin cùng gôm vỏ hạt mã đề; ĐKSP 3573/2022/ĐKSP; nhà sản
-  xuất AFC-HD AMS Life Science (Shizuoka, Nhật); Nichiei Asia nhập khẩu.
-- **Được nói:** hỗ trợ tiêu hóa, hỗ trợ giảm táo bón, hỗ trợ giảm đường huyết.
-
-| Khách nói | Trả lời | Nguồn |
-|---|---|---|
-| "Đang uống men vi sinh rồi" | Phản chiếu trước: "Uống vậy thì có đỡ một chút đúng không ạ, tới giờ tình trạng mình sao rồi?" Rồi giải thích: đây không phải lợi khuẩn sống mà là chất xơ hòa tan, làm thức ăn và môi trường cho lợi khuẩn sẵn có trong ruột; lợi khuẩn uống vào phần lớn không qua được axit dạ dày. Không nêu con số %. | DT14 31:30; DT19 27:35; TH03 44:21 |
-| "Ăn rau là đủ chất xơ rồi" | Rau chỉ có một phần nhỏ là xơ hòa tan; có người ăn nhiều rau, uống đủ nước vẫn táo bón. | TH07 44:38 |
-| "Inulin chỗ khác rẻ hơn" | Công thức khác nhau: inulin chuỗi dài, xuống đại tràng mới lên men nên ít đầy hơi; có thêm vỏ hạt mã đề. Không chê nơi khác. | TH02 1:47:56 |
-| "Uống lâu có phụ thuộc, ngưng có bị lại?" | Không phải thuốc sổ nên không làm ruột "lười". Tình trạng do thói quen: còn ăn uống như cũ thì cần duy trì. | DT15 55:20 |
-| "Uống mấy ngày bị đầy bụng" | Mấy ngày đầu có thể hơi đầy, thường giảm dần; uống đủ nước. Khó chịu nhiều → tạm ngừng, báo bên em. | TH03 1:28:46 |
-| Bà bầu, cho con bú, trẻ em | Nhãn ghi không dùng cho phụ nữ có thai, cho con bú; dành cho người trưởng thành. Khuyên hỏi bác sĩ. | TH06 1:14:56 |
-
-**Cấm:** "men vi sinh/probiotic", "điều trị đại tràng", "trên 95% khách cải thiện"
-[DT19 27:02], "diệt HP", "giảm mỡ máu", "phòng khối u", "không qua gan thận, uống suốt
-đời không sao".
-
-## Nghệ Mùa Thu Nhật Bản (DiLi Okinawa)
-
-- **Giá:** 990.000đ/hộp 10 gói → **99.000đ/gói**. Liều 1 gói (5 viên)/ngày → 99.000đ/ngày,
-  1 hộp 10 ngày.
-- **Số liệu:** mỗi gói 500mg bột nghệ và 30mg curcumin; giống nghệ mùa thu trồng ở
-  Okinawa, thu hoạch mỗi năm một lần, trồng không thuốc trừ sâu; ĐKSP 6163/2024/ĐKSP; nhà
-  sản xuất Kanehide (Okinawa); Nichiei Asia nhập khẩu.
-- **Được nói (duy nhất):** hỗ trợ giảm nguy cơ viêm loét dạ dày tá tràng.
-
-| Khách nói | Trả lời | Nguồn |
-|---|---|---|
-| "Nhỏ xíu mà 990k, dùng có 10 ngày" | Hỏi ngược loại nghệ khách đang dùng, dùng bao lâu, đỡ tới đâu. Sau đó mới nói số: 30mg curcumin/gói, giống nghệ mùa thu Okinawa, 99.000đ/gói. "Mình trả cho chất lượng từng gói, không phải số lượng viên ạ." | DT19 3:12, 6:48 |
-| "Nghệ Việt Nam / nghệ mật ong rẻ mà" | Không chê. "Nếu loại đang dùng đã ổn thì mình đã không tìm thêm ạ." Đặc sản phải đúng đất (như gạo, xoài có tiếng theo vùng). | DT21 41:01; TH04 20:13 |
-| "Uống nghệ có nóng, có hại gan không?" | Mỗi gói 30mg curcumin, dùng đúng 1 gói/ngày như nhãn. Thấy bất thường → tạm ngừng, báo bên em. **Không** nói "nổi mụn là thải độc". | DT19 1:10:56; TH04 26:23 |
-| "Mới uống thấy cồn cào" | Có thể chia gói trong ngày: 3 viên sáng, 2 viên tối. Vẫn khó chịu → tạm ngừng. | TH02 18:52 |
-| "Chỉ lấy men, không lấy nghệ" | Xem bảng tra nhanh trong SKILL.md. | DT19 1:01:00 |
-
-**Cấm (câu có trong buổi đào tạo):** "cucumin cao hơn nghệ Việt Nam 6–8 lần", "kháng HP
-gấp 30 lần" [DT19 7:54]; "công nghệ nano, hấp thu gấp 35 lần" [DT19 1:09:50]; "30mg vừa đủ
-cơ thể hấp thu" [DT19 1:10:56, không có nguồn]; "diệt HP", "chữa dạ dày", "giải rượu, tăng
-đô", "bảo vệ gan".
-
-## Sụn Cá Mập Nhật Bản (Nano Premium Shark Cartilage) và Gluchon Gel
-
-- **Giá:** 1.990.000đ/lọ 150 viên. Liều 5 viên/ngày → 30 ngày, khoảng **66.000đ/ngày**.
-  Gluchon Gel 680.000đ/tuýp 120g.
-- **Số liệu:** 5 viên/ngày cho 800mg glucosamine cùng chiết xuất sụn cá mập, collagen, MSM,
-  canxi, vitamin D3 trong một viên; ĐKSP 6450/2022/ĐKSP; nhà sản xuất AFC-HD AMS Life
-  Science (Shizuoka).
-- **Được nói:** bổ sung glucosamin và chiết xuất sụn cá mập, hỗ trợ tốt cho khớp; hỗ trợ
-  làm chậm quá trình thoái hóa. Gluchon: gel dùng khi massage.
-
-| Khách nói | Trả lời | Nguồn |
-|---|---|---|
-| "Đắt quá" | Khoảng 66.000đ/ngày. So với các khoản khách đang chi cho khớp (đi vật lý trị liệu…), không chê chỉ định của bác sĩ. | XK01 46:15, 55:19 |
-| "Uống canxi / glucosamine rồi" | Hỏi uống bao lâu, vì sao vẫn đau. Khớp cần nhiều thành phần phối hợp; sản phẩm có sẵn nhiều thành phần trong một viên. Không chê. | XK01 18:44, 47:26 |
-| "Bác sĩ bảo mổ" | Mổ hay không là quyết định của bác sĩ và gia đình. **Không** khuyên hoãn mổ. | XK02 2:04:19 |
-| "Có phục hồi thoái hóa không?" | "Sản phẩm hỗ trợ làm chậm quá trình, phần xương đã thoái hóa thì không quay lại được ạ." | XK02 27:20 |
-| "5 viên nhiều quá" | Liều trên nhãn là 5 viên/ngày; có thể chia 2 lần. | XK03 54:11 |
-
-**Cấm:** "phục hồi hoàn toàn", "hết tê tay", "làm chắc xương", "không tác dụng phụ",
-"ngưng thuốc giảm đau", "dùng 1 tháng ổn thì khỏi mổ"; Gluchon "kháng viêm, giảm đau".
+Kênh Facebook Page chỉ bán bốn sản phẩm: Rich Q10, Natto, Raydel Policosanol 10, DHA·EPA +
+SQ. Giá Raydel và DHA·EPA lấy theo bảng giá `main-page` (data/products.ts); công dụng mọi
+sản phẩm đã đối chiếu giấy công bố — chi tiết thành phần, chống chỉ định ở skill
+`san-pham-facebook`.
 
 ## Rich Coenzyme Q10 (AFC)
 
@@ -88,13 +28,53 @@ có dạng khử", "độc quyền tại Việt Nam", "tỷ lệ thành công 80
 
 ## Nattokinase (Nano Nattokinase Premium)
 
-**Chưa đối chiếu được file NATTO** (không có trong bộ tài liệu nguồn). Chỉ dùng các mảnh
-dưới đây.
-
-- **Giá:** 2.290.000đ/lọ 120 viên. Liều 2 viên/ngày → 60 ngày, khoảng **38.000đ/ngày**
+- **Giá:** 2.290.000đ/hộp 120 viên. Liều 2 viên/ngày → 60 ngày, khoảng **38.000đ/ngày**
   [DONLON §4C; TH11 1:32:06].
-- **Được nói:** hỗ trợ làm tan cục máu đông, giảm nguy cơ hình thành huyết khối, hỗ trợ
-  lưu thông máu, bảo vệ tim mạch. Luôn có chữ "hỗ trợ".
-- **Phải hỏi trước:** khách đang dùng thuốc chống đông, mới mổ, rối loạn đông máu → không
-  tư vấn Natto, khuyên hỏi bác sĩ [TM06 1:32:09; LUAT §2.4].
+- **Số liệu:** nattokinase 2.004 FU mỗi ngày, kèm men gạo đỏ, cỏ trường thọ, peptide đậu
+  tương, lợi khuẩn L. plantarum, vitamin E và nhóm B; ĐKSP 3670/2022/ĐKSP; nhà sản xuất
+  AFC-HD AMS Life Science (Shizuoka).
+- **Được nói (duy nhất, theo giấy công bố):** hỗ trợ tan cục máu đông, giảm nguy cơ hình
+  thành huyết khối (cục máu đông). KHÔNG nói "lưu thông máu", "bảo vệ tim mạch" — công bố
+  không có.
+- **Phải hỏi trước:** khách đang dùng thuốc chống đông/chống kết tập tiểu cầu, sắp hoặc mới
+  mổ, rối loạn đông máu, huyết áp thấp → không tư vấn Natto, khuyên hỏi bác sĩ
+  [TM06 1:32:09; LUAT §2.4]. Tài liệu đào tạo có chỗ nói "dùng warfarin không vấn đề gì" —
+  SAI, không dùng.
 - Mỡ máu: không nói Natto giảm mỡ máu [DONLON §9].
+
+**Cấm:** "phòng đột quỵ", "đánh tan/làm tan huyết khối", "hạ huyết áp", "giảm cholesterol
+xấu", "tương đương atorvastatin/simvastatin", mọi con số % từ nghiên cứu, "kháng u".
+
+## Raydel Policosanol 10
+
+- **Giá:** 1.650.000đ/hộp 30 viên. Liều 1 viên/ngày → 30 ngày, khoảng **55.000đ/ngày**.
+- **Số liệu:** policosanol 10mg từ sáp mía đường mỗi viên; sản xuất tại Úc; ĐKSP
+  6848/2024/ĐKSP; có lactose.
+- **Được nói (duy nhất):** hỗ trợ cải thiện chỉ số cholesterol, lipid máu.
+
+| Khách nói | Trả lời |
+|---|---|
+| "Đang uống thuốc mỡ máu rồi" | Vẫn uống thuốc theo bác sĩ; sản phẩm hỗ trợ thêm, hỏi bác sĩ trước khi dùng chung. Không nói "giảm liều statin", "thay statin". |
+| "Uống bao lâu thì chỉ số đẹp" | Không hứa mốc. Cần dùng đều mỗi ngày, kết hợp ăn uống, vận động; tái xét nghiệm theo lịch bác sĩ. |
+| "1 viên nhỏ mà 1 triệu 6" | Khách đã chốt mua mới nói số: khoảng 55.000đ/ngày, mỗi ngày 1 viên. |
+
+**Cấm:** "hạ/giảm mỡ máu", "hạ huyết áp", "bảo vệ gan thận", "không hại gan thận", "giảm
+30–40% biến cố tim mạch", "phòng đột quỵ", mọi con số % từ nghiên cứu, "số 1 ở Úc/Hàn".
+
+## DHA·EPA + SQ
+
+- **Giá:** 3.290.000đ/hộp 330 viên. Liều 4 viên/ngày → khoảng 80 ngày, khoảng
+  **40.000đ/ngày**.
+- **Số liệu:** 4 viên có squalene 438mg, EPA 101mg, DHA 50mg, chiết xuất lá bạch quả 40mg;
+  ĐKSP 1974/2022/ĐKSP; nhà sản xuất Fuji Capsule (Shizuoka).
+- **Được nói (duy nhất):** hỗ trợ cải thiện triệu chứng khô mắt, giảm nguy cơ thoái hóa
+  điểm vàng.
+
+| Khách nói | Trả lời |
+|---|---|
+| "Omega-3 ngoài tiệm rẻ hơn nhiều" | Không chê. Sản phẩm này có cả squalene và chiết xuất lá bạch quả trong một viên, sản xuất tại Nhật; mình so thành phần chứ không chỉ so giá. |
+| "4 viên một ngày nhiều quá" | Liều trên nhãn là 4 viên/ngày; có thể chia sáng và tối sau ăn. |
+
+**Cấm:** "bổ não", "tăng trí nhớ", "phòng Alzheimer", "tuần hoàn máu não", "ngăn ngừa thoái
+hóa điểm vàng" (phải là "giảm nguy cơ"), "phòng đột quỵ, nhồi máu", "máu nhiễm mỡ", "nhà máy
+AFC" (nhà sản xuất là Fuji Capsule).

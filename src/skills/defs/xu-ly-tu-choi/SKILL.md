@@ -1,6 +1,6 @@
 ---
 name: xu-ly-tu-choi
-description: Xử lý khi khách lưỡng lự hoặc từ chối mua trên Messenger — chê đắt/mắc ("nghệ nhỏ xíu mà 990k"), "để hỏi chồng/vợ/con", "để suy nghĩ thêm", sợ hàng giả, "không có tiền", "cho thử 1 hộp thôi", "chỉ lấy men thôi", "chỗ khác rẻ hơn", "đang dùng loại khác rồi", "cam kết khỏi thì mua", "bao lâu thì khỏi", khách trả lời cụt hoặc im sau khi nghe giá, khách đòi hủy đơn hay kêu uống chưa thấy gì. Load ngay khi khách ngần ngừ trước giá hoặc trước quyết định mua, kể cả khi họ không nói thẳng là từ chối.
+description: Xử lý khi khách lưỡng lự hoặc từ chối mua trên Messenger — chê đắt/mắc ("Q10 nhà thuốc có vài trăm"), "để hỏi chồng/vợ/con", "để suy nghĩ thêm", sợ hàng giả, "không có tiền", "cho thử 1 hộp thôi", "chỉ lấy một món thôi", "chỗ khác rẻ hơn", "đang dùng loại khác rồi", "cam kết khỏi thì mua", "bao lâu thì khỏi", khách trả lời cụt hoặc im sau khi nghe giá, khách đòi hủy đơn hay kêu uống chưa thấy gì. Load ngay khi khách ngần ngừ trước giá hoặc trước quyết định mua, kể cả khi họ không nói thẳng là từ chối.
 agents: sale-facebook
 ---
 
@@ -87,15 +87,15 @@ Câu mẫu là khung; đổi xưng hô theo skill `giong-dieu`, giữ nguyên ý
 
 | Khách nói | Loại | Trả lời | Nguồn |
 |---|---|---|---|
-| "Mắc quá, nghệ nhỏ xíu mà 990k" | Giá | Thừa nhận, rồi hỏi ngược: "Hiện mình đang dùng nghệ loại nào, dùng bao lâu rồi, thấy đỡ được nhiều không ạ?" Khách còn khó chịu → loại đang dùng chưa giải quyết xong. Khách đã chốt mua thì mới nói số: mỗi gói 30mg curcumin từ nghệ mùa thu Okinawa, hộp 10 gói 990.000đ, **99.000đ/gói, mỗi ngày 1 gói**. Có combo tool báo thì nói một câu phần tiết kiệm. | DT19 6:48, 3:12; PIM |
+| "Q10 nhà thuốc có vài trăm, sao bên em mắc vậy" | Giá | Thừa nhận, rồi hỏi ngược: "Hiện mình đang dùng loại nào, dùng bao lâu rồi, thấy đỡ được nhiều không ạ?" Khách còn khó chịu → loại đang dùng chưa giải quyết xong. Rồi nói khác biệt: Rich là CoQ10 dạng khử, phần lớn loại phổ biến là dạng oxy hóa; không nêu "gấp X lần". Khách đã chốt mua mới nói số. | TM05 34:11; TM06 32:05 |
 | "Đắt quá" (chung) | Giá | "Dạ em hiểu mình đang cân nhắc về giá ạ." → khách đã chốt mua thì quy ra ngày theo liều nhãn, so với khoản chi quen thuộc; chưa chốt thì nói giá trị, không nêu số, rồi hỏi: "Nếu giúp được đúng chuyện mình đang khó chịu, mình thấy mức này có đáng không ạ?" | DT14 33:50; XK01 55:19 |
 | "Cho thử 1 hộp thôi" | Giá | Đồng ý, nói thật: cần vài tuần mới đánh giá được, dùng 1 hộp rồi bỏ giữa chừng thì phí. Hỏi: "Nếu thấy hợp, trước sau gì mình cũng dùng đủ liệu trình, mình có muốn bắt đầu đủ ngay để rút ngắn thời gian không ạ?" Có ưu đãi khi mua nhiều mà tool báo thì nói (khách đã chốt mới gọi tool). Khách vẫn muốn 1 hộp → lên 1 hộp, nhắc liệu trình đầy đủ dài hơn. | DT17 28:41; DT19 1:02:52; XK02 1:59:19 |
-| "Chỉ lấy men thôi, bỏ nghệ" | Giá | Không ép. Nói ngắn vai trò: men hỗ trợ đường ruột, nghệ hỗ trợ phần niêm mạc dạ dày; dùng một món vẫn được nhưng chậm hơn. Khách vẫn chỉ lấy men → lên men. | DT19 1:01:00, 1:02:52 |
+| "Chỉ lấy một món thôi" (khi được gợi hai sản phẩm) | Giá | Không ép. Nói ngắn mỗi món hỗ trợ phần nào trong điều khách kể; dùng một món vẫn được. Khách vẫn chỉ lấy một → lên một. | DT19 1:01:00, 1:02:52 |
 | "Không có tiền" | Niềm tin | Không nhắc tiền nữa. Quay lại đúng chuyện khách đang lo, hỏi điều còn băn khoăn. Khách khó khăn thật → đề xuất lựa chọn nhỏ nhất, không khuyên vay mượn. | DT03 2:29:52; TH11 1:17:55 |
 | "Để hỏi chồng đã" | Niềm tin | Đồng cảm: "Dạ đúng rồi, mua gì cũng nên bàn với nhà ạ." Rồi hỏi giả định: "Giả sử anh nhà đồng ý thì mình có lấy luôn không ạ?" Gật → chỉ còn thủ tục, đề nghị gửi tóm tắt ngắn để chị đưa anh đọc. Còn lưỡng lự → "Mình còn băn khoăn điều gì, em nói rõ thêm ạ." **Không** dọa bệnh nặng, **không** hối quyết ngay. | DT19 18:35, 37:38; TH11 2:18:18 |
 | "Để suy nghĩ thêm" | Niềm tin | "Dạ mình cứ cân nhắc ạ. Còn điểm nào em chưa nói rõ khiến mình phải nghĩ thêm không ạ?" | DT14 56:09; TH02 1:49:02 |
 | Nghe giá xong trả lời cụt hoặc im, rồi quay lại | Chưa rõ | **Một** tin, **một** câu hỏi, không gửi thêm công dụng, video, giá. Chọn một: "Trong những gì em chia sẻ, điểm nào mình còn băn khoăn nhất ạ?" / "Ngoài giá, mình quan tâm nhất điều gì khi chọn sản phẩm ạ?" | Drive "Hiểu sâu các tầng" qua DONLON §5 |
-| "Sợ hàng giả" | Niềm tin | Hỏi ngược cho khách tự suy: hàng giả có dám bán công khai, có số đăng ký không. Đưa dữ kiện: số ĐKSP, nhãn phụ tiếng Việt, tem, mã vạch; khi nhận hàng kiểm tra tem, nhãn trước (nhân viên hướng dẫn khi gọi xác nhận). Chi tiết: skill `khach-hay-hoi`. | DT19 49:40, 41:55 |
+| "Sợ hàng giả" | Niềm tin | Hỏi ngược cho khách tự suy: hàng giả có dám bán công khai, có số đăng ký không. Đưa dữ kiện: số ĐKSP, nhãn phụ tiếng Việt, tem, mã vạch; khi nhận hàng kiểm tra tem, nhãn trước (nhân viên hướng dẫn khi gọi xác nhận). Số ĐKSP từng sản phẩm: skill `san-pham-facebook`. | DT19 49:40, 41:55 |
 | "Cam kết khỏi thì mua" | Niềm tin | "Nếu em cam kết chỉ để mình mua thì em không làm vậy ạ, không ai được cam kết khỏi bệnh. Em cam kết được hai điều: hàng Nhật nhập khẩu chính ngạch, có số đăng ký, tem nhãn đầy đủ; và em đồng hành cùng mình suốt quá trình dùng. Phần của mình là dùng đủ liệu trình, ăn uống sinh hoạt theo hướng dẫn." | DT19 24:07; TM15 1:36:18; DT14 1:07:54 |
 
 Tình huống khác (chỗ khác rẻ hơn, đang dùng loại khác, đang uống thuốc, sau khi đặt
@@ -110,9 +110,9 @@ Chạy bốn câu với tin sắp gửi. Có câu nào "có" → sửa rồi m�
 2. **Có đang cãi không?** Có câu "không phải vậy đâu", chê sản phẩm khách đang dùng,
    giảng giải dài quá 3–4 câu?
 3. **Có vi phạm luật không?** Soi năm điều ở trên và bảng
-   `references/lam-tu-choi.md`. Ví dụ: "uống 3 tháng là hết đau dạ dày luôn chị" →
-   "Nghệ hỗ trợ giảm nguy cơ viêm loét dạ dày tá tràng. Thường khách bên em dùng đủ
-   liệu trình thấy dễ chịu dần, mỗi người mỗi khác ạ."
+   `references/lam-tu-choi.md`. Ví dụ: "uống 3 tháng là hết tê bì luôn chị" →
+   "Nattokinase hỗ trợ lưu thông máu. Thường khách bên em dùng đủ liệu trình thấy dễ
+   chịu dần, mỗi người mỗi khác ạ."
 4. **Có đang ép không?** Hối "kẻo hết", dọa, gửi dồn nhiều tin, mời mua lần thứ hai khi
    khách chưa đáp?
 
@@ -121,9 +121,9 @@ Chạy bốn câu với tin sắp gửi. Có câu nào "có" → sửa rồi m�
 | Tình huống | File |
 |---|---|
 | Lời từ chối không có trong bảng tra nhanh; khách sau khi đặt muốn hủy, chưa thấy hiệu quả, nghi tác dụng phụ | `references/ngan-hang-tu-choi.md` |
-| Từ chối gắn với một sản phẩm (Men, Nghệ, Sụn cá mập, Rich Q10, Natto): giá/ngày, số liệu, câu cấm riêng | `references/theo-san-pham.md` |
+| Từ chối gắn với một sản phẩm (Rich Q10, Natto, Raydel, DHA·EPA): giá/ngày, số liệu, câu cấm riêng | `references/theo-san-pham.md` |
 | Không chắc một câu có vi phạm luật; cần phiên bản nói thay | `references/lam-tu-choi.md` |
-| Khách hỏi nguồn gốc, hàng thật, cách dùng | skill `khach-hay-hoi` |
+| Khách hỏi nguồn gốc, hàng thật, cách dùng | skill `san-pham-facebook` |
 | Khách đồng ý mua | skill `chot-don-facebook` |
 
 ## Nguồn và giá

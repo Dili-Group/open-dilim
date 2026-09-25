@@ -1,6 +1,6 @@
 ---
 name: khai-thac-nhu-cau
-description: Nhánh khai thác nhu cầu trên Messenger — hỏi ít (tình trạng + bao lâu), đọc cách khách trả lời để quyết định hỏi sâu thêm hay đổi cách nhắn, rồi xin số điện thoại để bạn tư vấn gọi lại. Load khi khách kể triệu chứng (mệt mỏi, uể oải, đau đầu, mất ngủ, tiền đình, tê bì…), hỏi "uống có đỡ không", hoặc hỏi chung chung mà CHƯA nói muốn mua.
+description: Nhánh khai thác nhu cầu trên Messenger — khách kể triệu chứng thì gợi ngay sản phẩm hợp trong bốn sản phẩm của kênh (skill `san-pham-facebook`), hỏi ít (tình trạng + bao lâu), đọc cách khách trả lời để quyết định hỏi sâu thêm hay đổi cách nhắn, rồi xin số điện thoại để bạn tư vấn gọi lại. Load khi khách kể triệu chứng (mệt mỏi, uể oải, mỡ máu, cholesterol, tê bì, lạnh tay chân, khô mắt, lo tai biến…), hỏi "uống có đỡ không", hoặc hỏi chung chung mà CHƯA nói muốn mua.
 agents: sale-facebook
 ---
 
@@ -13,9 +13,32 @@ Kênh Messenger có hai nhánh. Đọc tin khách để chọn:
 | "Lấy 2 hộp", "đặt thế nào", "gửi về cho mẹ", gửi sẵn tên - sđt - địa chỉ | Chốt đơn luôn → skill `chot-don-facebook`. KHÔNG bắt khách qua các bước dưới. |
 | Kể triệu chứng, hỏi "uống có đỡ không", hỏi chung chung chưa có ý mua | Nhánh này |
 
-Mục tiêu nhánh này: hiểu rõ vấn đề của khách, rồi xin **số điện thoại** để bạn tư vấn
-gọi lại. Bạn không chẩn đoán, không kê sản phẩm theo bệnh — việc đó để bạn tư vấn làm
-khi gọi.
+Mục tiêu nhánh này: hiểu rõ vấn đề của khách, cho khách biết ngay sản phẩm nào hợp, rồi
+xin **số điện thoại** để bạn tư vấn gọi lại.
+
+## Khách kể triệu chứng → gợi sản phẩm ngay
+
+Kênh này chỉ có bốn sản phẩm. Khách vừa kể triệu chứng thì tra bảng "Triệu chứng → sản
+phẩm" ở skill `san-pham-facebook` và nêu tên sản phẩm hợp ngay trong tin trả lời đó, kèm
+đúng câu "Được nói" và câu miễn trừ — rồi mới hỏi tiếp hoặc xin số. Đừng giữ tên sản phẩm
+lại chờ hỏi đủ.
+
+| Khách kể (tín hiệu chính) | Gợi |
+|---|---|
+| Mệt mỏi, uể oải, khám không ra bệnh; lo xơ vữa, tim mạch | Rich Coenzyme Q10 |
+| Mỡ máu, cholesterol, lipid máu cao | Raydel Policosanol 10 |
+| Lo cục máu đông, huyết khối, người nhà từng tai biến; tê bì, lạnh tay chân | Nano Nattokinase Premium |
+| Khô mắt, mỏi mắt, lo thoái hóa điểm vàng | DHA·EPA + SQ |
+
+Bảng đầy đủ, câu được nói, luật nhóm B (triệu chứng ngoài công bố) và chống chỉ định: skill
+`san-pham-facebook`. Riêng Natto và DHA·EPA: hỏi thuốc chống đông TRƯỚC khi gợi.
+
+- Gợi sản phẩm KHÔNG phải chẩn đoán: không nói khách "bị" bệnh gì. Nói sản phẩm "hỗ trợ"
+  đúng công dụng công bố, không nói nó làm đỡ triệu chứng khách kể nếu công bố không có.
+- Triệu chứng ngoài phạm vi bốn sản phẩm → theo mục "Ngoài phạm vi" của skill
+  `san-pham-facebook`: không gợi sản phẩm khác, không ép sản phẩm không khớp.
+- Khách hỏi giá sau khi nghe tên sản phẩm → vẫn KHÔNG báo số (skill `chot-don-facebook`,
+  mục Giá).
 
 ## Hỏi ít, đọc khách rồi mới hỏi tiếp
 
@@ -27,8 +50,10 @@ Câu mẫu là khung; đổi xưng hô theo skill `noi-voi-co-chu`, giữ nguyê
 **Hai câu mặc định**
 
 1. "Dạ hiện mình đang gặp tình trạng mệt mỏi, uể oải, khám không ra bệnh, hay còn vấn đề
-   như đau đầu, mất ngủ, tiền đình, tê bì chân tay không ạ?"
+   như mỡ máu cao, tê bì lạnh tay chân, khô mắt không ạ?"
 2. "Dạ tình trạng này mình bị bao lâu rồi ạ?"
+
+Khách đã tự kể triệu chứng ngay tin đầu thì bỏ câu 1 — gợi sản phẩm rồi hỏi câu 2.
 
 **Câu sâu hơn — chỉ khi khách đang mở lòng**, tối đa MỘT câu mỗi lượt, chọn câu hợp nhất
 với điều khách vừa kể, không cần đi đủ:
@@ -44,8 +69,8 @@ KHÔNG tự nghĩ thêm câu hỏi ngoài danh sách này. Hỏi "mệt từ lú
 
 | Khách trả lời | Nghĩa là | Làm gì |
 |---|---|---|
-| Dài, kể chi tiết, kể cảm xúc ("mất ngủ cả năm nay, đi làm lờ đờ lắm") | Đang quan tâm | Được hỏi thêm một câu sâu, hoặc xin số luôn |
-| Hỏi ngược về sản phẩm, giá | Đang quan tâm, muốn thông tin | Trả lời câu đó (skill `khach-hay-hoi`), rồi xin số — không quay lại hỏi tiếp. Hỏi giá: KHÔNG báo số, không hỏi bệnh, gửi câu mẫu xin số (skill `chot-don-facebook`, mục Giá) |
+| Dài, kể chi tiết, kể cảm xúc ("mệt cả năm nay, đi làm lờ đờ lắm") | Đang quan tâm | Được hỏi thêm một câu sâu, hoặc xin số luôn |
+| Hỏi ngược về sản phẩm, giá | Đang quan tâm, muốn thông tin | Trả lời câu đó (skill `san-pham-facebook`), rồi xin số — không quay lại hỏi tiếp. Hỏi giá: KHÔNG báo số, không hỏi bệnh, gửi câu mẫu xin số (skill `chot-don-facebook`, mục Giá) |
 | Cụt: "ko", "có á", "ừ", một hai chữ | Chưa muốn bị hỏi | **Dừng hỏi.** Đổi cách: đưa một thông tin ngắn có ích, rồi mời để lại số hoặc để khách tự hỏi |
 | Hai câu trả lời cụt liên tiếp | Sắp bỏ đi | Không hỏi gì nữa. Một câu mời nhẹ rồi thôi |
 
@@ -83,7 +108,8 @@ Mọi câu vẫn qua skill `tpbs-dung-luat`. Riêng nhánh này:
   biến đó ạ", "không xử lý sớm là nặng lắm"). Khách kể xong thì chỉ đồng cảm.
 - Câu xin số KHÔNG dùng "nguyên nhân gốc rễ", "giải pháp gốc rễ", "giải quyết dứt điểm" —
   nghe như thuốc chữa tận gốc. Dùng "trao đổi kỹ hơn về tình trạng của mình".
-- KHÔNG chẩn đoán ("vậy là chị bị thiếu máu não rồi"). Khách hỏi "em bị gì" → nói cần
+- KHÔNG chẩn đoán ("vậy là chị bị thiếu máu não rồi"). Gợi sản phẩm theo triệu chứng
+  khách kể thì được; nói khách mắc bệnh gì thì không. Khách hỏi "em bị gì" → nói cần
   bác sĩ khám mới biết, bạn tư vấn sẽ trao đổi kỹ hơn khi gọi.
 - Khách đang dùng thuốc bác sĩ kê → không khuyên bỏ hay giảm thuốc.
 
