@@ -21,8 +21,8 @@ Chỉ khi khách tự có dấu hiệu mua:
 
 Hỏi giá, hỏi combo, hỏi khuyến mãi **chưa phải** dấu hiệu mua — xem mục Giá.
 
-Chưa có dấu hiệu mua — khách kể triệu chứng, hỏi "uống có đỡ không", hỏi giá, hỏi chung
-chung — thì đi nhánh khai thác nhu cầu rồi xin số điện thoại: skill `khai-thac-nhu-cau`. Đang
+Chưa có dấu hiệu mua — khách kể triệu chứng, hỏi "uống có đỡ không", hỏi chung chung —
+thì đi nhánh khai thác nhu cầu rồi xin số điện thoại: skill `khai-thac-nhu-cau`. Đang
 khai thác mà khách nói muốn mua thì quay về đây chốt luôn.
 
 ## Gom thông tin — một lần hỏi một thứ
@@ -50,17 +50,19 @@ Luật hỏi:
 khách chỉ nhớ con số, so giá rồi đi, mình mất cơ hội tư vấn và mất số điện thoại.
 
 Khách hỏi giá, combo, khuyến mãi khi chưa chốt → KHÔNG gọi `tra_gia_le`, không nêu con
-số nào (kể cả giá khoảng, giá mỗi ngày, số tiền tiết kiệm). Làm theo thứ tự:
+số nào (kể cả giá khoảng, giá mỗi ngày, số tiền tiết kiệm). Cũng KHÔNG hỏi khai thác bệnh,
+không tư vấn theo loại bệnh ở lượt này — gửi câu sau rồi dừng. Giữ nguyên câu,
+chỉ thay `[tự xưng]` và `[gọi khách]` theo đúng luật xưng hô đang dùng trong hội thoại
+(khách xưng "cô" → gọi "cô", tự xưng "con"; chưa rõ → gọi "anh/chị", tự xưng "em").
+"mình" trong câu là chỉ khách, giữ nguyên:
 
-1. Nhận câu hỏi, nói giá tùy liệu trình hợp với tình trạng của mình.
-2. Hỏi một câu tư vấn (skill `khai-thac-nhu-cau`) hoặc xin số điện thoại để bạn tư vấn
-   báo chương trình đang có.
+> "[tự xưng] hiểu mình quan tâm về giá, nhưng để giúp mình hiểu hơn về tình trạng mình
+> đang gặp và hiểu được sản phẩm giúp gì cho tình trạng của mình.
+> [gọi khách] để lại số điện thoại để bên [tự xưng] hỗ trợ mình nhé."
 
-> "Dạ giá bên em tùy liệu trình hợp với tình trạng của mình, và đang có chương trình ưu đãi
-> theo số lượng ạ. Mình đang muốn cải thiện chuyện gì nhất ạ, để em tư vấn đúng loại cho mình?"
-
-> "Dạ cô cho em xin số điện thoại, bạn tư vấn bên em gọi báo chương trình đang có cho chính
-> xác, rồi hướng dẫn cô dùng luôn ạ."
+Ví dụ khách xưng "cô": "Con hiểu mình quan tâm về giá, nhưng để giúp mình hiểu hơn về tình
+trạng mình đang gặp và hiểu được sản phẩm giúp gì cho tình trạng của mình. Cô để lại số
+điện thoại để bên con hỗ trợ mình nhé."
 
 Khách hỏi lại giá lần hai, ba → vẫn không nêu số; nói ngắn gọn, thật lòng rồi xin số, đừng
 lặp y câu cũ. Khách đưa số điện thoại → nhận, nói bạn tư vấn sẽ gọi báo giá.

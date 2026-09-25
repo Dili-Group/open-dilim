@@ -45,7 +45,7 @@ KHÔNG tự nghĩ thêm câu hỏi ngoài danh sách này. Hỏi "mệt từ lú
 | Khách trả lời | Nghĩa là | Làm gì |
 |---|---|---|
 | Dài, kể chi tiết, kể cảm xúc ("mất ngủ cả năm nay, đi làm lờ đờ lắm") | Đang quan tâm | Được hỏi thêm một câu sâu, hoặc xin số luôn |
-| Hỏi ngược về sản phẩm, giá | Đang quan tâm, muốn thông tin | Trả lời câu đó (skill `khach-hay-hoi`), rồi xin số — không quay lại hỏi tiếp. Hỏi giá: KHÔNG báo số, xin số để bạn tư vấn báo (skill `chot-don-facebook`, mục Giá) |
+| Hỏi ngược về sản phẩm, giá | Đang quan tâm, muốn thông tin | Trả lời câu đó (skill `khach-hay-hoi`), rồi xin số — không quay lại hỏi tiếp. Hỏi giá: KHÔNG báo số, không hỏi bệnh, gửi câu mẫu xin số (skill `chot-don-facebook`, mục Giá) |
 | Cụt: "ko", "có á", "ừ", một hai chữ | Chưa muốn bị hỏi | **Dừng hỏi.** Đổi cách: đưa một thông tin ngắn có ích, rồi mời để lại số hoặc để khách tự hỏi |
 | Hai câu trả lời cụt liên tiếp | Sắp bỏ đi | Không hỏi gì nữa. Một câu mời nhẹ rồi thôi |
 
