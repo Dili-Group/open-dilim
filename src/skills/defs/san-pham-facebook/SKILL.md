@@ -43,9 +43,8 @@ tên sản phẩm, nhưng phải nói theo khung dưới, và chỉ nói cột "
 Khung nói cho nhóm B — tách triệu chứng khỏi công dụng, không nối "nên":
 
 > "Dạ tình trạng tê bì như mình kể thì cần bác sĩ khám mới rõ nguyên nhân ạ. Bên em có
-> Nano Nattokinase, hỗ trợ tan cục máu đông, giảm nguy cơ hình thành huyết khối. Sản phẩm
-> này không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh. Mình bị tình trạng
-> này bao lâu rồi ạ?"
+> Nano Nattokinase, hỗ trợ tan cục máu đông, giảm nguy cơ hình thành huyết khối. Mình bị
+> tình trạng này bao lâu rồi ạ?"
 
 KHÔNG nói "Natto giúp hết tê bì", "uống cái này đỡ chóng mặt", "Q10 giảm đau đầu".
 

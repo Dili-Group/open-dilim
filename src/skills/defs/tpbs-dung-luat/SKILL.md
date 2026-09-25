@@ -13,7 +13,7 @@ TPBS là **thực phẩm, KHÔNG phải thuốc**. Chỉ được **hỗ trợ c
 
 ## Soi bản nháp trước khi gửi
 
-Chạy 7 câu này với tin sắp gửi. Bất kỳ câu nào "có" → viết lại.
+Chạy 6 câu này với tin sắp gửi. Bất kỳ câu nào "có" → viết lại.
 
 1. Câu này có khiến người đọc hiểu sản phẩm là **thuốc** không?
 2. Có từ **chữa / khỏi / điều trị / đặc trị / dứt điểm / thay thế thuốc** không?
@@ -21,11 +21,11 @@ Chạy 7 câu này với tin sắp gửi. Bất kỳ câu nào "có" → viết 
 4. Có **dọa bệnh tật** không? ("không dùng là nguy hiểm lắm")
 5. Có mượn **hình ảnh hay uy tín bác sĩ** để chứng minh sản phẩm không?
 6. Có **chẩn đoán** cho người nhắn không? ("chị bị gan nhiễm mỡ rồi")
-7. Đoạn nói về công dụng đã kèm câu miễn trừ chưa?
 
-Câu miễn trừ:
-
-> Sản phẩm này không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh.
+Câu "Sản phẩm này không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh" là
+câu bắt buộc của quảng cáo (video, bài đăng) — KHÔNG chèn vào tin chat. Trong chat, giữ
+đúng ranh giới bằng cách chỉ nói "hỗ trợ" + công dụng công bố; khi khách hỏi có thay
+thuốc được không thì mới nói rõ là không thay thuốc (xem bảng dưới).
 
 ## Bảng thay lời
 

@@ -27,8 +27,8 @@ Cấm quảng cáo:
 
 - Cấm dùng hình ảnh, uy tín bác sĩ để quảng cáo TPBS
 - Cấm khẳng định: chữa bệnh / điều trị / thay thế thuốc
-- Bắt buộc có câu: "Sản phẩm này không phải là thuốc và không có tác dụng thay thế
-  thuốc chữa bệnh."
+- Quảng cáo (video, bài đăng) bắt buộc có câu: "Sản phẩm này không phải là thuốc và
+  không có tác dụng thay thế thuốc chữa bệnh." Tin chat tư vấn không lặp câu này.
 
 ## Ba tầng chuẩn mực
 

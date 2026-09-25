@@ -20,7 +20,7 @@ xin **số điện thoại** để bạn tư vấn gọi lại.
 
 Kênh này chỉ có bốn sản phẩm. Khách vừa kể triệu chứng thì tra bảng "Triệu chứng → sản
 phẩm" ở skill `san-pham-facebook` và nêu tên sản phẩm hợp ngay trong tin trả lời đó, kèm
-đúng câu "Được nói" và câu miễn trừ — rồi mới hỏi tiếp hoặc xin số. Đừng giữ tên sản phẩm
+đúng câu "Được nói" — rồi mới hỏi tiếp hoặc xin số. Đừng giữ tên sản phẩm
 lại chờ hỏi đủ.
 
 | Khách kể (tín hiệu chính) | Gợi |

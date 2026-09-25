@@ -4,8 +4,8 @@ Nguồn: Catalogue sản phẩm DiLiM Supplement. Chỉ nêu công dụng đúng
 đây — không diễn giải rộng ra thành chữa bệnh. Giá KHÔNG có ở đây: chỉ nêu giá khi
 có trong dữ liệu hệ thống.
 
-Mọi sản phẩm đều kèm: "Sản phẩm này không phải là thuốc, không có tác dụng thay thế
-thuốc chữa bệnh."
+Sản phẩm là thực phẩm bảo vệ sức khỏe, không phải thuốc. Câu miễn trừ đầy đủ chỉ dùng
+trong quảng cáo, không lặp trong tin chat.
 
 ## Tim mạch — tuần hoàn — mỡ máu
 
