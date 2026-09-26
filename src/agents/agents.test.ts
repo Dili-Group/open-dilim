@@ -20,6 +20,7 @@ import { customerSupportSpec, internalOpsSpec } from "../state/specs.ts";
 import { runAgentLoop } from "./runtime/loop.ts";
 import { buildAgentRegistry } from "./registry.ts";
 import { customerProfile } from "./roots/customer.ts";
+import { saleFacebookProfile } from "./roots/sale-facebook.ts";
 import { buildRootAgent } from "./runtime/build-agent.ts";
 import { resolveAgentType } from "./router.ts";
 import { matchesDedicatedTrigger, type DedicatedRoom } from "./dedicated-rooms.ts";
@@ -305,8 +306,15 @@ describe("agent customer (Official Account)", () => {
     // Khách Messenger xưng "mình" → agent từng đáp "Chào bạn, mình đây"; gọi "e" → agent tự chọn "chị".
     expect(system).toContain('KHÔNG BAO GIỜ dùng cặp "bạn/mình"');
     expect(system).toContain("tự chọn \"chị\" hay \"anh\" là đoán giới tính");
-    // Kênh chỉ bán bốn sản phẩm — thiếu dòng này model gợi cả catalog.
-    expect(system).toContain("CHỈ tư vấn và bán bốn sản phẩm");
+    // Agent chỉ hiểu vấn đề + xin số; tư vấn/chốt là việc người gọi lại.
+    expect(system).toContain("Bạn chỉ có HAI việc");
+    // Đoạn chat thật: "giảm trí nhớ" → "chưa có sản phẩm phù hợp, đi khám" → khách đi, không để số.
+    expect(system).toContain("Vấn đề không khớp sản phẩm nào KHÔNG phải lý do dừng");
+  });
+
+  test("sale-facebook: không có tool báo giá — người gọi lại mới báo giá", () => {
+    const names = saleFacebookProfile.tools.map((factory) => factory(toolCtx()).name);
+    expect(names).not.toContain("tra_gia_le");
   });
 });
 

@@ -19,7 +19,6 @@ describe("registry (defs thật)", () => {
       "bao-het-hang",
       "chiet-khau",
       "chinh-sach-hoa-hong",
-      "chot-don-facebook",
       "doc-tai-lieu",
       "don-hang",
       "don-hoan",
@@ -41,7 +40,6 @@ describe("registry (defs thật)", () => {
       "thong-bao-chung",
       "tpbs-dung-luat",
       "xin-so-dien-thoai",
-      "xu-ly-tu-choi",
     ]);
   });
 
@@ -56,10 +54,10 @@ describe("registry (defs thật)", () => {
     expect(forDealer).not.toContain("khach-hay-hoi");
   });
 
-  test("agent sale-facebook: skill chốt đơn + tư vấn, KHÔNG thấy skill cần ghi_nhan_khach", async () => {
+  test("agent sale-facebook: chỉ skill hiểu vấn đề + xin số, KHÔNG skill chốt đơn hay cần ghi_nhan_khach", async () => {
     const registry = await buildSkillRegistry();
     const forSale = registry.catalog().filter((m) => visibleTo(m, "sale-facebook")).map((m) => m.name);
-    for (const name of ["chot-don-facebook", "khai-thac-nhu-cau", "san-pham-facebook", "tpbs-dung-luat", "noi-voi-co-chu", "xu-ly-tu-choi"]) {
+    for (const name of ["khai-thac-nhu-cau", "san-pham-facebook", "tpbs-dung-luat", "noi-voi-co-chu"]) {
       expect(forSale).toContain(name);
     }
     // Kênh chỉ bán bốn sản phẩm: `khach-hay-hoi` nạp cả catalog → agent gợi nhầm sản phẩm ngoài kênh.
@@ -68,12 +66,19 @@ describe("registry (defs thật)", () => {
     expect(forSale).not.toContain("xin-so-dien-thoai");
     expect(forSale).not.toContain("khach-bao-hang-loi");
     const forCustomer = registry.catalog().filter((m) => visibleTo(m, "customer")).map((m) => m.name);
-    expect(forCustomer).not.toContain("chot-don-facebook");
-    // Xử lý từ chối dẫn khách sang chốt đơn Messenger — kênh OA đi luồng xin số, không dùng.
-    expect(forCustomer).not.toContain("xu-ly-tu-choi");
-    // Khai thác nhu cầu kết bằng xin số KHÔNG ghi tool — kênh OA có luồng xin số riêng qua ghi_nhan_khach.
+    // Xin số KHÔNG ghi tool — kênh OA có luồng xin số riêng qua ghi_nhan_khach.
     expect(forCustomer).not.toContain("khai-thac-nhu-cau");
     expect(forCustomer).not.toContain("san-pham-facebook");
+  });
+
+  test("khai-thac-nhu-cau: không gợi sản phẩm, không đóng cửa khi vấn đề ngoài bốn sản phẩm", async () => {
+    const registry = await buildSkillRegistry();
+    const skill = registry.get("khai-thac-nhu-cau");
+    expect(skill).toBeDefined();
+    const body = await readBody(skill!);
+    expect(body).toContain("KHÔNG gợi sản phẩm, KHÔNG đóng cửa");
+    expect(body).toContain('KHÔNG nói "bên em chưa có sản phẩm\n  phù hợp"');
+    expect(body).toContain("Xin số — kèm lý do gắn với điều khách kể");
   });
 
   test("huong-dan: hub định tuyến, mọi link chuẩn nằm trong body", async () => {

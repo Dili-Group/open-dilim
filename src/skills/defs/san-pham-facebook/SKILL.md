@@ -1,6 +1,6 @@
 ---
 name: san-pham-facebook
-description: Kiến thức sản phẩm của kênh Facebook Page — CHỈ bốn sản phẩm Rich Coenzyme Q10, Raydel Policosanol 10, Nano Nattokinase Premium, DHA·EPA + SQ — kèm bảng triệu chứng → sản phẩm để gợi đúng sản phẩm ngay khi khách kể triệu chứng, công dụng nguyên văn giấy công bố, thành phần, liều, chống chỉ định. Load khi khách kể triệu chứng (mệt mỏi, mỡ máu, cholesterol, tê bì, lạnh tay chân, khô mắt, lo tai biến…), hỏi về sản phẩm (công dụng, thành phần, cách uống, nguồn gốc, tác dụng phụ), hoặc hỏi vấn đề ngoài bốn sản phẩm này.
+description: Kiến thức bốn sản phẩm của kênh Facebook Page — Rich Coenzyme Q10, Raydel Policosanol 10, Nano Nattokinase Premium, DHA·EPA + SQ — để trả lời KHI KHÁCH HỎI THẲNG về sản phẩm: công dụng nguyên văn giấy công bố, thành phần, liều, nguồn gốc, chống chỉ định, câu cấm nói. KHÔNG dùng để tự gợi sản phẩm theo triệu chứng. Load khi khách hỏi về một sản phẩm (công dụng, thành phần, cách uống, nguồn gốc, tác dụng phụ, uống chung thuốc) hoặc hỏi "bên em có gì cho … không".
 agents: sale-facebook
 ---
 
@@ -9,88 +9,50 @@ agents: sale-facebook
 Nguồn: giấy công bố, nhãn phụ, tem phụ trên hộp và tài liệu đào tạo từng sản phẩm (kho
 `main-page`: AFCRICH, RAYDEL, NTNC120, DHA330).
 
-Kênh này CHỈ tư vấn bốn sản phẩm dưới đây. Khách kể triệu chứng → tra bảng, gợi ngay
-sản phẩm hợp trong chính tin trả lời đó.
+Skill này để **trả lời câu khách hỏi**, không để bán. Việc của agent là hiểu vấn đề và
+xin số (skill `khai-thac-nhu-cau`); tư vấn chọn sản phẩm là việc của bạn tư vấn khi gọi.
+Khách kể triệu chứng mà không hỏi sản phẩm → KHÔNG nêu tên sản phẩm nào.
 
-**Hai lớp, đừng trộn:** cột "Khách kể" là tín hiệu để CHỌN sản phẩm (lấy từ tài liệu đào
-tạo). Cột "Được nói" là câu DUY NHẤT được nói về công dụng — nguyên văn giấy công bố, luôn
-có chữ "hỗ trợ". Không bao giờ nói sản phẩm giúp đỡ chính triệu chứng khách kể nếu triệu
-chứng đó không nằm trong "Được nói".
+Trả lời xong thì quay về xin số. Giá KHÔNG có ở đây: không nêu con số nào (skill
+`khai-thac-nhu-cau`, mục "Khách hỏi giá").
 
-Giá KHÔNG có ở đây và theo luật skill `chot-don-facebook` (mục Giá): khách chưa chốt mua
-thì không nêu số.
+## Công dụng được nói
 
-## Triệu chứng → sản phẩm
+Câu DUY NHẤT được nói về công dụng — nguyên văn giấy công bố, luôn có chữ "hỗ trợ". Không
+bao giờ nói sản phẩm giúp đỡ triệu chứng nào ngoài cột này.
 
-**Nhóm A — triệu chứng nằm trong công dụng đã công bố. Gợi thẳng.**
-
-| Khách kể | Gợi | Được nói (nguyên văn công bố) |
-|---|---|---|
-| Mệt mỏi, uể oải, thiếu sức, "khám không ra bệnh"; lo xơ vữa động mạch, muốn chăm sóc tim mạch | **Rich Coenzyme Q10** | Hỗ trợ bổ sung Coenzyme Q10 cho cơ thể, hỗ trợ chống oxy hóa, giảm mệt mỏi, giảm nguy cơ xơ vữa động mạch, tốt cho tim mạch |
-| Mỡ máu cao, cholesterol cao, LDL/triglycerid cao, HDL thấp, xét nghiệm lipid máu không đẹp | **Raydel Policosanol 10** | Hỗ trợ cải thiện chỉ số cholesterol, lipid máu |
-| Lo cục máu đông, huyết khối; người nhà từng bị tai biến nên lo | **Nano Nattokinase Premium** | Hỗ trợ tan cục máu đông, giảm nguy cơ hình thành huyết khối (cục máu đông) |
-| Khô mắt, mỏi mắt khô rát, dùng mắt nhiều; lớn tuổi lo thoái hóa điểm vàng | **DHA·EPA + SQ** | Hỗ trợ cải thiện triệu chứng khô mắt, giảm nguy cơ thoái hóa điểm vàng |
-
-**Nhóm B — triệu chứng tài liệu đào tạo có nhắc nhưng NGOÀI công dụng công bố.** Được gợi
-tên sản phẩm, nhưng phải nói theo khung dưới, và chỉ nói cột "Được nói" của nhóm A.
-
-| Khách kể | Gợi |
+| Sản phẩm | Được nói |
 |---|---|
-| Tê bì, lạnh tay chân, cứng vai gáy, "máu lưu thông kém", "máu nhớt" | Nano Nattokinase Premium |
-| Đang uống thuốc mỡ máu (statin) mà hay mệt | Rich Coenzyme Q10 (vẫn uống thuốc theo bác sĩ, hỏi bác sĩ trước khi dùng thêm) |
-| Đau đầu, chóng mặt, tiền đình kèm mệt mỏi | Rich Coenzyme Q10 (gợi theo phần mệt mỏi) |
+| **Rich Coenzyme Q10** | Hỗ trợ bổ sung Coenzyme Q10 cho cơ thể, hỗ trợ chống oxy hóa, giảm mệt mỏi, giảm nguy cơ xơ vữa động mạch, tốt cho tim mạch |
+| **Raydel Policosanol 10** | Hỗ trợ cải thiện chỉ số cholesterol, lipid máu |
+| **Nano Nattokinase Premium** | Hỗ trợ tan cục máu đông, giảm nguy cơ hình thành huyết khối (cục máu đông) |
+| **DHA·EPA + SQ** | Hỗ trợ cải thiện triệu chứng khô mắt, giảm nguy cơ thoái hóa điểm vàng |
 
-Khung nói cho nhóm B — tách triệu chứng khỏi công dụng, không nối "nên":
+## Khách hỏi "bên em có gì cho … không"
 
-> "Dạ tình trạng tê bì như mình kể thì cần bác sĩ khám mới rõ nguyên nhân ạ. Bên em có
-> Nano Nattokinase, hỗ trợ tan cục máu đông, giảm nguy cơ hình thành huyết khối. Mình bị
-> tình trạng này bao lâu rồi ạ?"
+- Điều khách hỏi nằm đúng cột "Được nói" (vd mỡ máu → Raydel) → nêu tên + câu "Được nói",
+  không kể thêm, rồi xin số để bạn tư vấn trao đổi kỹ.
+- Không nằm trong cột nào (trí nhớ, huyết áp, mất ngủ, xương khớp…) → KHÔNG ép một sản
+  phẩm vào, KHÔNG gợi sản phẩm DiLiM khác, và cũng KHÔNG đóng cửa bằng "bên em không có
+  sản phẩm phù hợp". Nói thật là em chưa nói chắc được, bạn tư vấn sẽ trao đổi kỹ về tình
+  trạng của mình, rồi xin số:
 
-KHÔNG nói "Natto giúp hết tê bì", "uống cái này đỡ chóng mặt", "Q10 giảm đau đầu".
+> "Dạ chuyện trí nhớ thì em chưa dám nói chắc ạ. Em nhờ bạn tư vấn bên em gọi trao đổi kỹ
+> hơn về tình trạng của mình nha, mình cho em xin số điện thoại ạ."
 
-**Luật chọn:**
+- Gợi tên không phải chẩn đoán: nói "tình trạng như mình kể", không nói "chị bị…".
 
-- Nhiều triệu chứng thuộc nhiều dòng → gợi **tối đa hai** sản phẩm, khớp triệu chứng chính
-  nhất trước. Không kể cả bốn.
-- Mỡ máu → Raydel. KHÔNG gợi Natto cho mỡ máu dù Natto có men gạo đỏ.
-- DHA·EPA + SQ chỉ gợi cho **mắt**. Hay quên, trí nhớ, đau đầu, tuần hoàn não → KHÔNG gợi
-  DHA·EPA (công bố không có).
-- Không chắc triệu chứng thuộc dòng nào → hỏi đúng một câu để rõ, đừng đoán ghép.
-- Gợi sản phẩm KHÔNG phải chẩn đoán: nói "tình trạng như mình kể", không nói "chị bị…".
+## Chống chỉ định — biết để trả lời, không để sàng lọc
 
-## Phải hỏi trước khi gợi Natto hoặc DHA·EPA
+Không hỏi khách đang uống thuốc gì (việc của bạn tư vấn). Chỉ khi khách tự hỏi "tôi đang
+uống thuốc X, dùng được không" thì trả lời theo đây, khuyên hỏi bác sĩ điều trị, rồi xin
+số:
 
-Natto có nattokinase, DHA·EPA + SQ có chiết xuất lá bạch quả — cả hai dính tới đông máu.
-Khách từng tai biến, bệnh tim, lớn tuổi → hỏi trước: "Mình có đang uống thuốc chống đông
-hay thuốc chống kết tập tiểu cầu bác sĩ kê không ạ?"
-
-Có một trong các điều sau → KHÔNG gợi hai sản phẩm này, khuyên hỏi bác sĩ điều trị:
-
-- Đang dùng thuốc chống đông / chống kết tập tiểu cầu (warfarin, heparin, aspirin,
-  clopidogrel…)
-- Sắp hoặc mới phẫu thuật, đang chảy máu, máu chậm đông
-- Riêng Natto: huyết áp thấp; đang dùng statin thì hỏi bác sĩ (men gạo đỏ có monacolin K)
-
-## Mốc dừng — không gợi sản phẩm nào
-
+- Natto và DHA·EPA + SQ (có chiết xuất lá bạch quả) dính tới đông máu: không dùng khi đang
+  dùng thuốc chống đông / chống kết tập tiểu cầu (warfarin, heparin, aspirin, clopidogrel…),
+  sắp hoặc mới phẫu thuật, đang chảy máu, máu chậm đông.
+- Riêng Natto: huyết áp thấp; đang dùng statin thì hỏi bác sĩ (men gạo đỏ có monacolin K).
 - Mang thai, cho con bú, trẻ em → khuyên hỏi chuyên gia y tế.
-- Đang điều trị bệnh nặng, đang dùng nhiều thuốc → khuyên hỏi bác sĩ điều trị trước.
-- Triệu chứng cấp (đau ngực, khó thở, yếu liệt nửa người, méo miệng, nói ngọng, chóng
-  mặt dữ dội) → dừng tư vấn, khuyên đi khám ngay.
-
-## Ngoài phạm vi
-
-Huyết áp, mất ngủ, hay quên, xương khớp, dạ dày, tiêu hóa, gan, tiểu đường, sinh lý, làm
-đẹp, đề kháng… — không sản phẩm nào trong bốn có công dụng công bố cho các vấn đề này.
-
-- KHÔNG gợi sản phẩm nào khác của DiLiM, kể cả khi biết tên. KHÔNG ép một trong bốn vào
-  vấn đề không khớp (vd huyết áp → KHÔNG nói Natto hay Raydel hạ huyết áp).
-- Nói thật một câu, khuyên đi khám; khách vẫn muốn tư vấn thì mời để lại số.
-- Khách kể vấn đề ngoài phạm vi KÈM một triệu chứng nhóm A (vd huyết áp + mỡ máu) → chỉ
-  gợi theo triệu chứng nhóm A.
-
-> "Dạ về huyết áp thì bên em ở đây chưa có sản phẩm phù hợp ạ. Mình nên đi khám để bác sĩ
-> theo dõi kỹ ạ."
 
 ## Thông tin từng sản phẩm
 
@@ -125,7 +87,7 @@ Huyết áp, mất ngủ, hay quên, xương khớp, dạ dày, tiêu hóa, gan,
   lợi khuẩn L. plantarum dạng nano, vitamin E và nhóm B.
 - Liều: 2 viên/ngày với nước hoặc nước ấm, nên uống sau bữa tối hoặc trước khi ngủ.
 - Đối tượng: người trưởng thành. Hạn chế cho người dị ứng, mang thai, đang điều trị bệnh.
-  Chống chỉ định: xem mục "Phải hỏi trước".
+  Chống chỉ định: xem mục "Chống chỉ định".
 
 ### DHA·EPA + SQ
 
@@ -156,7 +118,7 @@ thận", "tương đương / thay statin", "giảm liều thuốc", "chữa ti�
   ăn uống, vận động, ngủ nghỉ.
 - **Đang uống thuốc tây, uống chung được không:** vẫn dùng thuốc theo bác sĩ, sản phẩm chỉ
   hỗ trợ; hỏi bác sĩ điều trị trước khi dùng chung. Không khuyên bỏ hay giảm thuốc. Thuốc
-  chống đông → mục "Phải hỏi trước".
+  chống đông → mục "Chống chỉ định".
 - **Tác dụng phụ:** không dùng khi mẫn cảm với thành phần; thấy bất thường thì ngưng và báo
   bên em. KHÔNG nói "không có tác dụng phụ".
 - **Dùng chung hai sản phẩm:** mỗi loại theo đúng liều trên nhãn; băn khoăn thêm thì bạn tư
