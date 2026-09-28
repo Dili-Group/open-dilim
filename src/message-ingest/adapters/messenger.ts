@@ -30,6 +30,7 @@ export class MessengerIngestor implements Ingestor {
   ) {}
 
   verify(headers: Headers, rawBody: string): boolean {
+    return false;
     const provided = headers.get(SIGNATURE_HEADER);
     if (provided === null || !provided.startsWith(SIGNATURE_PREFIX)) return false;
     const expected = createHmac("sha256", this.config.appSecret).update(rawBody, "utf8").digest("hex");
