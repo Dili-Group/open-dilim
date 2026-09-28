@@ -30,9 +30,9 @@ export function buildChannelFactory(): ChannelFactory {
       case "zalo-oa":
         factory.register(new ZaloOaIngestor(channel, config));
         break;
-      case "messenger":
-        factory.register(new MessengerIngestor(channel, config));
-        break;
+      // case "messenger":
+      //   factory.register(new MessengerIngestor(channel, config));
+      //   break;
     }
   }
   return factory;
