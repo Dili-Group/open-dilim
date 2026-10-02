@@ -34,6 +34,7 @@ import { buildImageReadTool } from "./impl/vision/xem-anh.ts";
 import { buildDocReadTool } from "./impl/doc/doc-file.ts";
 import { buildCustomerLeadTool } from "./impl/ghi-nhan-khach.ts";
 import { buildRetailQuoteTool } from "./impl/tra-gia-le.ts";
+import { buildRegisterConfirmTool } from "./impl/xacnhan/ghi-dang-ky.ts";
 import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
 import { buildWorkflowAnswerTool } from "./impl/workflow/answer.ts";
 import { buildWorkflowListTool } from "./impl/workflow/list.ts";
@@ -70,6 +71,20 @@ export const CUSTOMER_LEAD_TOOLS: readonly ToolFactory[] = [
  */
 export const RETAIL_PRICING_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildRetailQuoteTool(ctx),
+];
+
+/**
+ * Tool SỔ XÁC NHẬN ĐƠN — chỉ agent của nhóm BS Sơn được khai (agents/roots/xac-nhan.ts). CHỈ GHI
+ * đăng ký: agent không đọc hàng đợi, không ghi kết quả, không tổng hợp (chốt 02/10/2026).
+ *
+ * KHÔNG khai cho agent đại lý dù nhóm xác nhận nằm trên cùng tài khoản Zalo: bộ này ghi sổ nội
+ * bộ, có mặt trong nhóm đại lý là mở đường ghi dòng từ phòng không liên quan.
+ *
+ * Không tool nào nhận tham số "nhóm nào" hay "sale nào": phòng lấy từ `ctx.room`, sale lấy từ
+ * `ctx.identity.senderId` — cả hai server-side.
+ */
+export const XACNHAN_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildRegisterConfirmTool(ctx),
 ];
 
 /**

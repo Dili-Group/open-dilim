@@ -24,6 +24,10 @@ export const DAILY_BUDGET_VND: Readonly<Record<string, number | null>> = {
   [AgentType.Warehouse]: null,
   [AgentType.Operations]: null,
   [AgentType.Boss]: null,
+  // Nhóm xác nhận là nhóm NỘI BỘ nhưng KHÔNG để `null` như các nhóm nội bộ khác: nó đông và mở
+  // rộng theo số sale, nên vẫn cần một cái phanh. Trần rộng để không chặn nhầm giữa ca làm việc;
+  // chỉnh lại sau vài ngày có số đo thật.
+  [AgentType.OrderConfirm]: 20_000,
 };
 
 /** Agent không có trong bảng (kể cả `default`) dùng mức này. */

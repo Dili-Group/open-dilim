@@ -12,6 +12,7 @@ import type {
   DealerPort,
   DiscountPort,
   InternalOrdersPort,
+  OrderConfirmPort,
   OrderPort,
   PoscakePort,
   RetailPricingPort,
@@ -128,6 +129,12 @@ export interface ToolContext {
    * undefined = chưa nối → tool trả lỗi nghiệp vụ, không throw.
    */
   readonly customerZalo?: CustomerZaloLinkPort;
+  /**
+   * Sổ XÁC NHẬN ĐƠN của nhóm bác sĩ. Cổng riêng vì phạm vi khác hẳn mọi cổng trên: không gắn đại
+   * lý, không gắn nhân viên — đại lý tra RA từ mã cạnh STT, nhóm lấy từ `room` (server-side).
+   * undefined = chưa nối → tool trả lỗi nghiệp vụ, không throw.
+   */
+  readonly orderConfirm?: OrderConfirmPort;
   /**
    * Cổng BÁO GIÁ LẺ (tìm SKU theo tên + giá tốt nhất của giỏ). Chỉ đọc, không nhận danh tính —
    * an toàn cho người nhắn chưa xác thực. undefined = chưa nối → tool trả lỗi nghiệp vụ.

@@ -6,10 +6,9 @@ import type { ZaloChannelConfig } from "../config.ts";
 import type { Envelope, HistoryEntry } from "../types/index.ts";
 import { ChannelFactory } from "./factory.ts";
 import { createGateway } from "./gateway.ts";
-import { isAddressed } from "./ingestor.ts";
+import { isAddressed, isSupersedable } from "./ingestor.ts";
 import { ZaloIngestor } from "./adapters/zalo.ts";
-import type { DedicatedRoom } from "../agents/dedicated-rooms.ts";
-import { AgentType } from "../agents/types.ts";
+import { xacNhanRoom } from "../agents/dedicated-rooms.ts";
 import type { IngestDeps } from "./deps.ts";
 
 const AGENT_UID = "AGENT";
@@ -141,17 +140,11 @@ describe("isAddressed (trigger gate)", () => {
   });
 });
 
-// Phòng chuyên dụng: tin theo MẪU cũng là một lượt dù không mention ai — và CHỈ trong đúng nhóm
-// ấy. Nới rộng là agent nói leo trong mọi nhóm; chưa khai phòng thì cổng đóng hoàn toàn.
-describe("cổng mẫu phòng chuyên dụng (ingest)", () => {
-  const rooms: readonly DedicatedRoom[] = [
-    {
-      channel: "zalo",
-      groupId: "G-RIENG",
-      agentType: AgentType.Warehouse,
-      triggers: [/^\s*stt\s*[:.\-–]?\s*\d+/im],
-    },
-  ];
+// Nhóm xác nhận đơn: sale gõ sổ mà không mention ai. Ingest KHÔNG phán (đường nóng webhook) — chỉ
+// đặt cờ `intentGate` cho mọi tin có chữ, và CHỈ trong đúng nhóm ấy; worker hỏi model phán quyết.
+describe("cờ intentGate phòng chuyên dụng (ingest)", () => {
+  const room = xacNhanRoom("G-XN");
+  const rooms = room === undefined ? [] : [room];
   const ingestor = new ZaloIngestor("zalo", CHANNEL_CONFIG, rooms);
 
   const parseOne = (over: Record<string, unknown>) => {
@@ -160,32 +153,50 @@ describe("cổng mẫu phòng chuyên dụng (ingest)", () => {
     return msg;
   };
 
-  test("tin khớp mẫu trong phòng chuyên dụng → thành một lượt", () => {
-    const msg = parseOne({ idTo: "G-RIENG", content: "STT: 8 NVH\n1, Tên KH: chị Trang 94734" });
-    expect(msg.addressedToAgent).toBe(true);
+  test("mọi tin có chữ trong nhóm xác nhận → vào hàng đợi kèm cờ, kể cả tin lệch mẫu", () => {
+    for (const content of ["STT: 8 NVH ( đã kí rule)\n1, Tên KH: chị Trang 94734", "khách Trang đổi sang chiều nhé", "ok em"]) {
+      const msg = parseOne({ idTo: "G-XN", content });
+      expect(msg.addressedToAgent).toBe(true);
+      expect(msg.intentGate).toBe(true);
+    }
   });
 
-  test("tán gẫu trong chính phòng đó → vẫn chỉ vào history", () => {
-    expect(parseOne({ idTo: "G-RIENG", content: "ok em" }).addressedToAgent).toBe(false);
+  test("tin chỉ có ảnh (không chữ) → không có gì để chấm, chỉ vào history", () => {
+    const msg = parseOne({ idTo: "G-XN", content: { href: "https://cdn.zalo/x.jpg" } });
+    expect(msg.addressedToAgent).toBe(false);
+    expect(msg.intentGate).toBeUndefined();
   });
 
-  test("cùng tin đó ở nhóm khác → không thành lượt", () => {
-    expect(parseOne({ idTo: "G-KHAC", content: "STT: 8 NVH" }).addressedToAgent).toBe(false);
+  test("tin vọng lại của chính agent → không cờ (chấm nó là tự trả lời mình)", () => {
+    const msg = parseOne({ idTo: "G-XN", uidFrom: AGENT_UID, content: "Đã ghi sổ, thứ tự 3" });
+    expect(msg.addressedToAgent).toBe(false);
   });
 
-  test("mention agent trong phòng chuyên dụng vẫn luôn vào (đường thoát khi gõ lệch mẫu)", () => {
+  test("nhóm đại lý khác → không cờ, không thành lượt", () => {
+    const msg = parseOne({ idTo: "G-KHAC", content: "STT: 8 NVH" });
+    expect(msg.addressedToAgent).toBe(false);
+    expect(msg.intentGate).toBeUndefined();
+  });
+
+  test("mention agent trong nhóm xác nhận → chạy thẳng, KHÔNG qua phán quyết", () => {
     const msg = parseOne({
-      idTo: "G-RIENG",
+      idTo: "G-XN",
       content: "ca này ghi giúp mình",
       mentions: [{ uid: AGENT_UID }],
     });
     expect(msg.addressedToAgent).toBe(true);
+    expect(msg.intentGate).toBeUndefined();
   });
 
-  test("chưa khai phòng nào → cổng mẫu đóng hoàn toàn", () => {
+  test("chưa khai id nhóm → không phòng chuyên dụng, hành vi cũ", () => {
     const plain = new ZaloIngestor("zalo", CHANNEL_CONFIG);
-    const [msg] = plain.parse([event({ idTo: "G-RIENG", content: "STT: 8 NVH" })]);
+    const [msg] = plain.parse([event({ idTo: "G-XN", content: "STT: 8 NVH" })]);
     expect(msg?.addressedToAgent).toBe(false);
+  });
+
+  test("tin cờ intentGate KHÔNG được gom burst (tin sale B không đè mất tin sale A)", () => {
+    const msg = parseOne({ idTo: "G-XN", content: "STT: 8 NVH" });
+    expect(isSupersedable({ ...msg, source: "channel" })).toBe(false);
   });
 });
 

@@ -75,6 +75,13 @@ describe("parseEnvelope", () => {
     expect(parseEnvelope(JSON.stringify(envelope))).toEqual(envelope);
   });
 
+  test("intentGate: giữ đúng `true`, bỏ giá trị sai kiểu", () => {
+    const gated = makeEnvelope({ intentGate: true });
+    expect(parseEnvelope(JSON.stringify(gated))).toEqual(gated);
+    const bogus = parseEnvelope(JSON.stringify({ ...makeEnvelope(), intentGate: "yes" }));
+    expect(bogus?.intentGate).toBeUndefined();
+  });
+
   test("JSON hỏng → null", () => {
     expect(parseEnvelope("{khong-phai-json")).toBeNull();
   });

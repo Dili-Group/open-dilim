@@ -19,6 +19,7 @@ describe("registry (defs thật)", () => {
       "bao-het-hang",
       "chiet-khau",
       "chinh-sach-hoa-hong",
+      "dang-ky-xac-nhan",
       "doc-tai-lieu",
       "don-hang",
       "don-hoan",

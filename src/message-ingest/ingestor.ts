@@ -16,11 +16,19 @@ import type { Envelope, Mention } from "../types/index.ts";
  * lịch), nuốt lệnh là mất đúng việc họ yêu cầu. Envelope không do người gõ (`cron`, `distill`)
  * cũng không có burst nào để gom.
  *
+ * Tin `intentGate` (phòng chuyên dụng, chưa biết có phải việc của phòng không) cũng KHÔNG gom: gom
+ * theo PHÒNG, mà nhóm đông sale thì câu "ok em" của người B 1 giây sau sẽ đè mất tin đăng ký của
+ * người A — rồi lượt của B bị phán "tán gẫu" và bỏ, tin của A mất im lặng.
+ *
  * HAI đầu phải dùng đúng một hàm này — ingest đặt vạch, worker soi vạch. Lệch nhau là hoặc bỏ tin
  * (bị một `/lệnh` đè), hoặc gom hụt.
  */
 export function isSupersedable(envelope: Envelope): boolean {
-  return envelope.source === "channel" && parseCommand(envelope.text) === null;
+  return (
+    envelope.source === "channel" &&
+    envelope.intentGate !== true &&
+    parseCommand(envelope.text) === null
+  );
 }
 
 /** Phần adapter parse ra. Chỉ `source` (=channel) do gateway gắn khi dựng Envelope. */

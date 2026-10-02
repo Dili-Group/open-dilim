@@ -821,6 +821,143 @@ export interface CustomerZaloLinkPort {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SỔ XÁC NHẬN ĐƠN của nhóm bác sĩ (docs/architecture/13-xac-nhan-don-bac-si.md).
+//
+// Sale đăng ký khách cần BS Sơn xác nhận, bác sĩ gọi theo thứ tự. Agent CHỈ GHI đăng ký và báo
+// lại thứ tự — kết quả cuộc gọi, hàng đợi, tổng hợp là việc của người (chốt 02/10/2026).
+//
+// Trường ĐỊNH DANH (`saleSenderId`) lấy từ Identity server-side, KHÔNG phải
+// tham số LLM sinh: cho model tự khai người đăng ký là mở đường ghi dòng của sale này sang tên
+// sale khác.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Hai khung xác nhận trong ngày (T2–T7). Policy giờ nằm ở tools/impl/xacnhan/khung-gio.ts. */
+export type SlotId = "trua" | "chieu";
+
+/**
+ * Năm trường BẮT BUỘC THÊM khi khách đã dùng sản phẩm mà chưa thấy hiệu quả (quy trình §7).
+ * Thiếu một trường là bác sĩ phải hỏi lại từ đầu trong cuộc gọi 5 phút.
+ *
+ * Chỉ nói về THỜI GIAN DÙNG SẢN PHẨM DILIM. Khách kể "uống thuốc tây nhiều năm không đỡ" là
+ * bệnh sử trước khi dùng, KHÔNG phải case này.
+ */
+export interface FollowUpDetail {
+  readonly conditionBefore: string;
+  readonly conditionNow: string;
+  readonly courseUsed: string;
+  readonly duration: string;
+  readonly careCount: string;
+}
+
+/**
+ * Một đăng ký sale gửi vào nhóm, đã chấm đủ trường. Backend (`POST /agent/expert-verifications`)
+ * chỉ có cột cho SĐT, tên khách, đại lý, thread — mọi trường còn lại adapter gộp vào `note` cho
+ * người đại diện đọc (xac-nhan-api.ts::composeNote).
+ */
+export interface NewRegistration {
+  /** Ngày xin xác nhận `YYYY-MM-DD` theo giờ VN — do tool tính, không nhận từ model. */
+  readonly day: string;
+  readonly slot: SlotId;
+  /** false = đăng ký ngoài khung giờ/Chủ nhật → vẫn ghi, đánh dấu xếp sau (quy trình §5). */
+  readonly onTime: boolean;
+  /** Số thứ tự sale tự đánh trong nhóm. Chỉ để đối chiếu với tin gốc — KHÔNG phải thứ tự gọi. */
+  readonly stt?: number;
+  /**
+   * Mã đại lý sale ghi cạnh STT (NVH, VDD, TQT…) — ĐÃ ĐỐI CHIẾU với hệ vận hành, đúng chữ hệ thống
+   * lưu (không phải chữ sale gõ). Bắt buộc: mã sai thì tool không ghi.
+   */
+  readonly dealerCode: string;
+  /** `dealers.id` (bigint dạng chuỗi) của mã trên → `dealer_id`. */
+  readonly dealerId: string;
+  /** Id nhóm Zalo đang gõ → `zalo_thread_id`, để backend nhắn kết quả về đúng nhóm. */
+  readonly threadId: string;
+  readonly saleName?: string;
+  readonly customerName: string;
+  /**
+   * CHỮ SỐ SĐT sale gõ (thường chỉ 5 số cuối, có khi đủ số) → `customer_phone`. Backend tự lấy 5
+   * số cuối làm khoá khớp đơn.
+   */
+  readonly phone: string;
+  readonly condition: string;
+  readonly product: string;
+  /** true = sale đã chốt đơn, gặp bác sĩ để khách yên tâm; false = mới tư vấn, chưa chốt. */
+  readonly closed: boolean;
+  readonly reason: string;
+  readonly followUp?: FollowUpDetail;
+  /**
+   * Có mặt khi sale ghi khách "đang dùng / đã dùng" — kể cả tin vừa tư vấn món MỚI vừa nói khách
+   * đang uống món KHÁC ("Đã tư vấn: men + nghệ. cô đang uống Rich + DHA"): `product` là món tư vấn,
+   * `inUse.products` là món đang dùng.
+   */
+  readonly inUse?: InUseEvidence;
+}
+
+/**
+ * `verified` = hệ thống thấy đơn của khách ở đại lý này; false = KHÔNG thấy đơn nhưng sale đã được
+ * hỏi lại và vẫn khẳng định đã mua.
+ */
+export type InUseEvidence =
+  | {
+      readonly products: string;
+      readonly verified: true;
+      readonly orderCount: number;
+      readonly lastOrderAt?: string;
+    }
+  | { readonly products: string; readonly verified: false };
+
+/** Dấu vết khách đã mua của một đại lý (`GET /agent/expert-verifications/purchase-check`). */
+export interface PurchaseCheck {
+  readonly purchased: boolean;
+  readonly orderCount: number;
+  readonly lastOrderAt?: string;
+}
+
+/** Trạng thái yêu cầu phía backend (`ExpertVerificationStatus` 0/1/2). */
+export type RegistrationStatus = "cho_duyet" | "da_xac_nhan" | "tu_choi";
+
+/** Yêu cầu backend trả về sau khi ghi. */
+export interface Registration {
+  /** uuid của yêu cầu. */
+  readonly id: string;
+  /**
+   * false = backend đã có yêu cầu ĐANG CHỜ cho cùng 5 số cuối + đại lý → trả lại yêu cầu cũ, KHÔNG
+   * tạo mới và KHÔNG cập nhật nội dung theo tin vừa gửi.
+   */
+  readonly created: boolean;
+  readonly status: RegistrationStatus;
+  readonly customerName?: string;
+  readonly phoneLast5: string;
+  readonly dealerCode?: string;
+}
+
+/** Đại lý tra được theo mã — chỉ phần cần để đối chiếu, không kéo hồ sơ. */
+export interface DealerRef {
+  readonly id: string;
+  /** Mã đúng như hệ thống lưu (chữ hoa/thường chuẩn). */
+  readonly code: string;
+  readonly name?: string;
+}
+
+export interface OrderConfirmPort {
+  /**
+   * ĐỐI CHIẾU mã đại lý sale ghi cạnh STT. null = hệ vận hành không có đại lý đang hoạt động mang
+   * mã này (sai mã, gõ nhầm, đại lý đã ngưng). Lỗi gọi khác bubble lên — "không có" và "không tra
+   * được" dẫn tới hai câu trả lời khác hẳn nhau cho sale.
+   */
+  findDealer(code: string, signal?: AbortSignal): Promise<DealerRef | null>;
+  /**
+   * ĐỌC: khách (theo 5 số cuối) đã có đơn ở đại lý này chưa — kiểm câu "đang dùng / đã dùng".
+   * Không có đơn là KẾT QUẢ (`purchased: false`), không phải lỗi.
+   */
+  purchaseCheck(
+    input: { readonly dealerId: string; readonly phone: string },
+    signal?: AbortSignal,
+  ): Promise<PurchaseCheck>;
+  /** GHI một yêu cầu xác nhận. Gửi trùng khi yêu cầu cũ còn chờ → trả yêu cầu cũ, `created: false`. */
+  register(input: NewRegistration, signal?: AbortSignal): Promise<Registration>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Báo giá LẺ cho khách (Messenger) — `POST /pricing-vector/recommend` + `GET /products?search=`.
 //
 // Không nằm dưới `/agent/*` nhưng gọi bằng cùng service token (không gắn đại lý). Là nguồn giá duy

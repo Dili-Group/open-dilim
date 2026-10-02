@@ -525,6 +525,14 @@ export const CONFIG = {
     approverUserId: optional("ANNOUNCE_APPROVER_USER_ID"),
   },
 
+  // Nhóm XÁC NHẬN ĐƠN của BS Sơn — nằm trên CHÍNH tài khoản Zalo đại lý (kênh `zalo`), nên phải
+  // nhận diện theo id nhóm chứ không theo kênh (agents/dedicated-rooms.ts).
+  //
+  // Chỉ ID nằm ở env; "nhóm này do agent nào phục vụ, tin nào tính là một lượt" là POLICY và nằm
+  // trong code. Thiếu env = agent xác nhận TẮT: nhóm đó chạy y như trước (agent đại lý trả lời),
+  // không có nửa vời nào ở giữa.
+  xacNhanGroupId: optional("ZALO_XACNHAN_GROUP_ID"),
+
   // Sentry (báo lỗi từ xa). Optional: thiếu SENTRY_DSN → tắt hẳn, app chạy như cũ.
   // tracesSampleRate mặc định 0 = chỉ gửi lỗi, không gửi trace (trace tốn quota, chưa cần).
   sentry: {

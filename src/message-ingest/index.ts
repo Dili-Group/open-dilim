@@ -3,7 +3,7 @@
 // Thêm kênh: viết adapter trong adapters/, register ở buildChannelFactory. deps (broker/
 // history/dedupe) do nơi khởi động (bootstrap) cấp — ingest không tự mở kết nối.
 
-import type { DedicatedRoom } from "../agents/dedicated-rooms.ts";
+import { xacNhanRoom, type DedicatedRoom } from "../agents/dedicated-rooms.ts";
 import { CONFIG } from "../config.ts";
 import type { IngestDeps } from "./deps.ts";
 import { ChannelFactory } from "./factory.ts";
@@ -39,14 +39,12 @@ export function buildChannelFactory(): ChannelFactory {
 }
 
 /**
- * Phòng chuyên dụng đang gác. Dùng chung MỘT hàm cho ingest và bootstrap (router + phễu proactive)
- * — hai đầu đọc lệch danh sách là tin lọt vào rồi bị agent khác trả lời.
- *
- * Rỗng: chưa agent nào khai phòng riêng, nên mọi nhóm vẫn tra theo kênh như trước. Agent đầu tiên
- * cần phòng riêng chỉ việc ghép id từ env vào đây.
+ * Phòng chuyên dụng đang gác, ghép từ env. Dùng chung một hàm cho ingest và bootstrap (router +
+ * phễu proactive) — hai đầu đọc lệch danh sách là tin lọt vào rồi bị agent khác trả lời.
  */
 export function dedicatedRooms(): readonly DedicatedRoom[] {
-  return [];
+  const xacNhan = xacNhanRoom(CONFIG.xacNhanGroupId);
+  return xacNhan === undefined ? [] : [xacNhan];
 }
 
 /** Khởi động HTTP gateway. deps inject từ bootstrap. Trả server để caller stop khi shutdown. */

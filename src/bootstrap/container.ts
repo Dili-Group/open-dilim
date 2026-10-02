@@ -3,6 +3,7 @@
 //
 // Thêm service (llm, broker thật, worker pool...) → thêm field vào Services + dựng ở index.ts.
 
+import type { JudgePort } from "../judge/index.ts";
 import { type Server } from "bun";
 import type { Config } from "../config.ts";
 import type { IngestDeps } from "../message-ingest/index.ts";
@@ -128,6 +129,11 @@ export interface Services {
    * TẮT: không có phán quyết thì không nhặt câu nào (fail-closed).
    */
   readonly proactiveClassify?: ProactiveClassify;
+  /**
+   * Model phán quyết cho cổng ý định phòng chuyên dụng (worker/intake.ts). undefined = thiếu
+   * JEV_API_KEY → phòng chuyên dụng rơi về mẫu regex.
+   */
+  readonly intakeJudge?: JudgePort;
 }
 
 /** Hệ thống ĐANG CHẠY: service + HTTP server + hook shutdown sạch. */

@@ -89,6 +89,7 @@ class ProfileRootAgent implements RootAgent {
           workflow: this.deps.workflow,
           announce: this.deps.announce,
           customerZalo: this.deps.customerZalo,
+          orderConfirm: this.deps.orderConfirm,
           retailPricing: this.deps.retailPricing,
         }),
         maxTokens: this.deps.config.maxTokens,

@@ -132,8 +132,12 @@ export function parseEnvelope(json: string): Envelope | null {
   if (typeof text !== "string") return null;
   if (typeof ts !== "number" || !Number.isFinite(ts)) return null;
   if (mentions === undefined) return null;
+  // Cờ tuỳ chọn: chỉ đúng `true` mới tính. Tách khỏi `raw` trước khi spread — để nguyên thì giá
+  // trị sai kiểu đi thẳng vào Envelope.
+  const { intentGate, ...rest } = raw;
   return {
-    ...raw,
+    ...rest,
+    ...(intentGate === true ? { intentGate } : {}),
     source: messageSource,
     channel,
     msgId,

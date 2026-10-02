@@ -7,6 +7,7 @@ import type { MemoryWriterLookup } from "../state/types.ts";
 import type { ConversationCompactor, SummaryReader } from "../state/compactor.ts";
 import type { AgentRegistry } from "../agents/registry.ts";
 import type { DedicatedRoom } from "../agents/dedicated-rooms.ts";
+import type { JudgePort } from "../judge/index.ts";
 import type { Broadcaster } from "../broadcast/types.ts";
 import type { TypingFactory } from "../broadcast/typing-factory.ts";
 import type { FlashRegistry } from "../flash-command/registry.ts";
@@ -105,6 +106,11 @@ export interface WorkerContext {
    * khoản đại lý — agents/dedicated-rooms.ts). Rỗng/thiếu = mọi nhóm tra theo kênh như cũ.
    */
   readonly dedicatedRooms?: readonly DedicatedRoom[];
+  /**
+   * Model phán quyết cho CỔNG Ý ĐỊNH phòng chuyên dụng (worker/intake.ts). undefined = thiếu
+   * JEV_API_KEY → tin `intentGate` rơi về mẫu regex của phòng, không phải lỗi.
+   */
+  readonly intakeJudge?: JudgePort;
   readonly broadcaster: Broadcaster;
   /** Chọn TypingSender theo channel để phát nhịp "đang xử lý" mỗi bước agent. */
   readonly typing: TypingFactory;

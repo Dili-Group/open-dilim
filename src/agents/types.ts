@@ -12,6 +12,7 @@ import type {
   DealerPort,
   DiscountPort,
   InternalOrdersPort,
+  OrderConfirmPort,
   OrderPort,
   PoscakePort,
   RetailPricingPort,
@@ -43,6 +44,11 @@ export const AgentType = {
   Warehouse: "warehouse",
   /** Khách lẻ nhắn vào Official Account — người nhắn CHƯA được xác thực. */
   Customer: "customer",
+  /**
+   * Thư ký sổ của NHÓM XÁC NHẬN ĐƠN (BS Sơn). Chọn theo (kênh, id nhóm) chứ không theo kênh:
+   * nhóm này nằm trên chính tài khoản Zalo đại lý — xem agents/dedicated-rooms.ts.
+   */
+  OrderConfirm: "xac-nhan-don",
   /**
    * Khách lẻ nhắn Facebook Page (Messenger) — người nhắn CHƯA được xác thực, như Customer. Khác
    * Customer ở đích: gom đủ thông tin lên đơn rồi dừng cho nhân viên lên đơn, thay vì xin số bàn giao.
@@ -99,6 +105,8 @@ export interface AgentDeps {
   readonly announce?: AnnouncePort;
   /** Cổng GẮN zalo user id vào hồ sơ khách cho tool `ghi_nhan_khach`. undefined = chưa nối. */
   readonly customerZalo?: CustomerZaloLinkPort;
+  /** Cổng SỔ XÁC NHẬN ĐƠN (nhóm BS Sơn). undefined = chưa nối → tool trả lỗi nghiệp vụ. */
+  readonly orderConfirm?: OrderConfirmPort;
   /** Cổng BÁO GIÁ LẺ cho tool `tra_gia_le`. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
   readonly retailPricing?: RetailPricingPort;
 }

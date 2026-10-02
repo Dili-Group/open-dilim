@@ -22,7 +22,8 @@ Envelope {
 
 ingest:  channel = path webhook; chưa đăng ký Ingestor → 404, không vào tới worker
 auth:    senderId → identity (nhân viên | đại lý | guest)     — nguồn sự thật cho QUYỀN
-worker:  agentType = resolveAgentType(channel)                — bảng hằng, undefined = chưa map
+worker:  agentType = resolveAgentType(channel, groupId, rooms)  — phòng chuyên dụng trước, bảng
+         channel sau; undefined = chưa map
          agent    = registry.resolve(agentType)               — undefined → default agent
 agent:   vẫn gate TỪNG tool theo identity (defense-in-depth)
 ```
@@ -38,6 +39,27 @@ agent:   vẫn gate TỪNG tool theo identity (defense-in-depth)
 | `zalo-canhan` | `personal` | Trợ lý riêng, CHỈ chat 1-1 | **true** | `personalSpec` |
 | `meta` | `sale-facebook` | Khách lẻ nhắn Facebook Page (Messenger) — tư vấn + gom đơn cho nhân viên lên | **true** | `customerSupportSpec` |
 | *(khác)* | *(default)* | Channel chưa map — lượt vẫn chạy được | false | `customerSupportSpec` |
+
+### Bậc phụ: phòng chuyên dụng `(channel, groupId)`
+
+Một nhóm cụ thể có thể được phục vụ bởi agent KHÁC agent mặc định của kênh. Lý do có bậc này:
+nhóm xác nhận đơn của BS Sơn nằm trên chính tài khoản Zalo đại lý — tra theo channel thì mọi tin
+của nhóm rơi vào agent đại lý, sai persona và mang theo cả `ORDER_TOOLS`/`DEALER_TOOLS`.
+
+| channel | groupId | agentType | Phục vụ |
+|---|---|---|---|
+| `zalo` | `ZALO_XACNHAN_GROUP_ID` | `xac-nhan-don` | Nhóm đăng ký xác nhận đơn với BS Sơn |
+
+Chia đôi cố ý: **agent nào phục vụ + tin nào tính là một lượt** là POLICY, hằng trong
+`agents/dedicated-rooms.ts`; **id nhóm** là dữ kiện hạ tầng của một lần triển khai (tạo lại nhóm
+là đổi id) nên nằm ở env, cùng loại với `agentUid`/`webhookSecret`. Thiếu env = không có phòng
+chuyên dụng nào (fail-closed): nhóm đó chạy y như trước.
+
+Bốn nơi PHẢI đọc cùng một danh sách phòng — `agents/router.ts` (chọn agent),
+`message-ingest/adapters/zalo.ts` (cờ `intentGate`: MỌI tin có chữ trong phòng vào hàng đợi dù
+không @agent), `worker/intake.ts` (hỏi Jev tin đó có phải việc của phòng không, trước khi chạy
+LLM), và `proactive/spec.ts` (phễu của agent kênh không được chạy trong nhóm này). Lệch nhau là
+tin vào tới worker rồi bị agent khác trả lời.
 
 **1 kênh = 1 tài khoản Zalo riêng** (`agentUid` + `webhookSecret` + bridge egress riêng, khai
 trong `CONFIG.channels`). Kênh thiếu env → không đăng ký ingestor → `POST /webhook/<kênh>` trả

@@ -41,6 +41,12 @@ export interface Envelope {
   readonly senderName?: string;
   readonly isGroup: boolean;
   readonly addressedToAgent: boolean; // kết quả trigger gate (§5 bước 2)
+  /**
+   * true = tin vào hàng đợi CHỈ vì nằm trong phòng chuyên dụng (không @agent, không /lệnh). Worker
+   * phải hỏi model phán quyết xem đây có phải việc của phòng không TRƯỚC khi chạy agent
+   * (worker/intake.ts). Đặt cờ ở ingest vì chỉ adapter biết tin có nhắm agent hay không.
+   */
+  readonly intentGate?: boolean;
   readonly text: string;
   /**
    * ẢNH đính kèm của tin này — link CDN do channel cấp. MỘT tin chỉ mang tối đa MỘT ảnh (webhook

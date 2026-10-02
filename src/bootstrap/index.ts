@@ -51,6 +51,7 @@ import { AgentApiDailyPort } from "../operational/daily-api.ts";
 import { AgentApiInternalOrdersPort } from "../operational/internal-api.ts";
 import { AgentApiPoscakePort } from "../operational/poscake-api.ts";
 import { AgentApiCustomerZaloPort } from "../operational/customer-zalo-api.ts";
+import { AgentApiOrderConfirmPort } from "../operational/xac-nhan-api.ts";
 import { AgentApiOrderOwnerPort } from "../operational/owner-api.ts";
 import { AgentApiRetailPricingPort } from "../operational/pricing-api.ts";
 import {
@@ -205,6 +206,10 @@ export async function bootstrap(): Promise<Services> {
   // Cổng GẮN zalo user id vào hồ sơ khách (tra theo số điện thoại) — không gắn đại lý lẫn nhân
   // viên: chính nó là bước tra ra đại lý. Tách port riêng để chỉ tool `ghi_nhan_khach` cầm được.
   const customerZalo = new AgentApiCustomerZaloPort(agentApi);
+  // Sổ xác nhận đơn của nhóm BS Sơn → `/agent/expert-verifications` + tra mã đại lý. Cùng client
+  // `/agent/*`, không gắn đại lý lẫn nhân viên: việc của nó là TRA RA đại lý từ mã cạnh STT. Gọi
+  // hỏng thì tool báo "chưa ghi được", agent vẫn chạy.
+  const orderConfirm = new AgentApiOrderConfirmPort(agentApi);
   // Báo giá lẻ cho khách Messenger (`/products` + `/pricing-vector/recommend`). Cùng client, chỉ
   // service token — không gắn đại lý: giá lẻ không thuộc đại lý nào.
   const retailPricing = new AgentApiRetailPricingPort(agentApi);
@@ -305,6 +310,7 @@ export async function bootstrap(): Promise<Services> {
     workflow,
     announce,
     customerZalo,
+    orderConfirm,
     retailPricing,
   });
   assertSkillAgentScopes(skills, agents);
@@ -347,8 +353,9 @@ export async function bootstrap(): Promise<Services> {
     enforce: config.enforceBudget,
   };
 
-  // Nhóm chuyên dụng (nhóm xác nhận đơn của BS Sơn). CÙNG danh sách mà ingest dùng để đặt cổng
-  // mẫu — router, phễu proactive và cổng ingest lệch nhau là tin lọt vào rồi bị agent kênh trả lời.
+  // Nhóm chuyên dụng (nhóm xác nhận đơn của BS Sơn). CÙNG danh sách mà ingest dùng để đặt cờ
+  // intentGate — router, worker, phễu proactive và ingest lệch nhau là tin lọt vào rồi bị agent
+  // kênh trả lời.
   const rooms = dedicatedRooms();
   for (const room of rooms) {
     console.info(`[bootstrap] gác phòng chuyên dụng ${room.channel}/${room.groupId} → ${room.agentType}`);
@@ -359,18 +366,18 @@ export async function bootstrap(): Promise<Services> {
     );
   }
 
-  // TẦNG 2 của phễu: model phán quyết chấm "câu này có đáng đánh thức agent không". Thiếu key →
-  // undefined → poller KHÔNG nhặt câu nào (fail-closed): tầng 0 không còn regex gác trước nữa.
-  const proactiveClassify =
+  // Model phán quyết dùng chung: tầng 2 phễu proactive + cổng ý định phòng chuyên dụng.
+  const judge =
     config.jev.apiKey === undefined
       ? undefined
-      : buildProactiveClassify(
-          new JevJudge({
-            apiKey: config.jev.apiKey,
-            model: config.jev.model,
-            timeoutMs: config.jev.timeoutMs,
-          }),
-        );
+      : new JevJudge({
+          apiKey: config.jev.apiKey,
+          model: config.jev.model,
+          timeoutMs: config.jev.timeoutMs,
+        });
+  // TẦNG 2 của phễu: model phán quyết chấm "câu này có đáng đánh thức agent không". Thiếu key →
+  // undefined → poller KHÔNG nhặt câu nào (fail-closed): tầng 0 không còn regex gác trước nữa.
+  const proactiveClassify = judge === undefined ? undefined : buildProactiveClassify(judge);
   if (proactiveClassify === undefined) {
     console.warn("[bootstrap] thiếu JEV_API_KEY → phễu proactive TẮT (agent chỉ trả lời khi được tag).");
   } else {
@@ -405,6 +412,7 @@ export async function bootstrap(): Promise<Services> {
     llm,
     agents,
     dedicatedRooms: rooms,
+    intakeJudge: judge,
     broadcaster,
     typing,
     identity,
@@ -453,6 +461,7 @@ export async function start(): Promise<RunningSystem> {
     summaries: services.summaries,
     agents: services.agents,
     dedicatedRooms: services.dedicatedRooms,
+    intakeJudge: services.intakeJudge,
     broadcaster: services.broadcaster,
     typing: services.typing,
     workflow: services.workflow,

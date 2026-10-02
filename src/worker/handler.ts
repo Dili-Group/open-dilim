@@ -3,6 +3,7 @@
 // chạm text, và `pool.ts` biết hỏng Ở BƯỚC NÀO (một catch chung thì auth với broadcast nhìn y
 // hệt nhau). Dedupe (bước 4) đã làm ở ingest (biến thể "ingest dày") nên worker không lặp lại.
 
+import { dedicatedRoomOf } from "../agents/dedicated-rooms.ts";
 import { resolveAgentType } from "../agents/router.ts";
 import { startTurnTimer, type TurnTimer } from "../observability/timing.ts";
 import { toTurnSpeaker } from "../agents/runtime/build-agent.ts";
@@ -24,6 +25,7 @@ import {
 } from "../types/index.ts";
 import { checkDailyBudget } from "../usage/gate.ts";
 import { UsageMeter } from "../usage/meter.ts";
+import { checkIntake, INTAKE_CONTEXT_TURNS } from "./intake.ts";
 import type { WorkerContext } from "./types.ts";
 
 /**
@@ -126,6 +128,33 @@ export async function handleEnvelope(
         groupId: envelope.conversationId,
       });
       if (blocked) return { status: "ignored", reason: "group_blocked" };
+    }
+
+    // 6c2. CỔNG Ý ĐỊNH — tin phòng chuyên dụng không @agent: hỏi model phán quyết xem có phải việc
+    // của phòng không. Đặt TRƯỚC ngân sách: phòng hết trần mà mỗi câu tán gẫu đều nhận một tin báo
+    // "hết ngân sách" là spam cả nhóm.
+    if (envelope.intentGate === true) {
+      const room = dedicatedRoomOf(
+        ctx.dedicatedRooms ?? [],
+        envelope.channel,
+        envelope.isGroup ? envelope.conversationId : undefined,
+      );
+      // Phòng vừa bị gỡ khỏi env giữa lúc ingest và lúc chạy: không còn ai gác, bỏ lặng lẽ.
+      if (room === undefined) return { status: "ignored", reason: "intake_no_room" };
+      const recent = await ctx.history.recent(envelope.conversationId, INTAKE_CONTEXT_TURNS + 1);
+      const verdict = await checkIntake(
+        ctx.intakeJudge,
+        {
+          room,
+          text: envelope.text,
+          ...(envelope.senderName === undefined ? {} : { senderName: envelope.senderName }),
+          recent,
+          msgId: envelope.msgId,
+        },
+        signal,
+      );
+      timer.lap("intake");
+      if (!verdict.run) return { status: "ignored", reason: `intake_${verdict.via}` };
     }
 
     // 6d. NGÂN SÁCH — phòng đã tiêu quá trần ngày thì im lặng, KHÔNG chạy LLM. Đặt trước bước

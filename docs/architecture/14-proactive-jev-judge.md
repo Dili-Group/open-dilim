@@ -379,8 +379,9 @@ phòng → ghi ở `proactive_judgment` (§9), cộng riêng.
 
 - Không thay tầng 1 (soi history) bằng Jev: đó là phép so thời gian deterministic, code làm đúng
   và miễn phí.
-- Không thay cổng mẫu `STT` của nhóm xác nhận đơn (§13): cổng đó nằm ở ingest — đúng đường nóng
-  mà §3 vừa nói là không được gọi mạng.
+- ~~Không thay cổng mẫu `STT` của nhóm xác nhận đơn~~ — ĐÃ thay (02/10/2026), nhưng KHÔNG ở
+  ingest: ingest chỉ đặt cờ `intentGate`, Jev chạy ở worker (`worker/intake.ts`). Xem
+  [13 §0b](./13-xac-nhan-don-bac-si.md).
 - Không dùng Jev cho `sub-router.ts` (chọn sub-agent) trong lần này, dù nó là ứng viên rõ ràng
   tiếp theo: `choice` thay cho một lượt LLM 24 token. Làm sau khi phễu chạy ổn.
 

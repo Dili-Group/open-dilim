@@ -8,7 +8,7 @@
 // isGroup = idTo !== agentUid: group gửi tới id nhóm; direct gửi thẳng tới agent.
 
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { matchesDedicatedTrigger, type DedicatedRoom } from "../../agents/dedicated-rooms.ts";
+import { dedicatedRoomOf, type DedicatedRoom } from "../../agents/dedicated-rooms.ts";
 import type { ZaloChannelConfig } from "../../config.ts";
 import type { Mention } from "../../types/index.ts";
 import { isAddressed, type Ingestor, type ParsedMessage } from "../ingestor.ts";
@@ -31,9 +31,9 @@ export class ZaloIngestor implements Ingestor {
     readonly channel: string,
     private readonly config: ZaloChannelConfig,
     /**
-     * Phòng chuyên dụng trên chính kênh này (nhóm xác nhận đơn). Trong phòng đó, tin khớp mẫu
-     * đăng ký cũng là một lượt dù không @agent — sale gõ sổ, không ai mention agent bao giờ.
-     * Rỗng (mặc định) = hành vi cũ y nguyên.
+     * Phòng chuyên dụng trên chính kênh này (nhóm xác nhận đơn). Trong phòng đó, MỌI tin có chữ
+     * đều vào hàng đợi kèm cờ `intentGate` — sale gõ sổ, không ai mention agent bao giờ; worker
+     * hỏi model phán quyết rồi mới chạy lượt. Rỗng (mặc định) = hành vi cũ y nguyên.
      */
     private readonly dedicatedRooms: readonly DedicatedRoom[] = [],
   ) {}
@@ -78,6 +78,18 @@ export class ZaloIngestor implements Ingestor {
     const mentions = readMentions(event.mentions);
     const imageUrl = readImageUrl(event);
     const file = readDocAttachment(event);
+    const addressed = isAddressed(isGroup, text, mentions, this.config.agentUid);
+    // Phán quyết KHÔNG gọi ở đây: đây là đường nóng webhook (trước 202, trong vùng đã mark dedupe).
+    // Chỉ đặt cờ; worker gọi model sau. Tin chỉ có ảnh thì không có chữ để chấm → nuốt vào history.
+    // Tin của CHÍNH agent (Zalo gửi vọng lại, uid gửi ≠ agentUid — xem selfUid) không bao giờ là
+    // việc của sổ: chấm nó là tự trả lời mình thành vòng lặp.
+    const intentGate =
+      !addressed &&
+      text.trim() !== "" &&
+      senderId !== this.config.agentUid &&
+      senderId !== this.config.selfUid &&
+      dedicatedRoomOf(this.dedicatedRooms, this.channel, isGroup ? conversationId : undefined) !==
+        undefined;
 
     return {
       channel: this.channel,
@@ -90,17 +102,11 @@ export class ZaloIngestor implements Ingestor {
       // senderName = tên hiển thị Zalo. Không phải event nào cũng có → thiếu thì bỏ hẳn field.
       ...(readName(event.senderName) ?? {}),
       isGroup,
-      // `@agent` và `/lệnh` LUÔN vào (đường thoát khi sale gõ lệch mẫu); ngoài ra, trong phòng
-      // chuyên dụng thì tin khớp mẫu sổ cũng vào. Hai vế phải cùng đọc một danh sách phòng với
-      // agents/router.ts, lệch nhau là tin tới worker rồi bị agent của kênh trả lời.
-      addressedToAgent:
-        isAddressed(isGroup, text, mentions, this.config.agentUid) ||
-        matchesDedicatedTrigger(
-          this.dedicatedRooms,
-          this.channel,
-          isGroup ? conversationId : undefined,
-          text,
-        ),
+      // `@agent` và `/lệnh` LUÔN vào và chạy thẳng, không qua phán quyết (đường thoát khi phán sai).
+      // Danh sách phòng phải trùng với agents/router.ts, lệch nhau là tin tới worker rồi bị agent
+      // của kênh trả lời.
+      addressedToAgent: addressed || intentGate,
+      ...(intentGate ? { intentGate } : {}),
       text,
       mentions,
       ts: readTs(event.ts),

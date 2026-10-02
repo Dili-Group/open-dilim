@@ -27,6 +27,8 @@ import { handleEnvelope } from "./handler.ts";
 import { isSuperseded } from "./burst.ts";
 import { startWorkers } from "./pool.ts";
 import type { LatestTurnReader, UsageTracking, WorkerContext } from "./types.ts";
+import { xacNhanRoom } from "../agents/dedicated-rooms.ts";
+import type { AnswersOf, JudgeAsk, JudgePort, QuestionSet } from "../judge/index.ts";
 import { vndToPicoUsd } from "../usage/pricing.ts";
 import type { UsageEntry } from "../usage/types.ts";
 
@@ -489,6 +491,72 @@ describe("handleEnvelope", () => {
     expect(broadcaster.sent).toHaveLength(1);
     expect(broadcaster.sent[0]!.text).toBe("xin chào bạn");
     expect(broadcaster.sent[0]!.target.conversationId).toBe("c1");
+  });
+
+  // Phòng chuyên dụng: tin không @agent mang cờ intentGate — model phán quyết quyết có chạy lượt.
+  describe("cổng ý định phòng chuyên dụng", () => {
+    const room = xacNhanRoom("G-XN");
+    const rooms = room === undefined ? [] : [room];
+    const gated = makeEnvelope({
+      isGroup: true,
+      conversationId: "G-XN",
+      intentGate: true,
+      text: "khách Trang đổi sang chiều nhé",
+    });
+
+    function fixedJudge(score: number): JudgePort {
+      return {
+        ask: <Q extends QuestionSet>(req: JudgeAsk<Q>) => {
+          const answers: Record<string, unknown> = {};
+          for (const id of Object.keys(req.questions)) answers[id] = { noul: score };
+          return Promise.resolve(answers as AnswersOf<Q>);
+        },
+      };
+    }
+
+    async function seeded(): Promise<MemoryHistoryStore> {
+      const history = new MemoryHistoryStore();
+      await history.append({
+        conversationId: "G-XN",
+        msgId: "m1",
+        senderId: "u1",
+        text: gated.text,
+        isGroup: true,
+        role: "user",
+        ts: 1,
+      });
+      return history;
+    }
+
+    test("judge chấm là tán gẫu → bỏ lượt, KHÔNG gọi LLM, không gửi gì", async () => {
+      // Kịch bản rỗng: LLM mà bị gọi là ném "hết kịch bản" → lượt failed, test đỏ.
+      const { ctx, broadcaster } = makeCtx(new ScriptedProvider([]), { role: "guest", senderId: "u1" }, await seeded());
+      const result = await handleEnvelope(
+        { ...ctx, dedicatedRooms: rooms, intakeJudge: fixedJudge(0.05) },
+        gated,
+      );
+      expect(result).toEqual({ status: "ignored", reason: "intake_judge" });
+      expect(broadcaster.sent).toHaveLength(0);
+    });
+
+    test("judge chấm là việc của sổ → chạy lượt như tin @agent", async () => {
+      const provider = new ScriptedProvider([
+        { stopReason: "end_turn", content: [{ type: "text", text: "Đã đổi sang khung chiều" }] },
+      ]);
+      const { ctx, broadcaster } = makeCtx(provider, { role: "guest", senderId: "u1" }, await seeded());
+      const result = await handleEnvelope(
+        { ...ctx, dedicatedRooms: rooms, intakeJudge: fixedJudge(0.9) },
+        gated,
+      );
+      expect(result.status).toBe("reply");
+      expect(broadcaster.sent).toHaveLength(1);
+    });
+
+    test("thiếu judge + tin lệch khuôn → bỏ lượt, reason nói rõ judge vắng", async () => {
+      const { ctx } = makeCtx(new ScriptedProvider([]), { role: "guest", senderId: "u1" }, await seeded());
+      const result = await handleEnvelope({ ...ctx, dedicatedRooms: rooms }, gated);
+      expect(result).toEqual({ status: "ignored", reason: "intake_judge_unavailable" });
+    });
   });
 
   test("reply có link QR SePay → text rút link + QR gửi thành ảnh", async () => {
