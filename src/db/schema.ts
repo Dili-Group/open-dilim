@@ -358,6 +358,7 @@ export const MESSAGE_LOG = {
     id: "id",
     channel: "channel",
     msgId: "msg_id",
+    cliMsgId: "cli_msg_id",            // id phía client (Zalo) — cặp với msg_id để quote-reply, nullable
     conversationId: "conversation_id",
     senderId: "sender_id",
     senderName: "sender_name",         // tên hiển thị lúc gửi — nullable (payload có thể thiếu)
@@ -701,6 +702,7 @@ CREATE TABLE IF NOT EXISTS ${ml.table} (
   ${ml.col.id}                bigserial   PRIMARY KEY,
   ${ml.col.channel}           text        NOT NULL,
   ${ml.col.msgId}             text        NOT NULL,
+  ${ml.col.cliMsgId}          text,                     -- id phía client (Zalo), cặp với msg_id để quote-reply
   ${ml.col.conversationId}    text        NOT NULL,
   ${ml.col.senderId}          text        NOT NULL,
   ${ml.col.senderName}        text,                     -- tên hiển thị lúc gửi, payload có thể thiếu

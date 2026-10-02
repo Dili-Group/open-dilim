@@ -236,6 +236,17 @@ describe("gateway", () => {
     expect(ctx.history[1]?.senderName).toBeUndefined();
   });
 
+  test("cliMsgId → vào envelope (số cũng ép string); payload thiếu thì không có field", async () => {
+    const gw = makeGateway(ctx.deps);
+    await gw.handle(webhook(event({ msgId: "c1", idTo: AGENT_UID, cliMsgId: "1759371234567" })));
+    await gw.handle(webhook(event({ msgId: "c2", idTo: AGENT_UID, cliMsgId: 1759371234568 })));
+    await gw.handle(webhook(event({ msgId: "c3", idTo: AGENT_UID })));
+
+    expect(ctx.published[0]?.cliMsgId).toBe("1759371234567");
+    expect(ctx.published[1]?.cliMsgId).toBe("1759371234568");
+    expect(ctx.published[2]?.cliMsgId).toBeUndefined();
+  });
+
   test("imageUrl → vào cả envelope lẫn history; tin không kèm ảnh thì không có field", async () => {
     const gw = makeGateway(ctx.deps);
     const url = "https://cdn.dili.vn/a/anh.jpg";

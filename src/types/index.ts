@@ -26,6 +26,11 @@ export interface Envelope {
   readonly source: MessageSource;
   readonly channel: string;
   readonly msgId: string;          // idempotency + audit
+  /**
+   * Id phía client của tin (Zalo `cliMsgId`). Zalo đòi CẶP `msgId` + `cliMsgId` để quote-reply đúng
+   * tin này — lưu lại từ giờ để sau bật quote không phải chờ dữ liệu. undefined = channel không có.
+   */
+  readonly cliMsgId?: string;
   readonly conversationId: string; // phòng: key state/history/order-lock
   readonly senderId: string;       // người gửi → worker resolve vai
   /**

@@ -16,8 +16,8 @@ const T = MESSAGE_LOG.table;
 const INSERT = `INSERT INTO ${T}
     (${C.channel}, ${C.msgId}, ${C.conversationId}, ${C.senderId}, ${C.senderName},
      ${C.isGroup}, ${C.addressedToAgent}, ${C.text}, ${C.imageUrl}, ${C.fileUrl},
-     ${C.fileName}, ${C.ts})
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     ${C.fileName}, ${C.ts}, ${C.cliMsgId})
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
   ON CONFLICT (${C.channel}, ${C.msgId}) DO NOTHING`;
 
 export class SqlMessageLog {
@@ -37,6 +37,7 @@ export class SqlMessageLog {
       envelope.fileUrl ?? null,
       envelope.fileName ?? null,
       envelope.ts,
+      envelope.cliMsgId ?? null,
     ]);
   }
 }

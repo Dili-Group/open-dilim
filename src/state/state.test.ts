@@ -714,7 +714,7 @@ describe("SqlMessageLog.append", () => {
     expect(call?.text).toContain("ON CONFLICT (channel, msg_id) DO NOTHING");
     expect(call?.params).toEqual([
       "zalo", "m1", "g1", "u1", "Chị Lan", true, false, "hàng về chưa em",
-      "https://cdn.dili.vn/a/anh.jpg", null, null, 1_700_000_000_000,
+      "https://cdn.dili.vn/a/anh.jpg", null, null, 1_700_000_000_000, null,
     ]);
   });
 
@@ -726,5 +726,13 @@ describe("SqlMessageLog.append", () => {
     const params = exec.calls[0]?.params;
     expect(params?.[4]).toBeNull();
     expect(params?.[8]).toBeNull();
+  });
+
+  test("cliMsgId có → bind vào cột cli_msg_id", async () => {
+    const exec = new FakeExec();
+    await new SqlMessageLog(exec).append({ ...ENVELOPE, cliMsgId: "1759371234567" });
+
+    expect(exec.calls[0]?.text).toContain("cli_msg_id");
+    expect(exec.calls[0]?.params?.[12]).toBe("1759371234567");
   });
 });

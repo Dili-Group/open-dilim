@@ -71,6 +71,7 @@ export class ZaloIngestor implements Ingestor {
     const idTo = readString(event.idTo);
     if (msgId === null || senderId === null || idTo === null) return null;
 
+    const cliMsgId = readString(event.cliMsgId);
     const isGroup = idTo !== this.config.agentUid;
     const conversationId = isGroup ? idTo : senderId;
     const text = readText(event.content);
@@ -81,6 +82,7 @@ export class ZaloIngestor implements Ingestor {
     return {
       channel: this.channel,
       msgId,
+      ...(cliMsgId === null ? {} : { cliMsgId }),
       conversationId,
       senderId,
       ...(imageUrl === undefined ? {} : { imageUrl }),
