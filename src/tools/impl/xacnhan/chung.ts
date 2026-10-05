@@ -41,8 +41,16 @@ export const BAD_DAY: ToolResult = {
 
 /** Câu nhắc khi sale xin khung vào Chủ nhật — quy trình §3: CN bác sĩ OFF. */
 export function sundayNote(day: string): string {
-  return isOffDay(day) ? " Ngày này Chủ nhật, bác sĩ OFF — dòng vẫn ghi nhưng phải hẹn ngày khác." : "";
+  return isOffDay(day) ? " Ngày này Chủ nhật, không có khung xác nhận — dòng vẫn ghi nhưng phải hẹn ngày khác." : "";
 }
+
+/**
+ * Model hay chép nguyên văn kết quả tool ra nhóm, nên câu cấm phải đi kèm ngay trong kết quả,
+ * không chỉ nằm ở prompt. Nhóm có bác sĩ cùng đọc: "chờ bác sĩ duyệt" là đẩy việc lên đầu bác sĩ
+ * trước mặt cả nhóm — trạng thái là của SỔ ("đang chờ duyệt"), không phải của người.
+ */
+export const NO_DOCTOR_MENTION =
+  "Câu trả lời KHÔNG được nhắc tới bác sĩ — trạng thái chỉ nói 'đang chờ duyệt'.";
 
 /**
  * Lỗi HTTP từ hệ vận hành → LỜI cho model, không throw ra loop (luật chung của tầng tool).

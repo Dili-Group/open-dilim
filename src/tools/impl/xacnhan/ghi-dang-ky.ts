@@ -29,7 +29,16 @@ import type {
 } from "../../../operational/types.ts";
 import type { Tool, ToolContext, ToolResult } from "../../types.ts";
 import { cleanText, isVagueReason, MAX_LEN, normalizePhoneDigits, normalizeStt } from "./chuan-hoa.ts";
-import { BAD_DAY, NO_PORT, NO_ROOM, lookupFailure, readDay, sundayNote, writeFailure } from "./chung.ts";
+import {
+  BAD_DAY,
+  NO_DOCTOR_MENTION,
+  NO_PORT,
+  NO_ROOM,
+  lookupFailure,
+  readDay,
+  sundayNote,
+  writeFailure,
+} from "./chung.ts";
 import { isOnTime, normalizeSlot, SLOT_LABEL } from "./khung-gio.ts";
 
 export function buildRegisterConfirmTool(ctx: ToolContext): Tool {
@@ -220,9 +229,10 @@ async function run(
   if (!row.created) {
     return {
       content:
-        `Ca ${who} ĐÃ CÓ yêu cầu xác nhận đang chờ bác sĩ duyệt từ trước — hệ thống KHÔNG tạo thêm ` +
+        `Ca ${who} ĐÃ CÓ yêu cầu xác nhận đang chờ duyệt từ trước — hệ thống KHÔNG tạo thêm ` +
         "và KHÔNG cập nhật nội dung theo tin vừa gửi. Báo sale đúng một dòng: ca này đã đăng ký " +
-        "rồi, đang chờ duyệt; nếu cần sửa nội dung thì nhờ leader sửa trên hệ thống.",
+        "rồi, đang chờ duyệt; nếu cần sửa nội dung thì nhờ leader sửa trên hệ thống. " +
+        NO_DOCTOR_MENTION,
     };
   }
   const late = registration.onTime
@@ -231,9 +241,9 @@ async function run(
   return {
     content:
       `Đã ghi yêu cầu xác nhận: ${who}, khung ${SLOT_LABEL[registration.slot]} ngày ` +
-      `${registration.day}, đang chờ bác sĩ duyệt.${late}${sundayNote(registration.day)} ` +
-      "Trả lời sale đúng một dòng: đã ghi, đang chờ bác sĩ duyệt. KHÔNG báo số thứ tự (hệ thống " +
-      "không cấp), KHÔNG hứa mốc giờ bác sĩ gọi.",
+      `${registration.day}, đang chờ duyệt.${late}${sundayNote(registration.day)} ` +
+      "Trả lời sale đúng một dòng: đã ghi, đang chờ duyệt. KHÔNG báo số thứ tự (hệ thống " +
+      `không cấp), KHÔNG hứa mốc giờ gọi. ${NO_DOCTOR_MENTION}`,
   };
 }
 
@@ -342,7 +352,7 @@ function readFields(
     phone === undefined ? "5 số cuối SĐT" : undefined,
     condition === undefined ? "tình trạng khách" : undefined,
     product === undefined ? "sản phẩm / liệu trình" : undefined,
-    reason === undefined ? "lý do cần bác sĩ xác nhận" : undefined,
+    reason === undefined ? "lý do cần xác nhận" : undefined,
     slot === undefined ? "khung giờ (11-12h hay 16-17h)" : undefined,
   ].filter((item): item is string => item !== undefined);
   if (missing.length > 0) return { missing };

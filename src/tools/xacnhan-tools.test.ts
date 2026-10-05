@@ -311,7 +311,9 @@ describe("ghi_dang_ky — ghi được", () => {
     expect(saved?.dealerCode).toBe("NVH");
     expect(saved?.dealerId).toBe("42");
     expect(result.isError).toBeUndefined();
-    expect(result.content).toContain("đang chờ bác sĩ duyệt");
+    expect(result.content).toContain("đang chờ duyệt");
+    // Không mớm cụm "chờ bác sĩ duyệt" cho model chép ra nhóm.
+    expect(result.content).not.toContain("chờ bác sĩ duyệt");
     // Backend không cấp số thứ tự → tool cấm model bịa ra.
     expect(result.content).toContain("KHÔNG báo số thứ tự");
   });
@@ -322,6 +324,7 @@ describe("ghi_dang_ky — ghi được", () => {
     expect(result.isError).toBeUndefined();
     expect(result.content).toContain("ĐÃ CÓ yêu cầu");
     expect(result.content).toContain("KHÔNG cập nhật");
+    expect(result.content).not.toContain("chờ bác sĩ duyệt");
   });
 
   test("ngày đã qua → vẫn GHI, chỉ đánh dấu xếp sau (không mất dòng sổ)", async () => {

@@ -87,7 +87,7 @@ Ca bị trả vì mã sai là **chưa ghi** — đừng nói "đã ghi".
 
 Tool tự chấm và trả về danh sách mục thiếu. Nhắn lại **một dòng**, chỉ nêu mục thiếu:
 
-> Ca chị Trang thiếu khung giờ với lý do cần bác sĩ giải đáp, bổ sung giúp mình nhé.
+> Ca chị Trang thiếu khung giờ với lý do cần xác nhận, bổ sung giúp mình nhé.
 
 Không liệt kê lại cả mẫu tin. Không giảng quy trình.
 
@@ -126,7 +126,10 @@ sau. Báo lại đúng sự thật, không hứa vớt:
 
 ## Trả lời: một dòng
 
-> Đã ghi ca chị Trang 94734 (đại lý NVH), khung 11h–12h, đang chờ bác sĩ duyệt.
+> Đã ghi ca chị Trang 94734 (đại lý NVH), khung 11h–12h, đang chờ duyệt.
+
+**Không nhắc tới bác sĩ** trong tin trả lời: "đang chờ duyệt", KHÔNG "chờ bác sĩ duyệt", "bác sĩ
+sẽ gọi", "bác sĩ OFF". Trạng thái là của sổ, không phải của bác sĩ.
 
 Hệ thống **không cấp số thứ tự** — không báo, không tự đếm từ lịch sử chat.
 
