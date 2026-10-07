@@ -57,8 +57,8 @@ describe("nap_poscake", () => {
     expect(result.content).toContain("DL001");
     // Key là bí mật: đi một chiều lên backend, không quay lại ngữ cảnh model.
     expect(result.content).not.toContain(API_KEY);
-    // Webhook URL vẫn là việc của đại lý — tool không được để model tưởng đã xong hết.
-    expect(result.content).toContain("Webhook URL");
+    // Backend tự gắn webhook khi nạp — model không được bắt đại lý dán link nữa.
+    expect(result.content).toContain("đã tự gắn Webhook URL");
     expect(poscake.calls).toEqual([
       { dealerId: "dealer-9", staffId: undefined, shopId: SHOP_ID, apiKey: API_KEY },
     ]);

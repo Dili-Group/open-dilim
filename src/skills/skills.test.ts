@@ -149,8 +149,9 @@ describe("registry (defs thật)", () => {
     expect(ref).toContain("Kết nối bên thứ 3");
     expect(ref).toContain("Webhook/API");
     expect(ref).toContain("quyền ngang tài khoản admin");
-    // Webhook URL cấp riêng từng đại lý → agent không được tự ghép link.
-    expect(ref).toContain("không tự ghép, không đoán");
+    // Backend tự gắn webhook khi nạp → không còn bước đại lý dán Webhook URL.
+    expect(ref).toContain("tự gắn Webhook URL");
+    expect(ref).not.toContain("Dán Webhook URL");
   });
 
   test("het-hang nêu đủ ba hướng và không hứa tồn kho", async () => {

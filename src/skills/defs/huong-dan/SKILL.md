@@ -61,9 +61,6 @@ dòng đó.
 | Trang hướng dẫn đại lý (bản đầy đủ) | https://dilim-guide-docs.solitary-rice-590b.workers.dev |
 | Văn bản phân công nhân sự | https://drive.google.com/file/d/11EpZt-du-wM8XigcWntfsKPyfjdMUxkB/view |
 
-**Webhook URL nhận đơn PosCake KHÔNG có trong bảng này** — vận hành cấp riêng cho từng đại lý. Agent
-không tự ghép, không đoán; đại lý cần thì chuyển Nhóm Hỗ trợ.
-
 ## Luật chung — áp cho mọi hướng dẫn
 
 1. **Gửi trọn một lần.** Đủ các bước + link trong MỘT tin. Không nhỏ giọt từng bước rồi bắt hỏi tiếp.

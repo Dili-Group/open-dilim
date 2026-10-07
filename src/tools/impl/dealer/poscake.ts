@@ -10,8 +10,8 @@
 //   - Đại lý đi lên header `x-dealer-id` từ CHỦ PHÒNG, nhân viên lên `x-staff-id` — model không có
 //     tham số nào chỉ định người, chỉ chép được shop id và key đại lý vừa đưa.
 //
-// Webhook URL KHÔNG nằm ở đây: vận hành cấp riêng từng đại lý, agent không ghép, không đoán
-// (reference `huong-dan/poscake.md`).
+// Webhook URL do backend tự gắn vào shop PosCake (gọi API PosCake bằng chính key này) ngay trong
+// lần nạp — đại lý không phải dán tay.
 
 import { ActorRole } from "../../../flash-command/types.ts";
 import { AgentApiError } from "../../../operational/agent-api.ts";
@@ -32,15 +32,6 @@ const NO_PORT: ToolResult = {
   isError: true,
 };
 
-/**
- * Nhắc kèm MỌI kết quả nạp: key vừa gõ nằm trong lịch sử chat của nhóm này. Nhóm riêng của đại lý
- * thì chấp nhận được; lỡ gõ ở nhóm đông người thì phải thu hồi — luật này ở reference poscake.md.
- */
-const KEY_EXPOSURE_NOTE =
-  "Nhắc đại lý: API Key vừa gửi nằm trong lịch sử tin nhắn của nhóm này. Nếu nhóm có người ngoài " +
-  "đọc được thì vào PosCake xoá key đó, tạo key mới rồi gửi lại — key PosCake có quyền ngang tài " +
-  "khoản admin của shop.";
-
 export function buildPoscakeRegisterTool(ctx: ToolContext): Tool {
   return {
     name: "nap_poscake",
@@ -49,7 +40,7 @@ export function buildPoscakeRegisterTool(ctx: ToolContext): Tool {
       "PosCake tự chảy về DILIM. Chỉ gọi KHI đại lý đã tự đưa ĐỦ CẢ HAI: Shop ID và API Key — " +
       "chép nguyên văn đại lý gửi, KHÔNG tự bịa, không lấy lại key cũ trong lịch sử chat nếu đại " +
       "lý không nhắc tới. Chưa có đủ hai thứ thì hướng dẫn lấy theo reference huong-dan/poscake.md " +
-      "trước, đừng gọi tool. Tool KHÔNG dán webhook URL hộ (vận hành cấp riêng từng đại lý).",
+      "trước, đừng gọi tool. Nạp xong hệ thống tự gắn Webhook URL vào shop, đại lý không phải dán.",
     inputSchema: {
       type: "object",
       properties: {
@@ -159,10 +150,8 @@ function renderResult(result: PoscakeShopLink): string {
     "ĐÃ NẠP tài khoản PosCake vào hệ thống.",
     line("Shop ID", result.shopId),
     line("Đại lý", result.dealerCode),
-    "Còn một bước ĐẠI LÝ tự làm: dán Webhook URL vào PosCake (Webhook/API → tab Webhook URL). Link " +
-      "đó vận hành cấp riêng từng đại lý — agent KHÔNG có, không tự ghép; đại lý chưa có link thì " +
-      "chuyển Nhóm Hỗ trợ.",
-    KEY_EXPOSURE_NOTE,
+    "Hệ thống đã tự gắn Webhook URL vào shop PosCake — đại lý KHÔNG phải dán link gì thêm; đơn tạo " +
+      "mới trên PosCake sẽ tự chảy về.",
   ]
     .filter((text): text is string => text !== undefined)
     .join("\n");
