@@ -33,6 +33,12 @@ export const DRAFT_TTL_SEC = 10 * 60;
 /** Độ dài id nháp. Model phải chép lại được, nên ngắn — va chạm trong 10 phút là không đáng lo. */
 const DRAFT_ID_LENGTH = 8;
 
+/**
+ * Mã đợt = cột uuid. Model hay chép nhầm mã nháp 8 ký tự vào, người duyệt có thể gõ sai — đưa
+ * chuỗi sai dạng xuống Postgres là nổ `22P02` thay vì "không tìm thấy".
+ */
+const ANNOUNCEMENT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Trần đợt liệt kê cho người duyệt. Chờ nhiều hơn ngần này là quy trình đang tắc, không phải UI. */
 const AWAITING_LIMIT = 10;
 
@@ -127,7 +133,7 @@ export class AnnouncementService implements AnnouncePort, AnnounceApprovalPort {
     announcementId?: string;
   }): Promise<AnnouncementStatus | undefined> {
     const id = input.announcementId ?? (await this.deps.store.latestBy(input.senderId));
-    if (id === undefined) return undefined;
+    if (id === undefined || !isAnnouncementId(id)) return undefined;
     return this.deps.store.status(id);
   }
 
@@ -141,6 +147,7 @@ export class AnnouncementService implements AnnouncePort, AnnounceApprovalPort {
     nowMs: number;
   }): Promise<DecisionOutcome> {
     if (!this.isApprover(input.userId)) return { kind: "forbidden" };
+    if (!isAnnouncementId(input.announcementId)) return { kind: "not_found" };
 
     const roomCount = await this.deps.store.approve({
       announcementId: input.announcementId,
@@ -162,6 +169,7 @@ export class AnnouncementService implements AnnouncePort, AnnounceApprovalPort {
     reason: string;
   }): Promise<DecisionOutcome> {
     if (!this.isApprover(input.userId)) return { kind: "forbidden" };
+    if (!isAnnouncementId(input.announcementId)) return { kind: "not_found" };
 
     const done = await this.deps.store.reject({
       announcementId: input.announcementId,
@@ -254,6 +262,10 @@ export class AnnouncementService implements AnnouncePort, AnnounceApprovalPort {
       console.error(`[announcements] báo kết quả duyệt ${announcementId} về phòng kho lỗi:`, err);
     }
   }
+}
+
+function isAnnouncementId(id: string): boolean {
+  return ANNOUNCEMENT_ID_PATTERN.test(id);
 }
 
 /** Trần nhỏ nhất trong các kênh có nhóm nhận. Danh sách rỗng đã bị chặn trước khi gọi. */

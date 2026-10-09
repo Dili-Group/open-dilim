@@ -286,8 +286,9 @@ async function runStatus(ctx: ToolContext, flow: NoticeFlow, input: unknown): Pr
   if (status === undefined) {
     return {
       content:
-        "Không tìm thấy đợt phát nào. Kiểm tra lại mã đợt; nếu người đang hỏi chưa từng gửi " +
-        "thông báo nào thì nói thẳng như vậy.",
+        "Không tìm thấy đợt phát nào. Mã đợt là mã dài do bước chốt trả về, KHÔNG phải mã nháp " +
+        "8 ký tự — không chắc thì gọi lại và bỏ trống ma_dot để xem đợt gần nhất. Nếu người đang " +
+        "hỏi chưa từng gửi thông báo nào thì nói thẳng như vậy.",
       isError: true,
     };
   }

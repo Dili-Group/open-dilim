@@ -136,7 +136,8 @@ export const VAN_HANH_FLOW: NoticeFlow = {
     status:
       "Xem một đợt thông báo chung đang chờ duyệt hay đã được duyệt, đã tới bao nhiêu nhóm, nhóm " +
       "nào gửi hỏng và vì sao. Gọi khi có người hỏi 'duyệt chưa', 'gửi xong chưa', 'đại lý nhận " +
-      "chưa'. Bỏ trống ma_dot để xem đợt gần nhất của chính người đang hỏi.",
+      "chưa'. Bỏ trống ma_dot để xem đợt gần nhất của chính người đang hỏi. Tool này KHÔNG chốt " +
+      "— người nói chốt bản nháp thì gọi chot_thong_bao_chung với mã nháp.",
     content:
       "Nội dung thông báo GỬI THẲNG cho đại lý, viết đầy đủ thành tin nhắn hoàn chỉnh — mọi nhóm " +
       "sẽ nhận ĐÚNG chuỗi này, không nhóm nào được viết lại. Chỉ chép dữ kiện người vận hành ĐÃ " +

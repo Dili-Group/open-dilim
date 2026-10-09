@@ -71,7 +71,8 @@ class FakeStore implements AnnouncementStore {
   constructor(private claimWinsLeft = Number.POSITIVE_INFINITY) {}
 
   create(input: CreateAnnouncementInput): Promise<string> {
-    const id = `a${this.heads.size + 1}`;
+    // UUID thật: cột id là uuid, service chặn mã sai dạng trước khi xuống store.
+    const id = crypto.randomUUID();
     this.heads.set(id, {
       kind: input.kind,
       text: input.text,
@@ -679,5 +680,33 @@ describe("soát trạng thái", () => {
 
     expect(status?.state).toBe(AnnouncementState.Rejected);
     expect(status?.rejectReason).toBe("chưa rõ ngày về");
+  });
+  test("mã không phải UUID (vd mã nháp 8 ký tự) → không tìm thấy, không chạm store", async () => {
+    const { deps } = buildDeps();
+    const service = new AnnouncementService(deps);
+    await draftAndQueue(service);
+    deps.store.status = (): Promise<AnnouncementStatus | undefined> =>
+      Promise.reject(new Error("invalid input syntax for type uuid"));
+
+    const status = await service.status({ senderId: KEEPER, announcementId: "9af0cb29" });
+
+    expect(status).toBeUndefined();
+  });
+});
+
+describe("mã đợt sai dạng ở cửa duyệt", () => {
+  test("duyệt / từ chối mã không phải UUID → not_found", async () => {
+    const { deps } = buildDeps();
+    const service = new AnnouncementService(deps);
+    deps.store.approve = (): Promise<number | undefined> =>
+      Promise.reject(new Error("invalid input syntax for type uuid"));
+    deps.store.reject = (): Promise<boolean> =>
+      Promise.reject(new Error("invalid input syntax for type uuid"));
+
+    const approved = await service.approve({ announcementId: "9af0cb29", userId: APPROVER_USER, nowMs: NOW });
+    const rejected = await service.reject({ announcementId: "9af0cb29", userId: APPROVER_USER, reason: "x" });
+
+    expect(approved.kind).toBe("not_found");
+    expect(rejected.kind).toBe("not_found");
   });
 });
