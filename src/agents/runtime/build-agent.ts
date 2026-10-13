@@ -98,6 +98,7 @@ class ProfileRootAgent implements RootAgent {
         onStep: input.onStep,
         onAnnounce: input.onAnnounce,
         meter: input.meter,
+        replyChecks: this.profile.replyChecks,
         signal: input.signal,
       });
       return { status: "reply", text };

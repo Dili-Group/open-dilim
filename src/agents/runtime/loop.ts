@@ -12,6 +12,7 @@ import type {
 } from "../../llm/types.ts";
 import { runToolCall, type ToolRegistry } from "../../tools/index.ts";
 import type { UsageMeter } from "../../usage/meter.ts";
+import type { ReplyCheck } from "../types.ts";
 
 export interface AgentLoopInput {
   readonly provider: LLMProvider;
@@ -35,12 +36,17 @@ export interface AgentLoopInput {
    * vòng cuối. undefined = không đo (test, hoặc chưa nối tầng usage) — không phải lỗi.
    */
   readonly meter?: UsageMeter;
+  /** Luật kiểm bản trả lời trước khi trả ra (xem `ReplyCheck`). Thiếu = trả thẳng. */
+  readonly replyChecks?: readonly ReplyCheck[];
   readonly signal?: AbortSignal;
 }
 
 const REFUSAL_REPLY = "Xin lỗi, mình không thể xử lý yêu cầu này.";
 const TRUNCATED_REPLY = "Phản hồi quá dài — bạn thu hẹp yêu cầu giúp mình nhé.";
 const EXHAUSTED_REPLY = "Xử lý vượt số bước cho phép, bạn thử lại sau nhé.";
+// Mỗi lần sửa là thêm một lượt gọi model (vài giây khách chờ). Sửa 2 lần chưa xong thì lần 3 cũng
+// khó xong — gửi bản cuối còn hơn bắt khách chờ tiếp.
+const MAX_REPLY_FIXES = 2;
 
 /**
  * Chạy loop, trả text trả lời cuối. Lỗi TOOL đã cô lập ở `runner.ts` (thành tool_result isError
@@ -52,6 +58,10 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
     input;
   let messages: LlmMessage[] = [...input.messages];
   let announced = false;
+  let fixes = 0;
+  // Bản nháp gần nhất bị check trả về sửa. Hết vòng giữa chừng thì gửi nó — câu trả lời thật dù
+  // còn lỗi vẫn hơn câu "vượt số bước".
+  let lastDraft: string | undefined;
   const startedAt = Date.now();
 
   for (let i = 0; i < maxIterations; i++) {
@@ -102,11 +112,55 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<string> {
     if (stopReason === "refusal") return REFUSAL_REPLY;
     const text = extractText(content);
     if (stopReason === "max_tokens" && text === "") return TRUNCATED_REPLY;
-    return text;
+
+    const violations = text === "" ? [] : findViolations(input.replyChecks ?? [], text);
+    if (violations.length === 0) return text;
+    const names = violations.map((violation) => violation.name).join(", ");
+    if (fixes >= MAX_REPLY_FIXES) {
+      console.warn(`[agent:${agentType}] check vẫn trượt sau ${fixes} lần sửa, gửi bản cuối: ${names}`);
+      return text;
+    }
+    fixes += 1;
+    lastDraft = text;
+    console.warn(`[agent:${agentType}] check trượt, nhờ model sửa lần ${fixes}/${MAX_REPLY_FIXES}: ${names}`);
+    messages = [
+      ...messages,
+      { role: "assistant", content },
+      { role: "user", content: [{ type: "text", text: fixRequest(violations) }] },
+    ];
   }
 
   trace(agentType, maxIterations - 1, maxIterations, `hết vòng, tổng=${Date.now() - startedAt}ms`);
-  return EXHAUSTED_REPLY;
+  return lastDraft ?? EXHAUSTED_REPLY;
+}
+
+interface ReplyViolation {
+  readonly name: string;
+  readonly reason: string;
+}
+
+function findViolations(checks: readonly ReplyCheck[], reply: string): ReplyViolation[] {
+  const violations: ReplyViolation[] = [];
+  for (const check of checks) {
+    const reason = check.check(reply);
+    if (reason !== undefined) violations.push({ name: check.name, reason });
+  }
+  return violations;
+}
+
+/**
+ * Tin nhờ sửa đi vai `user` vì đó là lượt kế tiếp hợp lệ sau assistant. Nói rõ khách không thấy
+ * tin này, kẻo model trả lời "dạ em xin lỗi đã nhắc…" ra cho khách. "Chỉ sửa đúng chỗ" để model
+ * không viết lại cả câu trả lời rồi sinh lỗi mới ở chỗ đang đúng.
+ */
+function fixRequest(violations: readonly ReplyViolation[]): string {
+  const reasons = violations.map((violation) => `- ${violation.reason}`).join("\n");
+  return (
+    "[Kiểm tra nội bộ — khách KHÔNG thấy tin này] Câu trả lời vừa soạn chưa được gửi vì:\n" +
+    `${reasons}\n` +
+    "Viết lại câu trả lời gửi khách: chỉ sửa đúng chỗ trên, giữ nguyên phần còn lại. " +
+    "Không nhắc tới việc kiểm tra này."
+  );
 }
 
 /**

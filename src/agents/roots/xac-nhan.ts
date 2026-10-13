@@ -11,6 +11,7 @@
 import { internalOpsSpec } from "../../state/specs.ts";
 import { COMMON_TOOLS, XACNHAN_TOOLS } from "../../tools/index.ts";
 import { XACNHAN_PROMPT } from "../prompts.ts";
+import { NO_DOCTOR_MENTION } from "../reply-checks.ts";
 import { AgentType, type RootAgentProfile } from "../types.ts";
 
 export const xacNhanProfile: RootAgentProfile = {
@@ -23,4 +24,5 @@ export const xacNhanProfile: RootAgentProfile = {
   // CHỈ ghi đăng ký (+ bộ chung để nạp skill). Không đọc ảnh/file: cổng ý định chỉ cho tin có
   // CHỮ vào lượt, và việc của agent dừng ở ghi sổ rồi báo lại kết quả ghi.
   tools: [...COMMON_TOOLS, ...XACNHAN_TOOLS],
+  replyChecks: [NO_DOCTOR_MENTION],
 };

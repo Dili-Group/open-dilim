@@ -12,6 +12,7 @@
 import { customerSupportSpec } from "../../state/specs.ts";
 import { COMMON_TOOLS, DOC_TOOLS, VISION_TOOLS } from "../../tools/index.ts";
 import { SALE_FACEBOOK_PROMPT } from "../prompts.ts";
+import { NO_AD_DISCLAIMER } from "../reply-checks.ts";
 import { AgentType, type RootAgentProfile } from "../types.ts";
 
 export const saleFacebookProfile: RootAgentProfile = {
@@ -22,4 +23,5 @@ export const saleFacebookProfile: RootAgentProfile = {
   memorySpec: customerSupportSpec,
   // Khách chụp ảnh sản phẩm/hộp hàng và gửi file đơn thuốc như bên OA.
   tools: [...COMMON_TOOLS, ...VISION_TOOLS, ...DOC_TOOLS],
+  replyChecks: [NO_AD_DISCLAIMER],
 };

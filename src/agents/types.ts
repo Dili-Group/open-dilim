@@ -199,6 +199,20 @@ export interface SubAgent {
 }
 
 /**
+ * Luật câu trả lời kiểm được BẰNG CODE, chạy trên bản model soạn xong, trước khi gửi. Luật nằm ở
+ * prompt thì model vẫn có lúc quên, và mỗi lần tái phát lại phải sửa rải rác skill + tool +
+ * prompt. Check bắt chắc chắn, rồi nhắn model sửa đúng chỗ (xem loop.ts).
+ *
+ * Chỉ khai luật bắt được không mơ hồ bằng chữ. Luật cần hiểu ý (xưng hô theo cặp…) để ở prompt.
+ */
+export interface ReplyCheck {
+  /** Tên để log khi vi phạm — log tên, KHÔNG log nội dung câu trả lời. */
+  readonly name: string;
+  /** Trả lý do vi phạm (model đọc để sửa), hoặc undefined nếu câu trả lời đạt. */
+  check(reply: string): string | undefined;
+}
+
+/**
  * Khai báo một root agent — DATA, không phải code. Bộ máy chạy lượt nằm ở `buildRootAgent`
  * (runtime/build-agent.ts) và dùng chung cho mọi agent: thêm agent = thêm 1 file data ở roots/, không
  * copy-paste vòng assemble-context → orchestrate → loop.
@@ -227,6 +241,11 @@ export interface RootAgentProfile {
    * khai trigger/tiêu chí/giọng của mình; engine phễu dùng chung, không rẽ nhánh theo agentType.
    */
   readonly proactive?: ProactiveSpec;
+  /**
+   * Luật câu trả lời kiểm bằng code trước khi gửi. Thiếu/rỗng = gửi thẳng như cũ. Khai ở ROOT vì
+   * luật thuộc về người đọc của kênh (nhóm có bác sĩ, khách lẻ…), sub nào cầm lượt cũng phải theo.
+   */
+  readonly replyChecks?: readonly ReplyCheck[];
 }
 
 /**

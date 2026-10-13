@@ -12,6 +12,7 @@ Tầng agents chia làm ba nhóm. Nhìn một file, hỏi nó thuộc nhóm nào
 src/agents/
   types.ts             # hợp đồng: RootAgentProfile, SubAgent, RootAgent
   prompts.ts           # persona của các root agent
+  reply-checks.ts      # luật câu trả lời kiểm bằng code — root khai trong `replyChecks`
 
   router.ts            # TẦNG 1 (thô): channel → agentType. Bảng hằng, KHÔNG LLM
   registry.ts          # agentType → RootAgent (+ default khi channel chưa map)
@@ -23,6 +24,8 @@ src/agents/
                        #   1 lượt LLM rẻ (no tool, effort low, 24 token)
     loop.ts            #   vòng LLM ⇄ tools tới khi model hết gọi tool.
                        #   Chạm tool khai `announce` → phát 1 tin báo "đang xử lý" (1 lần/lượt)
+                       #   Bản trả lời trượt `replyChecks` → nhắn model sửa (tối đa 2 lần),
+                       #   vẫn trượt thì gửi bản cuối + log tên check
 
   roots/               # DATA — thêm agent = thêm 1 file + 1 dòng ở registry.ts
     operations.ts      #   channel van-hanh

@@ -13,6 +13,7 @@
 import { customerSupportSpec } from "../../state/specs.ts";
 import { COMMON_TOOLS, CUSTOMER_LEAD_TOOLS, DOC_TOOLS, VISION_TOOLS } from "../../tools/index.ts";
 import { CUSTOMER_PROMPT } from "../prompts.ts";
+import { NO_AD_DISCLAIMER } from "../reply-checks.ts";
 import { AgentType, type RootAgentProfile } from "../types.ts";
 
 export const customerProfile: RootAgentProfile = {
@@ -23,4 +24,5 @@ export const customerProfile: RootAgentProfile = {
   memorySpec: customerSupportSpec,
   // DOC_TOOLS cùng lý do: khách gửi file đơn thuốc, phiếu xét nghiệm, hoá đơn dạng PDF.
   tools: [...COMMON_TOOLS, ...CUSTOMER_LEAD_TOOLS, ...VISION_TOOLS, ...DOC_TOOLS],
+  replyChecks: [NO_AD_DISCLAIMER],
 };

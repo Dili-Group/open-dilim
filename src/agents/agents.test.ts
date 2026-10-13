@@ -24,7 +24,7 @@ import { saleFacebookProfile } from "./roots/sale-facebook.ts";
 import { buildRootAgent } from "./runtime/build-agent.ts";
 import { resolveAgentType } from "./router.ts";
 import { matchesTemplate, xacNhanRoom } from "./dedicated-rooms.ts";
-import { AgentType, type RootAgentProfile, type SubAgent } from "./types.ts";
+import { AgentType, type ReplyCheck, type RootAgentProfile, type SubAgent } from "./types.ts";
 import type { AgentConfig, AgentDeps } from "./types.ts";
 
 /** Kịch bản test không quan tâm token — provider tự điền usage rỗng. */
@@ -158,6 +158,83 @@ describe("runAgentLoop", () => {
     const provider = new ScriptedProvider([toolTurn, toolTurn, toolTurn, toolTurn]);
     expect(await loop(provider)).toContain("vượt số bước");
     expect(provider.seen).toHaveLength(CFG.agentMaxIterations);
+  });
+});
+
+describe("reply checks trước khi gửi", () => {
+  const NO_BANANA: ReplyCheck = {
+    name: "no_banana",
+    check: (reply) => (reply.includes("chuối") ? "không được nhắc chuối" : undefined),
+  };
+
+  function checkedLoop(provider: LLMProvider, maxIterations = CFG.agentMaxIterations) {
+    return runAgentLoop({
+      provider,
+      agentType: "test_agent",
+      system: singleSystem("s"),
+      messages: MESSAGES,
+      registry: buildToolRegistry(COMMON_TOOLS, { skills: SKILLS, identity: GUEST }),
+      maxTokens: CFG.maxTokens,
+      effort: CFG.effort,
+      maxIterations,
+      replyChecks: [NO_BANANA],
+    });
+  }
+
+  function endTurn(text: string): ScriptedTurn {
+    return { stopReason: "end_turn", content: [{ type: "text", text }] };
+  }
+
+  test("đạt check → gửi luôn, KHÔNG tốn thêm lượt LLM", async () => {
+    const provider = new ScriptedProvider([endTurn("chào bạn")]);
+    expect(await checkedLoop(provider)).toBe("chào bạn");
+    expect(provider.seen).toHaveLength(1);
+  });
+
+  test("vi phạm → nhắn model đúng lý do, gửi bản đã sửa", async () => {
+    const provider = new ScriptedProvider([endTurn("ăn chuối nhé"), endTurn("ăn táo nhé")]);
+    expect(await checkedLoop(provider)).toBe("ăn táo nhé");
+    expect(provider.seen).toHaveLength(2);
+
+    const retry = provider.seen[1]!.messages;
+    const draft = retry[retry.length - 2]!;
+    expect(draft.role).toBe("assistant");
+    const fix = retry[retry.length - 1]!;
+    expect(fix.role).toBe("user");
+    const block = fix.content[0]!;
+    expect(block.type === "text" && block.text.includes("không được nhắc chuối")).toBe(true);
+  });
+
+  test("sửa mãi vẫn vi phạm → hết lượt sửa thì gửi bản cuối, khách không bị bỏ rơi", async () => {
+    const provider = new ScriptedProvider([
+      endTurn("chuối 1"),
+      endTurn("chuối 2"),
+      endTurn("chuối 3"),
+    ]);
+    expect(await checkedLoop(provider)).toBe("chuối 3");
+    expect(provider.seen).toHaveLength(3);
+  });
+
+  test("hết vòng giữa chừng lúc đang sửa → gửi bản nháp cuối, KHÔNG phải câu báo hết bước", async () => {
+    const provider = new ScriptedProvider([endTurn("chuối 1"), endTurn("chuối 2")]);
+    expect(await checkedLoop(provider, 2)).toBe("chuối 2");
+  });
+
+  test("root khai replyChecks → lượt chạy qua check", async () => {
+    const provider = new ScriptedProvider([endTurn("chuối"), endTurn("táo")]);
+    const profile: RootAgentProfile = {
+      agentType: "checked",
+      directOnly: false,
+      prompt: "P",
+      memorySpec: internalOpsSpec,
+      tools: COMMON_TOOLS,
+      replyChecks: [NO_BANANA],
+    };
+    const result = await buildRootAgent(profile, agentDeps(provider)).run({
+      identity: GUEST,
+      history: HISTORY,
+    });
+    expect(result).toEqual({ status: "reply", text: "táo" });
   });
 });
 

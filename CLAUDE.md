@@ -87,6 +87,9 @@ Chưa có test runner. Khi thêm test: dùng `bun test`.
 - Đặt tên rõ (hàm = động từ, biến = danh từ). Không viết tắt khó hiểu.
 - Comment giải thích *tại sao*, không *cái gì*. Code tự nói phần *cái gì*.
 - Thêm behavior → thêm test. Sửa bug → test tái hiện trước.
+- Agent trả lời sai luật trên production mà luật bắt được bằng chữ (không cần hiểu ý) → sửa prompt
+  VÀ thêm check vào `src/agents/reply-checks.ts` + test bằng câu lỗi thật. Chỉ sửa prompt thì lỗi
+  tái phát (vụ đọc lại số điện thoại tốn 3 commit).
 - Không commit code chết, `console.log` debug, hay code bị comment.
 
 ## Cách làm việc (Karpathy)
