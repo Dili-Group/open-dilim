@@ -45,7 +45,7 @@ export function buildRegisterConfirmTool(ctx: ToolContext): Tool {
   return {
     name: "ghi_dang_ky",
     description:
-      "GHI một dòng vào sổ xác nhận khi sale đăng ký khách cần bác sĩ xác nhận. Gọi NGAY khi đọc " +
+      "GHI một dòng vào sổ xác nhận khi sale đăng ký khách cần Bác Sơn xác nhận. Gọi NGAY khi đọc " +
       "được tin đăng ký (thường mở đầu bằng STT, có người gõ lệch mẫu) — bóc từng trường từ tin đó, KHÔNG hỏi lại những gì " +
       "sale đã ghi. Thiếu trường hoặc lý do chung chung thì tool báo lại, lúc đó mới hỏi sale. " +
       "Khách đã dùng sản phẩm DiLiM mà chưa thấy hiệu quả thì bật chua_hieu_qua và điền đủ 5 " +
@@ -90,7 +90,7 @@ export function buildRegisterConfirmTool(ctx: ToolContext): Tool {
         ly_do: {
           type: "string",
           description:
-            "Khách cần bác sĩ giải đáp điều gì, vd 'sợ hàng giả', 'đang dùng thuốc huyết áp'. " +
+            "Khách cần Bác Sơn giải đáp điều gì, vd 'sợ hàng giả', 'đang dùng thuốc huyết áp'. " +
             "KHÔNG được ghi chung chung kiểu 'tư vấn thêm' — tool sẽ từ chối.",
         },
         khung_gio: {

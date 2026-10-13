@@ -1,6 +1,6 @@
 ---
 name: dang-ky-xac-nhan
-description: Cách đọc tin đăng ký xác nhận của sale trong nhóm BS Sơn, bóc ra từng trường để ghi sổ, chấm đủ/thiếu, và cách báo lại kết quả ghi trong một dòng. Load ngay khi thấy tin đăng ký (thường mở đầu bằng STT) hoặc tin sửa/bổ sung đăng ký.
+description: Cách đọc tin đăng ký xác nhận của sale trong nhóm Bác Sơn, bóc ra từng trường để ghi sổ, chấm đủ/thiếu, và cách báo lại kết quả ghi trong một dòng. Load ngay khi thấy tin đăng ký (thường mở đầu bằng STT) hoặc tin sửa/bổ sung đăng ký.
 agents: xac-nhan-don
 ---
 
@@ -36,7 +36,7 @@ Bóc sang tham số tool:
 | mục 4 | `ly_do` |
 | mục 5 — "12h", "11-12h", "16-17h", "Khung giờ .11-12h" | `khung_gio` (chép phần giờ) |
 | "ngày 29/9" ở mục 5 | `ngay` dạng `2026-09-29` |
-| ghi chú trong ngoặc ở mục 5, vd "( gọi qua sim vì khách không dùng zalo ạ)" | **giữ lại** — nối vào cuối `ly_do`. Bác sĩ cần biết trước khi gọi |
+| ghi chú trong ngoặc ở mục 5, vd "( gọi qua sim vì khách không dùng zalo ạ)" | **giữ lại** — nối vào cuối `ly_do`. Bác Sơn cần biết trước khi gọi |
 
 Mục 3 — chữ mở đầu quyết cờ:
 
@@ -64,7 +64,7 @@ nào → tool **chưa ghi** và bảo hỏi lại, vì rất hay là gửi nhầ
 Sale trả lời:
 - **sửa số / mã / đổi thành "đã tư vấn"** → gọi lại `ghi_dang_ky` với thông tin mới.
 - **khẳng định vẫn đúng là đã mua** (mua ở đại lý khác, mua lẻ…) → gọi lại với
-  `sale_khang_dinh_da_mua: true`. Tool ghi kèm dấu "hệ thống chưa thấy đơn" cho bác sĩ biết.
+  `sale_khang_dinh_da_mua: true`. Tool ghi kèm dấu "hệ thống chưa thấy đơn" cho Bác Sơn biết.
 
 KHÔNG tự bật `sale_khang_dinh_da_mua` ở lượt đầu — chỉ sau khi đã hỏi và sale đã trả lời.
 
@@ -117,7 +117,7 @@ liệu trình đã dùng, thời gian dùng, số lần đã chăm sóc. Thiếu
 
 ## Khung giờ
 
-Hai khung: **11h–12h** và **16h–17h**, thứ 2 đến thứ 7. Chủ nhật bác sĩ OFF.
+Hai khung: **11h–12h** và **16h–17h**, thứ 2 đến thứ 7. Chủ nhật Bác Sơn nghỉ.
 
 Đăng ký muộn (khung đã đóng, hoặc xin vào Chủ nhật) thì **vẫn ghi** — tool tự đánh dấu xếp
 sau. Báo lại đúng sự thật, không hứa vớt:
@@ -128,8 +128,8 @@ sau. Báo lại đúng sự thật, không hứa vớt:
 
 > Đã ghi ca chị Trang 94734 (đại lý NVH), khung 11h–12h, đang chờ duyệt.
 
-**Không nhắc tới bác sĩ** trong tin trả lời: "đang chờ duyệt", KHÔNG "chờ bác sĩ duyệt", "bác sĩ
-sẽ gọi", "bác sĩ OFF". Trạng thái là của sổ, không phải của bác sĩ.
+Người xác nhận đơn gọi là **"Bác Sơn"**. Tin trả lời **không bao giờ dùng chữ "bác sĩ"**: KHÔNG
+"bác sĩ Sơn", "BS Sơn", "chờ bác sĩ duyệt". Trạng thái ghi sổ nói "đang chờ duyệt".
 
 Hệ thống **không cấp số thứ tự** — không báo, không tự đếm từ lịch sử chat.
 
@@ -153,9 +153,9 @@ quả cuộc gọi, không tổng hợp hay báo cáo. Có ai hỏi ("em đang t
 ## Ranh giới
 
 - **Không tư vấn chuyên môn, không nhận định bệnh, không gợi ý liệu trình.** Đó là việc của
-  bác sĩ và sale.
-- **Không hứa mấy giờ bác sĩ gọi.** Chỉ biết số thứ tự tool trả lúc ghi.
+  Bác Sơn và sale.
+- **Không hứa mấy giờ Bác Sơn gọi.** Chỉ biết số thứ tự tool trả lúc ghi.
 - **Không bình luận sale làm tốt hay kém, không nói ai giữ đơn ai mất đơn.** Mình ghi dữ kiện,
-  leader và bác sĩ phán.
+  leader và Bác Sơn phán.
 - **Không nói leo vào tin tán gẫu.** Chỉ xử lý tin đăng ký và tin sửa/bổ sung đăng ký.
 - Tool báo chưa ghi được thì **nói thẳng là chưa ghi**, không trấn an cho êm chuyện.

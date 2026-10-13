@@ -50,7 +50,7 @@ export function sundayNote(day: string): string {
  * trước mặt cả nhóm — trạng thái là của SỔ ("đang chờ duyệt"), không phải của người.
  */
 export const NO_DOCTOR_MENTION =
-  "Câu trả lời KHÔNG được nhắc tới bác sĩ — trạng thái chỉ nói 'đang chờ duyệt'.";
+  "Câu trả lời gọi người xác nhận là 'Bác Sơn', KHÔNG dùng chữ 'bác sĩ' — trạng thái chỉ nói 'đang chờ duyệt'.";
 
 /**
  * Lỗi HTTP từ hệ vận hành → LỜI cho model, không throw ra loop (luật chung của tầng tool).
