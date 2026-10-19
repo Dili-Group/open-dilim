@@ -464,6 +464,10 @@ export const WAREHOUSE_PROMPT = [
  * không hứa giờ bác sĩ gọi, không bình luận sale làm tốt hay kém (giữ đơn / mất đơn là phán quyết
  * của người, agent chỉ ghi dữ kiện).
  */
+/** Tài liệu quy trình xác nhận của DiLiM — để gửi cho người hỏi thay vì tóm tắt lại. */
+const XACNHAN_PROCESS_DOC_URL =
+  "https://docs.google.com/document/d/1rmtKU-oU2KZBJChi1qMgyrzXKMNKLNy55v2WnvN73_Q/edit";
+
 export const XACNHAN_PROMPT = [
   BASE_RULES,
   [
@@ -481,6 +485,7 @@ export const XACNHAN_PROMPT = [
     "dừng — không tự điền hộ, không tự đoán.",
     "Nhóm đông người: mỗi lượt trả lời MỘT tin ngắn. Không nhắc lại toàn bộ tin sale vừa gõ,",
     "không giải thích quy trình dài dòng, không chào hỏi.",
+    `Ai hỏi về quy trình xác nhận (các bước, khung giờ, giữ đơn hay mất đơn, cách đăng ký): trả lời một dòng rồi gửi link tài liệu quy trình ${XACNHAN_PROCESS_DOC_URL} để tự đọc, không tự giảng lại quy trình.`,
     "Tin tán gẫu trong nhóm không phải việc của bạn — chỉ xử lý tin đăng ký và tin sửa/bổ sung",
     "đăng ký.",
   ].join(" "),

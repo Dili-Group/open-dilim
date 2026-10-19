@@ -39,7 +39,7 @@ import {
   sundayNote,
   writeFailure,
 } from "./chung.ts";
-import { isOnTime, normalizeSlot, SLOT_LABEL } from "./khung-gio.ts";
+import { isOnTime, normalizeSlot, rescheduleIfLate, SLOT_LABEL } from "./khung-gio.ts";
 
 export function buildRegisterConfirmTool(ctx: ToolContext): Tool {
   return {
@@ -84,8 +84,10 @@ export function buildRegisterConfirmTool(ctx: ToolContext): Tool {
         sale_khang_dinh_da_mua: {
           type: "boolean",
           description:
-            "CHỈ bật khi tool đã báo không thấy đơn, mình đã hỏi lại, và sale trả lời khẳng định " +
-            "khách đúng là đã mua. KHÔNG tự bật ở lượt đầu.",
+            "Bật NGAY lượt đầu khi tin đăng ký có sale tự xác nhận khách đã mua ('xác nhận đã mua', " +
+            "'khách đã mua rồi') — sale đã khẳng định thì ghi luôn, " +
+            "không tra-hỏi lại. Cũng bật khi tool đã báo không thấy đơn, mình hỏi lại, và sale " +
+            "khẳng định đã mua. Tin chỉ ghi 'đang dùng' mà không khẳng định gì thì KHÔNG tự bật.",
         },
         ly_do: {
           type: "string",
@@ -198,13 +200,16 @@ async function run(
     inUse = checked;
   }
 
+  const booking = rescheduleIfLate({ slot: fields.slot, day });
+  const moved = booking.slot !== fields.slot || booking.day !== day;
   const stt = normalizeStt(raw.stt);
   const saleName = cleanText(raw.ten_sale, MAX_LEN.name);
 
   const registration: NewRegistration = {
     ...fields,
-    day,
-    onTime: isOnTime({ slot: fields.slot, day }),
+    slot: booking.slot,
+    day: booking.day,
+    onTime: isOnTime(booking),
     // Thread lấy từ phòng ĐANG GÕ (server-side), không phải tham số model: kết quả duyệt nhắn về
     // đúng nhóm này.
     threadId: ctx.room.groupId,
@@ -235,13 +240,17 @@ async function run(
         NO_DOCTOR_MENTION,
     };
   }
+  const rescheduled = moved
+    ? ` Sale xin khung ${SLOT_LABEL[fields.slot]} nhưng gửi sau phút 30 của khung nên đã hẹn sang khung ` +
+      `${SLOT_LABEL[booking.slot]} ngày ${booking.day} — báo sale đúng khung mới này.`
+    : "";
   const late = registration.onTime
     ? ""
     : " Đăng ký ngoài khung nên xếp sau các ca đúng giờ — báo sale biết, đừng hứa gọi sớm.";
   return {
     content:
       `Đã ghi yêu cầu xác nhận: ${who}, khung ${SLOT_LABEL[registration.slot]} ngày ` +
-      `${registration.day}, đang chờ duyệt.${late}${sundayNote(registration.day)} ` +
+      `${registration.day}, đang chờ duyệt.${rescheduled}${late}${sundayNote(registration.day)} ` +
       "Trả lời sale đúng một dòng: đã ghi, đang chờ duyệt. KHÔNG báo số thứ tự (hệ thống " +
       `không cấp), KHÔNG hứa mốc giờ gọi. ${NO_DOCTOR_MENTION}`,
   };

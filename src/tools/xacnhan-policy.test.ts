@@ -12,6 +12,7 @@ import {
   isOffDay,
   isOnTime,
   normalizeSlot,
+  rescheduleIfLate,
   vnDay,
   vnMinutes,
   weekdayOf,
@@ -93,6 +94,51 @@ describe("isOnTime", () => {
 
   test("xin vào Chủ nhật = muộn dù đăng ký sớm", () => {
     expect(isOnTime({ slot: "trua", day: "2026-09-20", now: TRUA_T6 })).toBe(false);
+  });
+});
+
+describe("rescheduleIfLate", () => {
+  const at = (iso: string) => new Date(iso);
+  test("gửi 11h30 xin khung trưa → vẫn khung trưa", () => {
+    expect(rescheduleIfLate({ slot: "trua", day: "2026-09-18", now: TRUA_T6 })).toEqual({
+      slot: "trua",
+      day: "2026-09-18",
+    });
+  });
+
+  test("gửi 11h31 xin khung trưa → sang khung chiều cùng ngày", () => {
+    expect(rescheduleIfLate({ slot: "trua", day: "2026-09-18", now: at("2026-09-18T04:31:00Z") })).toEqual({
+      slot: "chieu",
+      day: "2026-09-18",
+    });
+  });
+
+  test("gửi 16h31 xin khung chiều → sang khung trưa ngày làm việc kế", () => {
+    expect(rescheduleIfLate({ slot: "chieu", day: "2026-09-18", now: at("2026-09-18T09:31:00Z") })).toEqual({
+      slot: "trua",
+      day: "2026-09-19",
+    });
+  });
+
+  test("thứ Bảy 16h31 → bỏ Chủ nhật, sang trưa thứ Hai", () => {
+    expect(rescheduleIfLate({ slot: "chieu", day: "2026-09-19", now: at("2026-09-19T09:31:00Z") })).toEqual({
+      slot: "trua",
+      day: "2026-09-21",
+    });
+  });
+
+  test("gửi 16h40 xin khung trưa → cả trưa lẫn chiều đã quá cữ, sang trưa mai", () => {
+    expect(rescheduleIfLate({ slot: "trua", day: "2026-09-18", now: at("2026-09-18T09:40:00Z") })).toEqual({
+      slot: "trua",
+      day: "2026-09-19",
+    });
+  });
+
+  test("xin ngày mai thì không dời dù giờ nào", () => {
+    expect(rescheduleIfLate({ slot: "trua", day: "2026-09-19", now: at("2026-09-18T09:40:00Z") })).toEqual({
+      slot: "trua",
+      day: "2026-09-19",
+    });
   });
 });
 

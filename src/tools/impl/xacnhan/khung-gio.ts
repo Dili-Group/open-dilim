@@ -112,6 +112,41 @@ export function isOnTime(input: {
   return vnMinutes(now) < SLOT_WINDOW[input.slot].end;
 }
 
+/** Từ phút thứ 31 của khung trở đi, đăng ký hôm nay không còn kịp xếp vào khung đó. */
+const LATE_MINUTES_INTO_SLOT = 31;
+
+export interface SlotBooking {
+  readonly slot: SlotId;
+  readonly day: string;
+}
+
+function nextWorkingDay(day: string): string {
+  const [year, month, date] = day.split("-").map(Number);
+  let next = Date.UTC(year ?? 0, (month ?? 1) - 1, (date ?? 1) + 1);
+  if (new Date(next).getUTCDay() === 0) next += 24 * 60 * 60 * 1000;
+  return new Date(next).toISOString().slice(0, 10);
+}
+
+/**
+ * Đăng ký cho khung của HÔM NAY mà gửi từ phút 31 của khung trở đi (11h31 cho khung trưa, 16h31
+ * cho khung chiều) thì dời sang khung kế tiếp: trưa → chiều cùng ngày, chiều → trưa ngày làm việc
+ * kế (bỏ Chủ nhật). Lặp vì gửi lúc 16h40 xin khung trưa thì cả trưa lẫn chiều đều quá cữ.
+ * Ngày khác hôm nay hoặc Chủ nhật: giữ nguyên, `isOnTime` lo phần còn lại.
+ */
+export function rescheduleIfLate(input: SlotBooking & { readonly now?: Date }): SlotBooking {
+  const now = input.now ?? new Date();
+  if (input.day !== vnDay(now) || isOffDay(input.day)) return { slot: input.slot, day: input.day };
+  const minutes = vnMinutes(now);
+  let booking: SlotBooking = { slot: input.slot, day: input.day };
+  while (booking.day === input.day && minutes >= SLOT_WINDOW[booking.slot].start + LATE_MINUTES_INTO_SLOT) {
+    booking =
+      booking.slot === "trua"
+        ? { slot: "chieu", day: booking.day }
+        : { slot: "trua", day: nextWorkingDay(booking.day) };
+  }
+  return booking;
+}
+
 /**
  * Sale gõ khung giờ mỗi người một kiểu ("12h", "11-12h", "16-17h", "khung trưa", "chiều") — quy
  * về một trong hai slot. Không khớp → undefined để tool hỏi lại, KHÔNG đoán bừa: đoán nhầm slot
