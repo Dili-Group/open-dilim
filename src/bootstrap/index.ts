@@ -49,6 +49,7 @@ import { AgentApiDealerPort } from "../operational/profile-api.ts";
 import { AgentApiDiscountPort } from "../operational/discount-api.ts";
 import { AgentApiDailyPort } from "../operational/daily-api.ts";
 import { AgentApiInternalOrdersPort } from "../operational/internal-api.ts";
+import { AgentApiInventoryCountPort } from "../operational/inventory-count-api.ts";
 import { AgentApiPoscakePort } from "../operational/poscake-api.ts";
 import { AgentApiCustomerZaloPort } from "../operational/customer-zalo-api.ts";
 import { AgentApiOrderConfirmPort } from "../operational/xac-nhan-api.ts";
@@ -200,6 +201,9 @@ export async function bootstrap(): Promise<Services> {
   // Cổng DUY NHẤT không gắn đại lý: sổ xuất kho + hoá đơn MISA của toàn hệ thống. Cùng client,
   // khác header (chỉ `x-staff-id`) — tách port riêng để chỉ agent nội bộ cầm được.
   const internal = new AgentApiInternalOrdersPort(agentApi);
+  // Ghi số kiểm kho (`/agent/internal/inventory-counts`) dưới tên nhân viên gửi bảng. Port riêng
+  // để chỉ agent nhóm báo tồn cầm đường ghi này, agent đọc sổ nội bộ thì không.
+  const inventoryCount = new AgentApiInventoryCountPort(agentApi);
   // Cổng ghi CREDENTIAL PosCake của đại lý — tách port riêng để chỉ tool `nap_poscake` cầm được,
   // tool đọc đơn/hồ sơ không chạm tới key của đại lý.
   const poscake = new AgentApiPoscakePort(agentApi);
@@ -312,6 +316,7 @@ export async function bootstrap(): Promise<Services> {
     customerZalo,
     orderConfirm,
     retailPricing,
+    inventoryCount,
   });
   assertSkillAgentScopes(skills, agents);
 

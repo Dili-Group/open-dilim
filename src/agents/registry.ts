@@ -12,6 +12,7 @@ import { warehouseProfile } from "./roots/warehouse.ts";
 import { personalProfile } from "./roots/personal.ts";
 import { xacNhanProfile } from "./roots/xac-nhan.ts";
 import { saleFacebookProfile } from "./roots/sale-facebook.ts";
+import { kiemKhoProfile } from "./roots/kiem-kho.ts";
 import type { AgentDeps, RootAgent, RootAgentProfile } from "./types.ts";
 
 /**
@@ -28,6 +29,7 @@ export const PROFILES: readonly RootAgentProfile[] = [
   customerProfile,
   xacNhanProfile,
   saleFacebookProfile,
+  kiemKhoProfile,
 ];
 
 export class AgentRegistry {

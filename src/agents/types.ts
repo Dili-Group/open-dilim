@@ -12,6 +12,7 @@ import type {
   DealerPort,
   DiscountPort,
   InternalOrdersPort,
+  InventoryCountPort,
   OrderConfirmPort,
   OrderPort,
   PoscakePort,
@@ -54,6 +55,11 @@ export const AgentType = {
    * Customer ở đích: gom đủ thông tin lên đơn rồi dừng cho nhân viên lên đơn, thay vì xin số bàn giao.
    */
   SaleFacebook: "sale-facebook",
+  /**
+   * Ghi số KIỂM KHO từ ảnh bảng kiểm kho gửi vào NHÓM BÁO TỒN. Chọn theo (kênh, id nhóm) như
+   * OrderConfirm — nhóm này nằm trên tài khoản Zalo kho, cạnh nhóm hàng hoàn của agent Warehouse.
+   */
+  InventoryCount: "kiem-kho",
 } as const;
 export type AgentType = (typeof AgentType)[keyof typeof AgentType];
 
@@ -109,6 +115,8 @@ export interface AgentDeps {
   readonly orderConfirm?: OrderConfirmPort;
   /** Cổng BÁO GIÁ LẺ cho tool `tra_gia_le`. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
   readonly retailPricing?: RetailPricingPort;
+  /** Cổng GHI SỐ KIỂM KHO cho tool `ghi_ton_kho`. undefined = chưa nối → tool trả lỗi nghiệp vụ. */
+  readonly inventoryCount?: InventoryCountPort;
 }
 
 export interface AgentRunInput {

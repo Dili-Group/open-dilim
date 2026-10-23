@@ -91,6 +91,7 @@ class ProfileRootAgent implements RootAgent {
           customerZalo: this.deps.customerZalo,
           orderConfirm: this.deps.orderConfirm,
           retailPricing: this.deps.retailPricing,
+          inventoryCount: this.deps.inventoryCount,
         }),
         maxTokens: this.deps.config.maxTokens,
         effort: this.deps.config.effort,

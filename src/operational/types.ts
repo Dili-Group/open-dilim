@@ -1008,3 +1008,62 @@ export interface RetailPricingPort {
    */
   recommend(items: readonly RetailCartLine[], signal?: AbortSignal): Promise<RetailQuote | null>;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Kiểm kho (`POST /agent/internal/inventory-counts`) — kho gửi ảnh bảng kiểm vào nhóm báo tồn,
+// agent ghi số đếm của MỘT ca rồi nộp phiên. Chi nhánh backend mặc định 50T21, request không mang mã chi nhánh.
+//
+// Số lượng ở backend là NUMERIC dạng chuỗi ("261.0000") → ở đây đã đổi sang number: đếm hàng là
+// số nguyên nhỏ, không có rủi ro làm tròn như tiền.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Ca kiểm — khớp `InventoryCountShift` của backend. */
+export const CountShift = {
+  /** Tồn đầu ngày = cột KK Sáng, backend so với MISA chốt hôm trước ngay khi nộp. */
+  DauNgay: 0,
+  /** Tồn cuối ngày = cột KK Chiều, backend so với MISA chốt cùng ngày lúc cron 23:59. */
+  CuoiNgay: 1,
+} as const;
+export type CountShift = (typeof CountShift)[keyof typeof CountShift];
+
+export interface StockCountLine {
+  readonly sku: string;
+  readonly countedQuantity: number;
+}
+
+export interface StockCountRequest {
+  /** `accounts.id` của nhân viên gửi bảng — backend ghi làm người đếm/người nộp. */
+  readonly staffId: string;
+  /** Ngày kiểm `YYYY-MM-DD` theo giờ VN. */
+  readonly date: string;
+  readonly shift: CountShift;
+  readonly lines: readonly StockCountLine[];
+  readonly signal?: AbortSignal;
+}
+
+/** Một mã lệch sau khi so MISA. Field thiếu = backend không trả, KHÔNG phải 0. */
+export interface StockCountDiff {
+  readonly sku: string;
+  readonly name?: string;
+  readonly counted?: number;
+  readonly misa?: number;
+  readonly diff?: number;
+}
+
+export interface StockCountResult {
+  readonly saved?: number;
+  /** Mã trong bảng không có trong danh mục — backend KHÔNG ghi. */
+  readonly unknownSkus: readonly string[];
+  /** false = phiên đã nộp từ trước (kho gửi lại ảnh), lần này chỉ ghi đè số đếm. */
+  readonly submittedNow?: boolean;
+  /** Đã so MISA (ca sáng ngay khi nộp, ca tối sau cron 23:59). */
+  readonly compared?: boolean;
+  readonly countedTotal?: number;
+  readonly misaTotal?: number;
+  readonly diffs: readonly StockCountDiff[];
+}
+
+export interface InventoryCountPort {
+  /** GHI: số đếm một ca + nộp phiên nếu phiên còn mở. Không retry (lệnh ghi). */
+  record(r: StockCountRequest): Promise<StockCountResult>;
+}

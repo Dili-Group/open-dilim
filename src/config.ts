@@ -533,6 +533,11 @@ export const CONFIG = {
   // không có nửa vời nào ở giữa.
   xacNhanGroupId: optional("ZALO_XACNHAN_GROUP_ID"),
 
+  // Nhóm BÁO TỒN — kho gửi ảnh bảng kiểm đầu/cuối ngày, agent ghi vào phiên kiểm kho. Nằm trên
+  // tài khoản Zalo kho (kênh `zalo-kho`) cạnh nhóm hàng hoàn → nhận diện theo id nhóm, cùng cơ chế
+  // nhóm xác nhận. Thiếu env = agent kiểm kho TẮT, nhóm đó do agent Warehouse phục vụ như cũ.
+  kiemKhoGroupId: optional("ZALO_KIEMKHO_GROUP_ID"),
+
   // Sentry (báo lỗi từ xa). Optional: thiếu SENTRY_DSN → tắt hẳn, app chạy như cũ.
   // tracesSampleRate mặc định 0 = chỉ gửi lỗi, không gửi trace (trace tốn quota, chưa cần).
   sentry: {

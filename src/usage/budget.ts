@@ -28,6 +28,8 @@ export const DAILY_BUDGET_VND: Readonly<Record<string, number | null>> = {
   // rộng theo số sale, nên vẫn cần một cái phanh. Trần rộng để không chặn nhầm giữa ca làm việc;
   // chỉnh lại sau vài ngày có số đo thật.
   [AgentType.OrderConfirm]: 20_000,
+  // Hai bảng kiểm mỗi ngày, vài người trong kho — nhóm nội bộ hữu hạn như Warehouse.
+  [AgentType.InventoryCount]: null,
 };
 
 /** Agent không có trong bảng (kể cả `default`) dùng mức này. */

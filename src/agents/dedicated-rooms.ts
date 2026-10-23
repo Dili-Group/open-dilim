@@ -77,6 +77,36 @@ export function xacNhanRoom(groupId: string | undefined): DedicatedRoom | undefi
   };
 }
 
+/**
+ * Mẫu tin kho gửi bảng kiểm: "Kho gửi số tồn đầu ngày ..." / "Kho gửi số tồn cuối ngày ...". Nới
+ * cho kiểu gõ không dấu và lược chữ "số" — tin đúng việc mà lệch một dấu thì không đáng một lượt
+ * phán quyết. Cờ `m` để tin có dòng chào phía trên vẫn lọt.
+ */
+const KIEMKHO_TRIGGERS: readonly RegExp[] = [
+  /^\s*kho\s+g[uử]i\s+(?:s[oố]\s+)?t[oồ]n(?:\s+kho)?\s+(?:[dđ][aầ]u|cu[oố]i)\s+ng[aà]y/imu,
+];
+
+/** Chỉ một loại việc: agent không có tool nào khác ngoài ghi bảng kiểm từ ảnh. */
+const KIEMKHO_INTAKE_KINDS: readonly string[] = [
+  "kho gửi (hoặc gửi lại) số tồn kho đầu ngày hay cuối ngày kèm ảnh bảng kiểm kho — kể cả gõ lệch mẫu như 'tồn sáng nay', 'gửi lại bảng tồn chiều'",
+];
+
+/**
+ * Nhóm báo tồn (kênh `zalo-kho`, tài khoản Zalo kho — cùng tài khoản với nhóm hàng hoàn của agent
+ * Warehouse). `groupId` undefined = chưa khai env `ZALO_KIEMKHO_GROUP_ID` → agent này TẮT.
+ */
+export function kiemKhoRoom(groupId: string | undefined): DedicatedRoom | undefined {
+  const id = groupId?.trim();
+  if (id === undefined || id === "") return undefined;
+  return {
+    channel: "zalo-kho",
+    groupId: id,
+    agentType: AgentType.InventoryCount,
+    templateTriggers: KIEMKHO_TRIGGERS,
+    intakeKinds: KIEMKHO_INTAKE_KINDS,
+  };
+}
+
 /** Phòng chuyên dụng khớp (kênh, nhóm). `groupId` undefined = chat 1-1 → không bao giờ khớp. */
 export function dedicatedRoomOf(
   rooms: readonly DedicatedRoom[],

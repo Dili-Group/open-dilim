@@ -35,6 +35,7 @@ import { buildDocReadTool } from "./impl/doc/doc-file.ts";
 import { buildCustomerLeadTool } from "./impl/ghi-nhan-khach.ts";
 import { buildRetailQuoteTool } from "./impl/tra-gia-le.ts";
 import { buildRegisterConfirmTool } from "./impl/xacnhan/ghi-dang-ky.ts";
+import { buildStockCountTool } from "./impl/kiem-kho/ghi-ton-kho.ts";
 import { buildWorkflowOpenTool } from "./impl/workflow/open.ts";
 import { buildWorkflowAnswerTool } from "./impl/workflow/answer.ts";
 import { buildWorkflowListTool } from "./impl/workflow/list.ts";
@@ -85,6 +86,17 @@ export const RETAIL_PRICING_TOOLS: readonly ToolFactory[] = [
  */
 export const XACNHAN_TOOLS: readonly ToolFactory[] = [
   (ctx: ToolContext): Tool => buildRegisterConfirmTool(ctx),
+];
+
+/**
+ * Tool KIỂM KHO — chỉ agent nhóm báo tồn được khai (agents/roots/kiem-kho.ts). Một đường ghi: số
+ * đếm một ca đọc từ ảnh bảng kiểm, ghi dưới tên nhân viên gửi (`ctx.identity`, server-side).
+ *
+ * KHÔNG khai cho agent Warehouse dù cùng tài khoản Zalo kho: nhóm hàng hoàn không gửi bảng kiểm,
+ * có mặt ở đó chỉ là thêm một đường ghi tồn kho từ phòng không liên quan.
+ */
+export const INVENTORY_COUNT_TOOLS: readonly ToolFactory[] = [
+  (ctx: ToolContext): Tool => buildStockCountTool(ctx),
 ];
 
 /**

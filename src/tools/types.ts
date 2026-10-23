@@ -12,6 +12,7 @@ import type {
   DealerPort,
   DiscountPort,
   InternalOrdersPort,
+  InventoryCountPort,
   OrderConfirmPort,
   OrderPort,
   PoscakePort,
@@ -140,6 +141,11 @@ export interface ToolContext {
    * an toàn cho người nhắn chưa xác thực. undefined = chưa nối → tool trả lỗi nghiệp vụ.
    */
   readonly retailPricing?: RetailPricingPort;
+  /**
+   * Cổng GHI SỐ KIỂM KHO (`/agent/internal/inventory-counts`). Ghi dưới tên nhân viên gửi bảng —
+   * tool tự chặn người chưa gắn tài khoản nhân viên. undefined = chưa nối → tool trả lỗi nghiệp vụ.
+   */
+  readonly inventoryCount?: InventoryCountPort;
 }
 
 export type ToolFactory = (ctx: ToolContext) => Tool;
