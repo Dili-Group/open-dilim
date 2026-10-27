@@ -28,6 +28,23 @@ export const NO_DOCTOR_MENTION: ReplyCheck = {
       : undefined,
 };
 
+// Biên chữ dựng tay: `\b` của JS chỉ hiểu ASCII, đứng sau "é" là trượt. Chừa "nha khoa", "nha sĩ",
+// "Nha Trang" — khách lẻ nhắc tới thật (đi nha sĩ, ship ra Nha Trang).
+const CASUAL_CLOSING_PATTERN =
+  /(?<![\p{L}\p{M}\p{N}])(?:nhé|nhe|nha)(?![\p{L}\p{M}\p{N}])(?!\s+(?:khoa|sĩ|sỹ|trang)(?![\p{L}\p{M}]))/iu;
+
+/**
+ * Khách lẻ: kết câu bằng "ạ", không bao giờ "nhé/nha" — câu mẫu trong skill từng dạy "nha cô",
+ * model chép theo.
+ */
+export const NO_CASUAL_CLOSING: ReplyCheck = {
+  name: "no_casual_closing",
+  check: (reply) =>
+    CASUAL_CLOSING_PATTERN.test(normalize(reply))
+      ? "Câu trả lời dùng 'nhé', 'nha' hoặc 'nhe' với khách. Với khách lẻ kết câu bằng 'ạ' (\"cô chụp giúp con chỗ hộp móp ạ\"), đáp đồng ý thì 'Vâng ạ'. Bỏ hết 'nhé/nha/nhe', giữ nguyên ý."
+      : undefined,
+};
+
 const AD_DISCLAIMER_PATTERN = /thay\s+thế\s+thuốc\s+chữa\s+bệnh/iu;
 
 /**

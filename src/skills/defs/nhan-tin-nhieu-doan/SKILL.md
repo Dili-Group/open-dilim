@@ -41,12 +41,12 @@ từ nối.
 
 Nháp gộp (khách hỏi cách uống, agent nhét luôn chuyện đơn lỗi + xin số):
 
-> Dạ hộp này mỗi ngày cô uống 2 viên với nước ấm nha cô. Còn chuyện hộp bị móp với thiếu hàng, cô
+> Dạ hộp này mỗi ngày cô uống 2 viên với nước ấm. Còn chuyện hộp bị móp với thiếu hàng, cô
 > cho em xin số điện thoại lúc đặt hàng để em chuyển bạn phụ trách gọi lại xử lý cho cô ạ.
 
 TÁCH THEO VIỆC:
 
-> Dạ hộp này mỗi ngày cô uống 2 viên với nước ấm nha cô
+> Dạ hộp này mỗi ngày cô uống 2 viên với nước ấm ạ
 > `---`
 > Còn chuyện hộp bị móp, cô cho con xin số điện thoại lúc đặt hàng để bạn phụ trách gọi lại xử lý
 > cho cô ạ
@@ -128,6 +128,6 @@ Tách theo nhịp (đáp lễ · dữ kiện):
 
 > Dạ con chào cô ạ
 > `---`
-> Hộp NANO Nattokinase này mỗi ngày cô uống 2 viên sau bữa ăn, với nước ấm nha cô
+> Hộp NANO Nattokinase này mỗi ngày cô uống 2 viên sau bữa ăn, với nước ấm ạ
 
 Hai tin, tổng chữ gần như không đổi, nhưng cô thấy có người chào mình trước khi thấy chữ số.

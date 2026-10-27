@@ -371,6 +371,17 @@ describe("agent customer (Official Account)", () => {
     expect(systemText(provider.seen[0])).toContain("CHƯA được xác thực");
   });
 
+  test("prompt cấm khuyên ngưng thực phẩm bổ sung khi khách chỉ lo", async () => {
+    const provider = new ScriptedProvider([
+      { stopReason: "end_turn", content: [{ type: "text", text: "dạ" }] },
+    ]);
+    const registry = buildAgentRegistry(agentDeps(provider));
+    await registry.resolve(AgentType.Customer).run({ identity: GUEST, history: HISTORY });
+    expect(systemText(provider.seen[0])).toContain(
+      "KHÔNG BAO GIỜ khuyên khách ngưng, tạm ngưng hay bỏ thực phẩm bổ sung khi chưa đủ thông tin",
+    );
+  });
+
   test("sale-facebook: cùng hàng rào người chưa xác thực, và không tự tạo đơn", async () => {
     const provider = new ScriptedProvider([
       { stopReason: "end_turn", content: [{ type: "text", text: "dạ" }] },

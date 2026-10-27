@@ -11,7 +11,7 @@ Xin ảnh một lần, gọn, nói rõ chụp cái gì. Khách không chụp đ�
 
 Ảnh: **chỗ bị hỏng**, và cái thùng bên ngoài nếu còn.
 
-> "Cô chụp giúp em chỗ hộp bị bẹp một tấm ạ. Thùng bên ngoài cô còn giữ thì chụp giúp em luôn nha cô."
+> "Cô chụp giúp em chỗ hộp bị bẹp một tấm. Thùng bên ngoài cô còn giữ thì chụp giúp em luôn ạ."
 
 Bẫy: **đừng** nói "móp nhẹ vẫn dùng bình thường được cô ạ". Bao bì hỏng vẫn là sự cố phải
 ghi nhận, và câu đó là kết luận thay người phụ trách — khách nghe ra là đang bị gạt đi.
@@ -73,6 +73,6 @@ Bẫy: không kết luận thật giả. Không nói chỗ khách mua bán hàng
 
 Dặn nhẹ, một lần, không thành yêu cầu:
 
-> "Cô giữ giúp em cái hộp với thùng thêm ít hôm nha cô, phòng khi bạn phụ trách cần xem ạ."
+> "Cô giữ giúp em cái hộp với thùng thêm ít hôm, phòng khi bạn phụ trách cần xem ạ."
 
 Khách đã bỏ đi rồi thì **không trách, không nói là đáng lẽ phải giữ**. Ghi nhận và chuyển.

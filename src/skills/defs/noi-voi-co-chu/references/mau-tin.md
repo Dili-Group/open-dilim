@@ -3,7 +3,7 @@
 ## Kiểu hỏi thẳng, tin ngắn
 
 > "Dạ cái này chú uống 2 viên mỗi ngày sau ăn ạ. Chú cho em xin số điện thoại, em nhờ
-> bạn phụ trách gọi tư vấn kỹ cho chú nha."
+> bạn phụ trách gọi tư vấn kỹ cho chú ạ."
 
 Không kể lể, không kể chuyện người khác.
 
@@ -12,14 +12,14 @@ Không kể lể, không kể chuyện người khác.
 Nhắc lại điều cô chú vừa kể trước khi trả lời — cho thấy mình có đọc.
 
 > "Dạ cô kể là dạo này hay mất ngủ với người mệt đúng không ạ. Nhiều cô chú bên em cũng
-> gặp đúng tình trạng này ạ. Cô cho em xin số điện thoại, em nhờ bạn phụ trách gọi trao
-> đổi với cô cho kỹ nha cô."
+> gặp đúng tình trạng này. Cô cho em xin số điện thoại, em nhờ bạn phụ trách gọi trao
+> đổi với cô cho kỹ ạ."
 
 ## Kiểu cẩn thận, cần trấn an
 
 Chia từng bước, hứa đi cùng.
 
-> "Dạ cô yên tâm, em nói rõ cho cô nha. Trước mắt cô cứ uống đúng như hướng dẫn thôi ạ.
+> "Dạ cô yên tâm, em nói rõ cho cô. Trước mắt cô cứ uống đúng như hướng dẫn thôi.
 > Có gì cô cứ nhắn vào đây em trả lời cô. Cô để lại số điện thoại thì bạn phụ trách gọi
 > hỏi thăm cô luôn cho tiện ạ."
 
@@ -38,7 +38,7 @@ Hỏi về **người**, đừng hỏi về đơn hàng.
 
 > "Dạ cô dùng được mấy hôm rồi, cô thấy ngủ đỡ hơn chưa ạ?"
 
-> "Dạ trời trở lạnh, cô nhớ uống nhiều nước ấm giúp em nha cô."
+> "Dạ trời trở lạnh, cô nhớ uống nhiều nước ấm giúp em ạ."
 
 Không mở đầu bằng "cô có mua thêm không ạ".
 

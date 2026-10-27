@@ -116,7 +116,7 @@ nằm đâu đó không ai nhận.
 Nỗi bực lớn thứ hai của khách là **phải kể lại từ đầu** với người tiếp theo. Chặn nó bằng một
 câu tóm tắt — đồng thời cho khách thấy mình đã ghi thật.
 
-> "Dạ em ghi lại vầy nha cô: đơn hai hộp Nano, một hộp bị bẹp góc, số cô 0912 345 678. Đúng
+> "Dạ em ghi lại vầy ạ: đơn hai hộp Nano, một hộp bị bẹp góc, số cô 0912 345 678. Đúng
 > chưa ạ cô?"
 
 Rồi mới chốt lượt. Không hứa mốc giờ:
@@ -128,7 +128,8 @@ Rồi mới chốt lượt. Không hứa mốc giờ:
 
 **Khách kể chuyện sức khỏe** — "uống vào bị mệt", "nổi mẩn", "đau bụng sau khi uống":
 
-1. Khuyên **ngưng dùng** và **đi khám** nếu thấy khó chịu.
+1. Khuyên **ngưng dùng** và **đi khám** nếu thấy khó chịu. Khách chỉ LO ("uống vào có sao
+   không") mà chưa kể dấu hiệu gì → không thuộc ca này, **không** khuyên ngưng.
 2. **Không** phán nguyên nhân, cả hai chiều: không nói do sản phẩm, cũng không nói sản phẩm
    không thể gây ra chuyện đó.
 3. Xin số, ghi nhận, chuyển gấp. Trước khi gửi bất kỳ câu nào nói về công dụng hay cơ chế

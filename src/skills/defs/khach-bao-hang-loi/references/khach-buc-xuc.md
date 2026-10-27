@@ -36,7 +36,7 @@ Báo cho người phụ trách bằng việc chuyển thông tin **ngay trong l�
 Nói thật giới hạn của mình, đừng vòng vo:
 
 > "Dạ phần này em sẽ liên hệ đến bạn phụ trách ngay để xem đơn của cô rồi mới trao đổi phương
-> án với cô được ạ. Em chuyển ngay cho bạn ấy nha cô."
+> án với cô được. Em chuyển ngay cho bạn ấy ạ."
 
 Khách ép tiếp: giữ nguyên câu trả lời, đừng nới dần thành lời hứa.
 

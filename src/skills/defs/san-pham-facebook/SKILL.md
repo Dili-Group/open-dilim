@@ -37,8 +37,8 @@ bao giờ nói sản phẩm giúp đỡ triệu chứng nào ngoài cột này.
   sản phẩm phù hợp". Nói thật là em chưa nói chắc được, bạn tư vấn sẽ trao đổi kỹ về tình
   trạng của mình, rồi xin số:
 
-> "Dạ chuyện trí nhớ thì em chưa dám nói chắc ạ. Em nhờ bạn tư vấn bên em gọi trao đổi kỹ
-> hơn về tình trạng của mình nha, mình cho em xin số điện thoại ạ."
+> "Dạ chuyện trí nhớ thì em chưa dám nói chắc. Em nhờ bạn tư vấn bên em gọi trao đổi kỹ
+> hơn về tình trạng của mình, mình cho em xin số điện thoại ạ."
 
 - Gợi tên không phải chẩn đoán: nói "tình trạng như mình kể", không nói "chị bị…".
 

@@ -2,7 +2,7 @@
 // đúng nằm sát ranh giới.
 
 import { describe, expect, test } from "bun:test";
-import { NO_AD_DISCLAIMER, NO_DOCTOR_MENTION } from "./reply-checks.ts";
+import { NO_AD_DISCLAIMER, NO_CASUAL_CLOSING, NO_DOCTOR_MENTION } from "./reply-checks.ts";
 import { customerProfile } from "./roots/customer.ts";
 import { saleFacebookProfile } from "./roots/sale-facebook.ts";
 import { xacNhanProfile } from "./roots/xac-nhan.ts";
@@ -59,6 +59,32 @@ describe("NO_AD_DISCLAIMER", () => {
   });
 });
 
+describe("NO_CASUAL_CLOSING", () => {
+  test("câu kết 'nha cô', 'nhé' chép từ mẫu skill cũ → bắt", () => {
+    expect(NO_CASUAL_CLOSING.check("Dạ em chuyển ngay cho bạn ấy nha cô.")).toBeDefined();
+    expect(NO_CASUAL_CLOSING.check("Cô để lại số để bên con hỗ trợ mình nhé.")).toBeDefined();
+    expect(NO_CASUAL_CLOSING.check("Chú chờ con chút nhe")).toBeDefined();
+  });
+
+  test("hoa đầu câu, NFD → vẫn bắt", () => {
+    expect(NO_CASUAL_CLOSING.check("Nhé cô, con gửi liền ạ")).toBeDefined();
+    expect(NO_CASUAL_CLOSING.check("cô uống sau ăn nhé".normalize("NFD"))).toBeDefined();
+  });
+
+  test("kết bằng ạ, vâng ạ → đạt", () => {
+    expect(NO_CASUAL_CLOSING.check("Vâng ạ")).toBeUndefined();
+    expect(NO_CASUAL_CLOSING.check("Dạ cô chụp giúp con chỗ hộp móp ạ.")).toBeUndefined();
+  });
+
+  test("nhà, nha khoa, nha sĩ, Nha Trang, nhanh → không bắt nhầm", () => {
+    expect(NO_CASUAL_CLOSING.check("Con gửi hàng về nhà cô ạ")).toBeUndefined();
+    expect(NO_CASUAL_CLOSING.check("Cô hỏi thêm nha sĩ giúp con ạ")).toBeUndefined();
+    expect(NO_CASUAL_CLOSING.check("Bên con ship ra Nha Trang được ạ")).toBeUndefined();
+    expect(NO_CASUAL_CLOSING.check("Phòng nha khoa gần nhà cô ạ")).toBeUndefined();
+    expect(NO_CASUAL_CLOSING.check("Con gửi nhanh cho cô ạ")).toBeUndefined();
+  });
+});
+
 describe("khai checks trên root", () => {
   test("nhóm xác nhận đơn kiểm câu nhắc bác sĩ", () => {
     expect(xacNhanProfile.replyChecks).toContain(NO_DOCTOR_MENTION);
@@ -67,5 +93,10 @@ describe("khai checks trên root", () => {
   test("hai kênh khách lẻ kiểm câu miễn trừ quảng cáo", () => {
     expect(customerProfile.replyChecks).toContain(NO_AD_DISCLAIMER);
     expect(saleFacebookProfile.replyChecks).toContain(NO_AD_DISCLAIMER);
+  });
+
+  test("hai kÃªnh khÃ¡ch láº» kiá»m cÃ¢u káº¿t nhÃ©/nha", () => {
+    expect(customerProfile.replyChecks).toContain(NO_CASUAL_CLOSING);
+    expect(saleFacebookProfile.replyChecks).toContain(NO_CASUAL_CLOSING);
   });
 });
