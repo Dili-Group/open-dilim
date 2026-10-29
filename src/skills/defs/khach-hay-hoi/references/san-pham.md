@@ -67,7 +67,7 @@ trong quảng cáo, không lặp trong tin chat.
 - Không dùng cho người mẫn cảm hoặc dị ứng với bất kỳ thành phần nào
 - Phụ nữ mang thai, đang cho con bú, người đang điều trị bệnh: tham khảo ý kiến chuyên
   gia y tế trước khi dùng
-- Ngưng dùng khi thấy bất thường
+- Thấy bất thường thì báo bên em để bạn phụ trách hỗ trợ; khó chịu nhiều thì đi khám
 - Để xa tầm tay trẻ em
 - Insuna chứa maltitol; Policosanol chứa lactose — lưu ý người không dung nạp
 - Sản phẩm dạng bột: pha nước ấm dưới 60°C, nước quá nóng làm giảm chất lượng

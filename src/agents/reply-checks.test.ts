@@ -2,7 +2,12 @@
 // đúng nằm sát ranh giới.
 
 import { describe, expect, test } from "bun:test";
-import { NO_AD_DISCLAIMER, NO_CASUAL_CLOSING, NO_DOCTOR_MENTION } from "./reply-checks.ts";
+import {
+  NO_AD_DISCLAIMER,
+  NO_CASUAL_CLOSING,
+  NO_DOCTOR_MENTION,
+  NO_STOP_ADVICE,
+} from "./reply-checks.ts";
 import { customerProfile } from "./roots/customer.ts";
 import { saleFacebookProfile } from "./roots/sale-facebook.ts";
 import { xacNhanProfile } from "./roots/xac-nhan.ts";
@@ -85,6 +90,41 @@ describe("NO_CASUAL_CLOSING", () => {
   });
 });
 
+describe("NO_STOP_ADVICE", () => {
+  test("câu đã lọt ra OA khi khách kể đau ngón chân → bắt", () => {
+    expect(
+      NO_STOP_ADVICE.check(
+        "Anh/chị ngưng dùng AFCRICH từ bây giờ. Nếu còn đau hoặc khó chịu, anh/chị đi khám sớm và mang theo hộp sản phẩm cho bác sĩ xem ạ.",
+      ),
+    ).toBeDefined();
+    expect(
+      NO_STOP_ADVICE.check(
+        "Trong lúc chờ, anh vẫn ngưng AFCRICH, và nếu ngón chân đau tăng thì anh đi khám ngay ạ.",
+      ),
+    ).toBeDefined();
+  });
+
+  test("các cách nói ngưng khác, hoa đầu câu, NFD → vẫn bắt", () => {
+    expect(NO_STOP_ADVICE.check("Cô đừng uống tiếp giúp con ạ")).toBeDefined();
+    expect(NO_STOP_ADVICE.check("Tạm ngừng sử dụng giúp em ạ")).toBeDefined();
+    expect(NO_STOP_ADVICE.check("Ngưng dùng sản phẩm giúp con ạ".normalize("NFD"))).toBeDefined();
+  });
+
+  test("hộp quá hạn → được khuyên ngưng", () => {
+    expect(
+      NO_STOP_ADVICE.check("Dạ hộp đó quá hạn rồi, cô ngưng dùng giúp em, đừng uống tiếp ạ."),
+    ).toBeUndefined();
+  });
+
+  test("hỏi rõ thêm, chữ 'dừng/ngưng' việc khác → đạt", () => {
+    expect(
+      NO_STOP_ADVICE.check("Dạ anh đau ngón chân từ khi nào ạ, có từ trước khi uống AFCRICH không?"),
+    ).toBeUndefined();
+    expect(NO_STOP_ADVICE.check("Em dừng ở đây, bạn phụ trách gọi anh ạ")).toBeUndefined();
+    expect(NO_STOP_ADVICE.check("Mẫu này bên em ngưng bán rồi ạ")).toBeUndefined();
+  });
+});
+
 describe("khai checks trên root", () => {
   test("nhóm xác nhận đơn kiểm câu nhắc bác sĩ", () => {
     expect(xacNhanProfile.replyChecks).toContain(NO_DOCTOR_MENTION);
@@ -95,7 +135,11 @@ describe("khai checks trên root", () => {
     expect(saleFacebookProfile.replyChecks).toContain(NO_AD_DISCLAIMER);
   });
 
-  test("hai kÃªnh khÃ¡ch láº» kiá»m cÃ¢u káº¿t nhÃ©/nha", () => {
+  test("OA kiểm câu khuyên ngưng sản phẩm", () => {
+    expect(customerProfile.replyChecks).toContain(NO_STOP_ADVICE);
+  });
+
+  test("hai kênh khách lẻ kiểm câu kết nhé/nha", () => {
     expect(customerProfile.replyChecks).toContain(NO_CASUAL_CLOSING);
     expect(saleFacebookProfile.replyChecks).toContain(NO_CASUAL_CLOSING);
   });

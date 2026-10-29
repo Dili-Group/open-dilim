@@ -45,6 +45,28 @@ export const NO_CASUAL_CLOSING: ReplyCheck = {
       : undefined,
 };
 
+const STOP_ADVICE_PATTERN =
+  /(?<![\p{L}\p{M}])(?:(?:ngưng|ngừng|dừng)\s+(?:dùng|uống|sử\s+dụng|sản\s+phẩm|hộp|thuốc)|(?:đừng|không\s+nên)\s+(?:dùng|uống)\s+(?:tiếp|nữa|thêm))(?![\p{L}\p{M}])/iu;
+// Không cờ `i`: chữ hoa sau "ngưng" là tên sản phẩm ("anh vẫn ngưng AFCRICH").
+const STOP_PRODUCT_PATTERN = /(?<![\p{L}\p{M}])[Nn]g[ưừ]ng\s+\p{Lu}/u;
+const EXPIRY_PATTERN = /(?:quá|hết)\s+hạn|hạn\s+(?:sử\s+dụng|dùng)/iu;
+
+/**
+ * Khách lẻ: khuyên ngưng sản phẩm chỉ đúng khi hộp đã quá hạn — câu đó luôn nói chữ "hạn", nên
+ * thiếu chữ đó là sai mà không cần hiểu ý. Lọt ra OA: khách kể "đau" + "đã uống AFCRICH" → agent bảo
+ * ngưng trước khi biết đau ở đâu (đau ngón chân).
+ */
+export const NO_STOP_ADVICE: ReplyCheck = {
+  name: "no_stop_advice",
+  check: (reply) => {
+    const text = normalize(reply);
+    const advisesStop = STOP_ADVICE_PATTERN.test(text) || STOP_PRODUCT_PATTERN.test(text);
+    return advisesStop && !EXPIRY_PATTERN.test(text)
+      ? "Câu trả lời khuyên khách ngưng dùng sản phẩm. Mình không biết triệu chứng có liên quan sản phẩm hay không — chỉ được khuyên ngưng khi hạn in trên hộp đã qua. Bỏ câu khuyên ngưng; hỏi rõ thêm (đau ở đâu, từ khi nào, có từ trước khi uống không) hoặc xin số chuyển bạn phụ trách. Dấu hiệu cấp thì khuyên đi khám ngay."
+      : undefined;
+  },
+};
+
 const AD_DISCLAIMER_PATTERN = /thay\s+thế\s+thuốc\s+chữa\s+bệnh/iu;
 
 /**

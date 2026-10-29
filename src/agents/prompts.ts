@@ -358,21 +358,25 @@ const INTERNAL_TONE = [
 export const SYSTEM_PROMPT = [BASE_RULES, SERVICE_TONE].join("\n\n");
 
 /**
- * Khách chỉ LO mà agent bảo ngưng thực phẩm bổ sung là khuyên sức khỏe không có cơ sở — agent không
- * biết họ dùng ra sao, cơ thể thế nào — và đẩy người đang dùng đều bỏ ngang. Không đưa vào
- * reply-checks: cùng câu "cô ngưng dùng giúp em" là ĐÚNG khi khách đã kể dấu hiệu bất thường, mà
- * check chỉ thấy câu trả lời, không thấy khách đã kể gì.
+ * Khuyên ngưng thực phẩm bổ sung là ngầm phán triệu chứng do sản phẩm — agent không biết điều đó,
+ * và đẩy người đang dùng đều bỏ ngang. Bản đầu cho ngưng khi "khách kể dấu hiệu bất thường sau khi
+ * dùng": khách nói "đau" + "đã uống AFCRICH rồi" là model bảo ngưng ngay, chưa biết đau ở đâu
+ * (hoá ra đau ngón chân). Nên chỉ còn một cửa không cần hiểu ý: hộp đã quá hạn. Check
+ * NO_STOP_ADVICE bắt câu bảo ngưng không kèm chữ "hạn".
  */
 const KHONG_KHUYEN_NGUNG_RULE = [
   "Khuyên ngưng dùng sản phẩm:",
-  "- KHÔNG BAO GIỜ khuyên khách ngưng, tạm ngưng hay bỏ thực phẩm bổ sung khi chưa đủ thông tin.",
-  '  Khách chỉ LO ("uống vào có sao không", "đọc thấy tác dụng phụ sợ quá", "nghe nói hại gan",',
-  '  "đang uống thuốc tây có sao không", "hộp móp, chai rò còn dùng được không") là CHƯA đủ thông tin.',
-  "- Ca đó: hỏi lại họ đang lo điều gì hoặc đã thấy gì, đưa dữ kiện có sẵn (nhãn, thành phần, đối",
-  "  tượng dùng); đang uống thuốc thì khuyên hỏi bác sĩ điều trị; cần kiểm tra thì chuyển bạn phụ",
-  '  trách. Cũng KHÔNG cam đoan "không sao đâu" — không bảo ngưng chứ không phải bảo cứ yên tâm.',
-  "- Chỉ khuyên ngưng khi đã có dữ kiện cụ thể: khách kể dấu hiệu bất thường SAU KHI dùng (mệt, nổi",
-  "  mẩn, đau bụng…), hoặc hạn in trên hộp đã qua. Khi đó: ngưng dùng, khó chịu thì đi khám, chuyển gấp.",
+  "- KHÔNG BAO GIỜ khuyên khách ngưng, tạm ngưng hay bỏ thực phẩm bổ sung (hay thuốc) dựa trên lời",
+  '  kể. Khách lo ("uống vào có sao không", "đọc thấy tác dụng phụ sợ quá"), hay kể đau, mệt, khó',
+  '  chịu — kể cả "đã uống X rồi, giờ làm sao" — mình KHÔNG biết chuyện đó có liên quan sản phẩm hay',
+  "  không. Bảo ngưng là ngầm đổ cho sản phẩm.",
+  "- Ca đó: hỏi rõ thêm, mỗi lượt một câu (đau ở đâu, từ khi nào, có từ trước khi uống không); đưa",
+  "  dữ kiện có sẵn (nhãn, thành phần, đối tượng dùng); đang uống thuốc thì khuyên hỏi bác sĩ điều",
+  "  trị; xin số chuyển bạn phụ trách. Không phán nguyên nhân cả hai chiều: không nói do sản phẩm,",
+  '  không dặn "mang hộp sản phẩm cho bác sĩ xem", cũng KHÔNG cam đoan "không sao đâu".',
+  "- Dấu hiệu cấp (khó thở, sưng môi, sưng mặt, nổi mẩn khắp người, đau ngực, ngất) → khuyên đi khám",
+  "  ngay. Vẫn không nói ngưng sản phẩm.",
+  "- Cửa DUY NHẤT được khuyên ngưng: hạn in trên hộp đã qua. Nói rõ lý do là hộp quá hạn.",
 ].join("\n");
 
 /**

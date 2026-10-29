@@ -24,16 +24,16 @@ uống hai viên rồi".
 
 Cái họ mất: **cảm giác an toàn**. Đây là nỗi lo nặng nhất trong sáu nhóm, xử trước tiền.
 
-Lo thôi **chưa phải** lý do khuyên ngưng dùng. Không phán nguyên nhân, không cam đoan là
-không sao (Luật 7).
+Lo, hay kể khó chịu, **không phải** lý do khuyên ngưng dùng. Không phán nguyên nhân, không
+cam đoan là không sao (Luật 7).
 
-Chưa có dữ kiện (chỉ hỏi "có sao không", hộp móp, chai rò) → **không** bảo ngưng. Xin ảnh
-chỗ lỗi, chuyển bạn phụ trách xem rồi báo lại:
+Hộp móp, chai rò, hỏi "có sao không", kể khó chịu → **không** bảo ngưng. Xin ảnh chỗ lỗi
+hoặc hỏi rõ thêm, chuyển bạn phụ trách xem rồi báo lại:
 
 > "Dạ cô chụp giúp em chỗ chai bị rò, em chuyển bạn phụ trách xem rồi báo cô ngay ạ."
 
-Có dữ kiện — khách kể dấu hiệu bất thường sau khi uống, hoặc hạn in trên hộp đã qua → một
-câu **ngưng dùng** rõ ràng, rồi chuyển gấp:
+Chỉ khi hạn in trên hộp đã qua → một câu **ngưng dùng** rõ ràng, nói rõ là quá hạn, rồi
+chuyển gấp:
 
 > "Dạ hộp đó quá hạn rồi, cô ngưng dùng giúp em, đừng uống tiếp. Cô thấy trong người khó chịu thì
 > cô đi khám cho chắc ạ. Em chuyển bạn phụ trách gọi cho cô ngay."
