@@ -37,6 +37,9 @@ const KEEPER = "sender-thu-kho";
 const NOW = Date.parse("2026-08-10T02:00:00Z");
 /** Test không cần giãn cách thật giữa các nhóm — chỉ test riêng về giãn cách mới bật. */
 const NO_GAP = 0;
+// Timer trên Linux (CI) có thể về sớm hơn `performance.now()` vài phần mười ms: `Bun.sleep(50)` đo
+// được 49.9 → test nghỉ giữa nhóm trượt dù poller đúng. Biên này vẫn phân biệt "có nghỉ" với "không".
+const TIMER_SLACK_MS = 5;
 
 const ROOMS: readonly DealerRoom[] = [
   { channel: "zalo", groupId: "g1", customerId: "c1" },
@@ -563,7 +566,7 @@ describe("poller gửi", () => {
 
     expect(broadcaster.sent).toHaveLength(2);
     // Hai nhóm → đúng một khoảng nghỉ.
-    expect(performance.now() - startedAt).toBeGreaterThanOrEqual(gapMs);
+    expect(performance.now() - startedAt).toBeGreaterThanOrEqual(gapMs - TIMER_SLACK_MS);
   });
 
   test("đã duyệt → gửi đúng một tin/nhóm, NGUYÊN VĂN, và ghi vào history nhóm", async () => {
