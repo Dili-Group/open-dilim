@@ -62,7 +62,7 @@ export const NO_STOP_ADVICE: ReplyCheck = {
     const text = normalize(reply);
     const advisesStop = STOP_ADVICE_PATTERN.test(text) || STOP_PRODUCT_PATTERN.test(text);
     return advisesStop && !EXPIRY_PATTERN.test(text)
-      ? "Câu trả lời khuyên khách ngưng dùng sản phẩm. Mình không biết triệu chứng có liên quan sản phẩm hay không — chỉ được khuyên ngưng khi hạn in trên hộp đã qua. Bỏ câu khuyên ngưng; hỏi rõ thêm (đau ở đâu, từ khi nào, có từ trước khi uống không) hoặc xin số chuyển bạn phụ trách. Dấu hiệu cấp thì khuyên đi khám ngay."
+      ? "Câu trả lời khuyên khách ngưng dùng sản phẩm. Mình không biết triệu chứng có liên quan sản phẩm hay không — chỉ được khuyên ngưng khi hạn in trên hộp đã qua. Bỏ câu khuyên ngưng; không hỏi bệnh, xin số chuyển bạn phụ trách."
       : undefined;
   },
 };
@@ -78,5 +78,43 @@ export const NO_AD_DISCLAIMER: ReplyCheck = {
   check: (reply) =>
     AD_DISCLAIMER_PATTERN.test(normalize(reply))
       ? "Câu trả lời chép câu miễn trừ của quảng cáo ('không có tác dụng thay thế thuốc chữa bệnh') — tin chat không dùng câu này. Bỏ câu đó; nếu khách vừa hỏi có thay thuốc được không thì trả lời tự nhiên bằng lời của mình."
+      : undefined,
+};
+
+const MEDICAL_ADVICE_PATTERN =
+  /(?<![\p{L}\p{M}])(?:đi\s+khám|khám\s+(?:bệnh|ngay)|bệnh\s+viện|cấp\s+cứu|bác\s+s[ĩỹ]|chỉ\s+định|chẩn\s+đoán|chuyên\s+gia\s+y\s+tế)(?![\p{L}\p{M}])/iu;
+
+/**
+ * Khách lẻ: không tư vấn bệnh — khách nhắc tới bệnh, thuốc, triệu chứng thì xin số để bạn phụ
+ * trách gọi lại, không bảo "hỏi bác sĩ", "đi khám", "dùng theo chỉ định", không chẩn đoán. Chữ
+ * "chữa/điều trị" KHÔNG bắt: ca khách kể lời bạn tư vấn cần đúng câu "hỗ trợ, không phải thuốc
+ * điều trị". Không có ngoại lệ, kể cả dấu hiệu cấp — chủ quyết vậy, bạn phụ trách
+ * gọi lại xử lý. Lọt ra OA ba lần: "không dùng để trị bệnh… hỏi bác sĩ điều trị", "nên đi khám để
+ * có chẩn đoán rõ hơn", "với bệnh dạ dày nên đi khám và dùng theo chỉ định của bác sĩ".
+ */
+export const NO_MEDICAL_ADVICE: ReplyCheck = {
+  name: "no_medical_advice",
+  check: (reply) =>
+    MEDICAL_ADVICE_PATTERN.test(normalize(reply))
+      ? "Câu trả lời tư vấn bệnh (bảo hỏi bác sĩ, đi khám, bệnh viện, cấp cứu, dùng theo chỉ định, chuyên gia y tế, hoặc chẩn đoán). Với khách lẻ KHÔNG bàn chuyện bệnh: bỏ các câu đó, ghi nhận ngắn rồi xin số điện thoại để bạn phụ trách gọi lại trao đổi. Kể cả dấu hiệu cấp cũng không khuyên đi khám — xin số, báo sẽ chuyển gấp bạn phụ trách."
+      : undefined,
+};
+
+const CONTRADICT_CONSULTANT_PATTERN =
+  /(?:không|chưa)\s+(?:có|thấy)\s+thông\s+tin\s+(?:nào\s+)?(?:cho\s+thấy|về)|không\s+(?:thể\s+)?xác\s+nhận\s+(?:(?:điều|việc|chuyện)\s+(?:đó|này)|được)|không\s+có\s+tác\s+dụng\s+(?:đó|này|vậy|như\s+vậy)/iu;
+
+/**
+ * Khách kể "bạn tư vấn nói sản phẩm hỗ trợ X": sản phẩm CÓ tác dụng hỗ trợ, chỗ sai chỉ là cách
+ * diễn đạt quá mức. Phủ nhận ("em không có thông tin", "không xác nhận được") là khách hiểu công ty
+ * chối cả lời tư vấn lẫn giá trị sản phẩm — thấy bị lừa. Nhận "bên em diễn đạt chưa chính xác"
+ * thì được, đó là bước 3 của luật, không phải phủ nhận.
+ * Lọt ra OA: "Em không có thông tin nào cho thấy sản phẩm này hỗ trợ đau bao tử, nên em không xác
+ * nhận điều đó được ạ".
+ */
+export const NO_CONTRADICT_CONSULTANT: ReplyCheck = {
+  name: "no_contradict_consultant",
+  check: (reply) =>
+    CONTRADICT_CONSULTANT_PATTERN.test(normalize(reply))
+      ? "Câu trả lời phủ nhận công dụng sản phẩm ('không có thông tin', 'không xác nhận được', 'không có tác dụng đó') — khách sẽ thấy bị lừa. Làm đủ 4 bước: (1) xác nhận công dụng hỗ trợ đúng như công bố trong references/san-pham.md; (2) nói rõ là hỗ trợ, không phải thuốc điều trị bệnh đó; (3) nhận phần diễn đạt chưa chính xác về phía bên em và xin lỗi; (4) xin số để bạn phụ trách gọi lại giải thích kỹ."
       : undefined,
 };

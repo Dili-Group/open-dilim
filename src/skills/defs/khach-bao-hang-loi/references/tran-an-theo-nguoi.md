@@ -35,8 +35,8 @@ hoặc hỏi rõ thêm, chuyển bạn phụ trách xem rồi báo lại:
 Chỉ khi hạn in trên hộp đã qua → một câu **ngưng dùng** rõ ràng, nói rõ là quá hạn, rồi
 chuyển gấp:
 
-> "Dạ hộp đó quá hạn rồi, cô ngưng dùng giúp em, đừng uống tiếp. Cô thấy trong người khó chịu thì
-> cô đi khám cho chắc ạ. Em chuyển bạn phụ trách gọi cho cô ngay."
+> "Dạ hộp đó quá hạn rồi, cô ngưng dùng giúp em, đừng uống tiếp ạ. Em chuyển bạn phụ trách gọi
+> cho cô ngay."
 
 Tuyệt đối không: "cô yên tâm không sao đâu ạ", "uống vào không ảnh hưởng gì đâu".
 

@@ -5,7 +5,9 @@ import { describe, expect, test } from "bun:test";
 import {
   NO_AD_DISCLAIMER,
   NO_CASUAL_CLOSING,
+  NO_CONTRADICT_CONSULTANT,
   NO_DOCTOR_MENTION,
+  NO_MEDICAL_ADVICE,
   NO_STOP_ADVICE,
 } from "./reply-checks.ts";
 import { customerProfile } from "./roots/customer.ts";
@@ -125,7 +127,93 @@ describe("NO_STOP_ADVICE", () => {
   });
 });
 
+// Hai tin đã lọt ra OA: khách hỏi gói bột Chou Beauty Queen, rồi nói "bạn tư vấn nói gói men đó
+// hỗ trợ đau bao tử".
+const LEAKED_DISEASE_REPLY =
+  "Gói bột pha nước (Chou Beauty Queen) là thực phẩm bổ sung, không phải thuốc nên không dùng để trị bệnh ạ. Sản phẩm bổ sung chất xơ inulin, hỗ trợ tiêu hóa.\nNếu anh/chị đang có bệnh hoặc đang dùng thuốc, anh/chị hỏi bác sĩ điều trị trước khi dùng ạ.";
+const LEAKED_CONTRADICT_REPLY =
+  "Em không có thông tin nào cho thấy sản phẩm này hỗ trợ đau bao tử, nên em không xác nhận điều đó được ạ. Sản phẩm là thực phẩm bổ sung, không phải thuốc, nên không dùng để trị đau dạ dày.\nNếu anh/chị đang bị đau bao tử, anh/chị nên đi khám để có chẩn đoán rõ hơn ạ. Anh/chị cho em xin số điện thoại để bạn phụ trách giải đáp lại lời tư vấn lúc trước ạ.";
+
+// Câu đúng cho ca "bạn tư vấn nói SP hỗ trợ X": xác nhận công dụng công bố, tách hỗ trợ khỏi điều
+// trị, nhận phần diễn đạt chưa rõ về phía công ty, xin số. Phải lọt qua cả hai check.
+const FOUR_STEP_REPLY =
+  "Dạ đúng ạ, sản phẩm có hỗ trợ tiêu hóa, là thực phẩm bổ sung chứ không phải thuốc điều trị ạ. Nếu bên em nói chưa rõ thì em xin lỗi anh/chị, anh/chị cho em xin số điện thoại để bạn phụ trách gọi giải thích kỹ ạ.";
+
+// Lần sau, khách hỏi viêm loét / trào ngược dạ dày: vẫn bác lời bạn tư vấn và bảo đi khám.
+const LEAKED_STOMACH_REPLY =
+  "Dạ đúng, em không có thông tin nào cho thấy các sản phẩm này hỗ trợ viêm loét hay trào ngược dạ dày. Đây là thực phẩm bổ sung, không thay thế thuốc ạ.\nVới bệnh dạ dày, anh/chị nên đi khám và dùng theo chỉ định của bác sĩ điều trị. Anh/chị cho em xin số điện thoại để bạn phụ trách xem lại lời tư vấn lúc trước ạ.";
+
+describe("NO_MEDICAL_ADVICE", () => {
+  test("ba tin đã lọt ra OA → bắt", () => {
+    expect(NO_MEDICAL_ADVICE.check(LEAKED_DISEASE_REPLY)).toBeDefined();
+    expect(NO_MEDICAL_ADVICE.check(LEAKED_CONTRADICT_REPLY)).toBeDefined();
+    expect(NO_MEDICAL_ADVICE.check(LEAKED_STOMACH_REPLY)).toBeDefined();
+  });
+
+  test("'theo chỉ định', 'khám bệnh' không kèm chữ bác sĩ → bắt", () => {
+    expect(NO_MEDICAL_ADVICE.check("Anh dùng theo chỉ định điều trị ạ")).toBeDefined();
+    expect(NO_MEDICAL_ADVICE.check("Chú nên khám bệnh viện cho chắc ạ")).toBeDefined();
+  });
+
+  test("từng cụm riêng lẻ, NFD → bắt", () => {
+    expect(NO_MEDICAL_ADVICE.check("Cô nên đi khám cho chắc ạ")).toBeDefined();
+    expect(NO_MEDICAL_ADVICE.check("Chú hỏi ý kiến bác sĩ trước ạ")).toBeDefined();
+    expect(NO_MEDICAL_ADVICE.check("Cần chẩn đoán mới biết ạ")).toBeDefined();
+    expect(NO_MEDICAL_ADVICE.check("Chị tham khảo chuyên gia y tế trước ạ")).toBeDefined();
+    expect(NO_MEDICAL_ADVICE.check("Chú hỏi ý kiến bác sĩ trước ạ".normalize("NFD"))).toBeDefined();
+  });
+
+  test("không còn ngoại lệ: 'đi khám ngay', 'cấp cứu' cũng bắt", () => {
+    expect(
+      NO_MEDICAL_ADVICE.check("Dạ cô đang khó thở thì cô đi khám ngay giúp con ạ, hoặc vào bệnh viện ngay."),
+    ).toBeDefined();
+  });
+
+  test("ghi nhận rồi xin số, chữ 'khám' của việc khác → đạt", () => {
+    expect(
+      NO_MEDICAL_ADVICE.check(
+        "Dạ vâng ạ, phần này để bạn tư vấn trao đổi kỹ lại với anh/chị. Anh/chị cho em xin số điện thoại để bạn gọi lại ạ.",
+      ),
+    ).toBeUndefined();
+    expect(NO_MEDICAL_ADVICE.check("Gói bột bổ sung chất xơ inulin, pha với nước ấm ạ.")).toBeUndefined();
+    expect(NO_MEDICAL_ADVICE.check(FOUR_STEP_REPLY)).toBeUndefined();
+    expect(NO_MEDICAL_ADVICE.check("Dạ em đã khám phá thêm, hộp còn hạn tới 2027 ạ.")).toBeUndefined();
+  });
+});
+
+describe("NO_CONTRADICT_CONSULTANT", () => {
+  test("hai tin bác lời bạn tư vấn đã lọt ra OA → bắt", () => {
+    expect(NO_CONTRADICT_CONSULTANT.check(LEAKED_CONTRADICT_REPLY)).toBeDefined();
+    expect(NO_CONTRADICT_CONSULTANT.check(LEAKED_STOMACH_REPLY)).toBeDefined();
+  });
+
+  test("biến thể, NFD → bắt", () => {
+    expect(NO_CONTRADICT_CONSULTANT.check("Em chưa có thông tin về việc đó ạ")).toBeDefined();
+    expect(NO_CONTRADICT_CONSULTANT.check("Em không thể xác nhận điều này ạ".normalize("NFD"))).toBeDefined();
+    expect(NO_CONTRADICT_CONSULTANT.check("Sản phẩm không có tác dụng đó đâu ạ")).toBeDefined();
+  });
+
+  test("câu 4 bước (xác nhận công dụng, nhận diễn đạt chưa chính xác) → đạt", () => {
+    expect(NO_CONTRADICT_CONSULTANT.check(FOUR_STEP_REPLY)).toBeUndefined();
+  });
+
+  test("ghi nhận lời bạn tư vấn rồi xin số → đạt", () => {
+    expect(
+      NO_CONTRADICT_CONSULTANT.check(
+        "Dạ vâng ạ, bạn tư vấn đã trao đổi với anh/chị rồi. Anh/chị cho em xin số điện thoại để bạn gọi lại nói kỹ hơn ạ.",
+      ),
+    ).toBeUndefined();
+  });
+});
+
 describe("khai checks trên root", () => {
+  test("hai kênh khách lẻ kiểm câu tư vấn bệnh và câu bác lời bạn tư vấn", () => {
+    for (const profile of [customerProfile, saleFacebookProfile]) {
+      expect(profile.replyChecks).toContain(NO_MEDICAL_ADVICE);
+      expect(profile.replyChecks).toContain(NO_CONTRADICT_CONSULTANT);
+    }
+  });
+
   test("nhóm xác nhận đơn kiểm câu nhắc bác sĩ", () => {
     expect(xacNhanProfile.replyChecks).toContain(NO_DOCTOR_MENTION);
   });

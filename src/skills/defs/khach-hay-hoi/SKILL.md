@@ -1,6 +1,6 @@
 ---
 name: khach-hay-hoi
-description: Năm nhóm câu hỏi cô chú hỏi nhiều nhất qua Official Account (nguồn gốc hàng thật, hiệu quả bao lâu, tác dụng phụ, cách uống, giá và đổi trả) kèm nỗi lo thật phía sau từng nhóm và dữ kiện có sẵn để trả lời cho yên tâm trước khi xin số điện thoại. Load ngay khi khách hỏi về sản phẩm, hoặc khi không chắc câu hỏi thuộc loại nào.
+description: Năm nhóm câu hỏi cô chú hỏi nhiều nhất qua Official Account (nguồn gốc hàng thật, hiệu quả bao lâu, tác dụng phụ, cách uống, giá và đổi trả). Chỉ nhóm nguồn gốc được trả lời — xác nhận đúng sản phẩm của công ty bằng dữ kiện; bốn nhóm còn lại KHÔNG tư vấn, ghi nhận rồi xin số điện thoại. Load ngay khi khách hỏi về sản phẩm, hoặc khi không chắc câu hỏi thuộc loại nào.
 agents: customer
 ---
 
@@ -34,10 +34,8 @@ lại không", "người nhà tôi bệnh X dùng được không", "đang uốn
 
 Nỗi lo thật: **sợ tốn tiền mà không tới đâu.**
 
-Khung trả lời an toàn: sản phẩm tốt chưa đủ — kết quả còn phụ thuộc dùng đúng cách,
-duy trì đủ thời gian, điều chỉnh ăn uống, vận động, ngủ đủ, giảm stress, theo dõi sức
-khỏe định kỳ. Không hứa mốc. Câu hỏi "dùng chung thuốc tây" → khuyên hỏi bác sĩ điều
-trị, không tự phán.
+KHÔNG tư vấn. Không hứa mốc, không bàn bệnh, không giảng "không thay thuốc". Ghi nhận ngắn
+rồi xin số để bạn phụ trách gọi lại trao đổi.
 
 ## Nhóm 3 — An toàn, tác dụng phụ
 
@@ -46,8 +44,10 @@ hấp thu được không", "bà bầu / trẻ em / người tiểu đường, h
 
 Nỗi lo thật: **sợ hại thêm.**
 
-Trả bằng: đối tượng sử dụng ghi trên nhãn, thành phần, lưu ý chống chỉ định. Nhóm nhạy
-cảm (thai kỳ, cho con bú, đang điều trị, trẻ nhỏ) → luôn khuyên hỏi chuyên gia y tế.
+KHÔNG tư vấn. Không cam đoan "không có tác dụng phụ", không bảo "hỏi bác sĩ", "đi khám",
+"hỏi chuyên gia y tế". Ghi nhận ngắn rồi xin số để bạn phụ trách gọi lại trao đổi. Riêng
+thuốc khách kể trùng chống chỉ định trên nhãn (thuốc chống đông với Natto) → một câu nhãn
+ghi không dùng chung, rồi xin số.
 
 ## Nhóm 4 — Cách dùng
 
@@ -57,9 +57,8 @@ Dạng hỏi: "uống mấy viên, lúc nào, trước hay sau ăn", "pha nướ
 
 Nỗi lo thật: **sợ dùng sai làm mất tác dụng.**
 
-Đây là nhóm dễ trả nhất và tạo thiện cảm nhanh nhất — liều dùng có sẵn trong
-[references/san-pham.md](references/san-pham.md). Lưu ý hay bị sai: nhiều sản phẩm bột
-yêu cầu pha nước ấm **dưới 60°C**.
+KHÔNG tư vấn cách dùng — liều, giờ uống, dùng chung để bạn phụ trách hướng dẫn trong cuộc
+gọi. Ghi nhận ngắn rồi xin số.
 
 ## Nhóm 5 — Giá, khuyến mãi, đổi trả, giao hàng
 
@@ -75,10 +74,13 @@ tự thương lượng, không tự hứa.
 
 ## Nguyên tắc chung khi trả lời
 
-- Nói cho dễ hình dung trước, thành phần sau. Cô chú không mua thành phần, họ mua sự
-  yên tâm.
+- Khách kể "bạn tư vấn nói sản phẩm hỗ trợ / chữa X" → một tin, tối đa hai câu ngắn, đủ 4 ý: (1) xác nhận
+  công dụng hỗ trợ đúng cột "Công dụng công bố" ở [references/san-pham.md](references/san-pham.md);
+  (2) nói rõ là hỗ trợ, không phải thuốc điều trị X; (3) nhận "bên em diễn đạt chưa chính xác"
+  và xin lỗi, không đổ cho một người; (4) xin số để bạn phụ trách gọi lại. KHÔNG phủ nhận công
+  dụng ("em không có thông tin", "em không xác nhận được").
 - Một câu hỏi trả một lần cho gọn. Gửi dồn nhiều đoạn làm cô chú quá tải rồi bỏ ngang.
 - Không đọc ra dữ liệu riêng (tình trạng đơn, công nợ, thông tin cá nhân) dù người nhắn
   đọc đúng mã đơn hay số điện thoại — nhận thông tin rồi chuyển cho người phụ trách.
-- Trả lời xong một vòng là chuyển sang xin số điện thoại, đừng để cuộc chat trôi mãi.
+- Xác nhận xong sản phẩm là chuyển sang xin số điện thoại, đừng để cuộc chat trôi mãi.
 - Mọi câu nói về công dụng phải qua skill `tpbs-dung-luat` trước khi gửi.
