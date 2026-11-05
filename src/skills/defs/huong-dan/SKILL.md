@@ -1,6 +1,6 @@
 ---
 name: huong-dan
-description: Chỉ đại lý CÁCH LÀM và cấp link tài liệu chính thức — quên mật khẩu / đăng nhập app, ký hợp đồng, đăng ký MST hộ kinh doanh, ký rules hệ thống, lấy API Key và gắn webhook PosCake (Pancake POS) để đơn tự về hệ thống, tích hợp app giao hàng cá nhân (Viettel Post), cách tạo đơn trên app, quy trình thanh toán - COD - hoá đơn, giờ shipper lấy hàng, địa chỉ kho, bảng giá niêm yết, drive tài liệu, group cộng đồng, ai phụ trách việc gì (trùng đơn, bán sai giá, đăng ký sale mới, khiếu nại - vi phạm Rule). Load khi đại lý hỏi "làm sao", "cách nào", "hướng dẫn", "link ở đâu", "chưa biết làm", "quên mật khẩu", "đăng ký ở đâu", "API key", "webhook", "poscake", "pancake", "liên hệ ai", "ai phụ trách", "trùng đơn", "khiếu nại", "đăng ký sale".
+description: Chỉ đại lý CÁCH LÀM và cấp link tài liệu chính thức — quên mật khẩu / đăng nhập app, ký hợp đồng, đăng ký MST hộ kinh doanh, ký rules hệ thống, lấy API Key và gắn webhook PosCake (Pancake POS) để đơn tự về hệ thống, tích hợp app giao hàng cá nhân (Viettel Post), cách tạo đơn trên app, quy trình thanh toán - COD - hoá đơn, giờ shipper lấy hàng, địa chỉ kho, bảng giá niêm yết, drive tài liệu, group cộng đồng, ai phụ trách việc gì (trùng đơn, bán sai giá, đăng ký sale mới, khiếu nại - vi phạm Rule), và cách dùng DiLiM CRM (đăng nhập CRM, link mời sale, khách hàng, lịch chăm sóc, lên đơn CRM, kiểm tra trùng đơn, hộp thư Fanpage, kết nối Zalo, hoa hồng - doanh thu, mức chạy ads, chia khách, báo cáo ads, quản lý đội, đào tạo). Load khi đại lý hỏi "làm sao", "cách nào", "hướng dẫn", "link ở đâu", "chưa biết làm", "quên mật khẩu", "đăng ký ở đâu", "API key", "webhook", "poscake", "pancake", "liên hệ ai", "ai phụ trách", "trùng đơn", "khiếu nại", "đăng ký sale", "CRM", "hoa hồng", "chia khách", "hộp thư", "chăm sóc khách".
 agents: dealer
 ---
 
@@ -23,6 +23,22 @@ tiền bao nhiêu, bậc nào) — việc đó ở skill khác.
 | Mấy giờ shipper lấy hàng, kho ở đâu | `references/kho-lay-hang.md` |
 | Bảng giá niêm yết, drive tài liệu, vào group nào | `references/tai-lieu-group.md` |
 | Trùng đơn, bán sai giá, đăng ký đại lý/sale mới, check khách theo Rule, khiếu nại / vi phạm Rule — **liên hệ ai** | `references/nhan-su-phu-trach.md` |
+
+### DiLiM CRM — hệ thống KHÁC app đại lý
+
+**DiLiM CRM** (link **DiLiM CRM**) là phần mềm quản lý khách/sale. Đại lý dùng tài khoản **Leader**,
+sale của họ dùng tài khoản **Sale**. Đăng nhập, quên mật khẩu, form lên đơn đều KHÁC **Hệ thống
+DiLiM** (app đại lý) ở các file trên. Đại lý không nói rõ hệ thống nào ("quên mật khẩu", "lên đơn ở
+đâu") → hỏi **một** câu: *anh/chị đang dùng CRM hay app đại lý ạ?*
+
+| Đại lý hỏi (trên CRM) | Đọc |
+|---|---|
+| Đăng nhập CRM, quên/đổi mật khẩu CRM, mật khẩu tạm, link mời sale, thông báo, cài app, thiếu menu | `references/crm-tai-khoan.md` |
+| Thêm/tìm/nhập khách, chuyển khách, kho khách cũ, sửa xoá khách, lịch chăm sóc, ZNS | `references/crm-khach-hang.md` |
+| Lên đơn trên CRM, huỷ/sửa/tạo lại đơn, trạng thái đơn, tồn kho, kết nối Zalo, kiểm tra trùng đơn | `references/crm-don-hang.md` |
+| Hộp thư Fanpage, cửa sổ 24 giờ, chia hội thoại, nối Page | `references/crm-hop-thu.md` |
+| Doanh thu, hoa hồng, chỉ tiêu, mức chạy ads, chia khách, báo cáo ads, báo cáo ngày | `references/crm-doanh-thu-ads.md` |
+| Quản lý đội, tài khoản sale, duyệt yêu cầu, ứng viên đại lý, Kaizen, khoá học, mentoring, coaching | `references/crm-doi-dao-tao.md` |
 
 Hỏi hai việc trong một tin → đọc đủ hai file, trả lời gộp một tin, đừng bắt đại lý hỏi lại.
 
@@ -47,6 +63,7 @@ dòng đó.
 |---|---|
 | Hệ thống DiLiM | https://app.dilisupplement.com |
 | Đăng nhập hệ thống | https://app.dilisupplement.com/login |
+| DiLiM CRM | https://crm.dilisupplement.com |
 | Form ký hợp đồng | https://dangky.dilisupplement.com |
 | Quy định mức chiết khấu | https://drive.google.com/file/d/14vaDnu_81ayjXboVL3pfK2qCbYTf9Jhs/view |
 | Video đăng ký MST hộ kinh doanh | https://www.youtube.com/watch?v=lmc32PY6v0I |

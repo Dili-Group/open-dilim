@@ -92,7 +92,14 @@ describe("registry (defs thật)", () => {
     expect(body).toContain("https://app.dilisupplement.com/login");
     expect(body).toContain("https://dangky.dilisupplement.com");
     expect(body).toContain("https://sale.dilisupplement.com/register");
+    expect(body).toContain("https://crm.dilisupplement.com");
     expect([...(await listReferences(skill!))].sort()).toEqual([
+      "crm-doanh-thu-ads.md",
+      "crm-doi-dao-tao.md",
+      "crm-don-hang.md",
+      "crm-hop-thu.md",
+      "crm-khach-hang.md",
+      "crm-tai-khoan.md",
       "gia-nhap.md",
       "kho-lay-hang.md",
       "mat-khau.md",
