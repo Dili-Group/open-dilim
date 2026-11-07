@@ -405,6 +405,8 @@ export async function bootstrap(): Promise<Services> {
     turns,
     messageLog,
     proactive,
+    settings: buildThreadSettings(),
+    settingsToken: config.settingsToken,
   };
 
   return {
@@ -417,8 +419,6 @@ export async function bootstrap(): Promise<Services> {
     jobs,
     llm,
     agents,
-    settings: buildThreadSettings(),
-    settingsToken: config.settingsToken,
     dedicatedRooms: rooms,
     intakeJudge: judge,
     broadcaster,
