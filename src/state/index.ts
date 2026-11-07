@@ -7,6 +7,7 @@ import { buildCompactorLlmProvider, buildEmbedder, buildMemoryLlmProvider } from
 import { PgMemoryStore } from "./memory.ts";
 import { RedisHistoryStore } from "./session.ts";
 import { SqlMessageLog } from "./message-log.ts";
+import { SqlThreadSettings } from "./thread-settings.ts";
 import { RedisDedupe } from "./dedupe.ts";
 import { RedisTurnMarker } from "./turn-marker.ts";
 import { LlmDistiller } from "./distiller.ts";
@@ -42,6 +43,11 @@ export function buildTurnMarker(): RedisTurnMarker {
 /** Raw log bền knowledge base: ingest append MỌI tin vào Postgres (message_log). */
 export function buildMessageLog(): SqlMessageLog {
   return new SqlMessageLog(sqlExecutor);
+}
+
+/** Setting theo thread (tắt/bật reply) bền ở Postgres. */
+export function buildThreadSettings(): SqlThreadSettings {
+  return new SqlThreadSettings(sqlExecutor);
 }
 
 /** Distiller chạy trên con nhẹ (CONFIG.memoryModel), theo policy `spec` của agent gọi. */

@@ -69,6 +69,15 @@ export interface ProactivePort {
   consider(envelope: Envelope): Promise<void>;
 }
 
+/**
+ * Setting theo thread (hiện chỉ Zalo OA): thread tắt reply thì tin vẫn vào history nhưng không
+ * tới agent. Mặc định bật — chưa từng set = trả lời như cũ.
+ */
+export interface ThreadSettings {
+  isReplyEnabled(channel: string, threadId: string): Promise<boolean>;
+  setReplyEnabled(channel: string, threadId: string, enabled: boolean): Promise<void>;
+}
+
 /** Bó port cấp cho gateway. */
 export interface IngestDeps {
   readonly broker: Broker;
@@ -94,4 +103,11 @@ export interface IngestDeps {
    * như cũ, chỉ không chủ động nhặt câu hỏi bị bỏ rơi.
    */
   readonly proactive?: ProactivePort;
+  /** undefined = không có setting theo thread: mọi thread trả lời như cũ. */
+  readonly settings?: ThreadSettings;
+  /**
+   * Bearer token cho `POST /webhook/:channel/setting`. undefined = endpoint đóng (404) — mặc định
+   * đóng để quên cấu hình không biến thành endpoint mở.
+   */
+  readonly settingsToken?: string;
 }

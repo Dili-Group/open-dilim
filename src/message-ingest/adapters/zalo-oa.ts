@@ -47,6 +47,8 @@ const MESSAGE_EVENTS: ReadonlySet<string> = new Set([
 ]);
 
 export class ZaloOaIngestor implements Ingestor {
+  readonly supportsThreadSettings = true as const;
+
   constructor(
     readonly channel: string,
     private readonly config: ZaloOaChannelConfig,

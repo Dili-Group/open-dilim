@@ -286,3 +286,142 @@ describe("gateway + kênh OA", () => {
     expect(published).toHaveLength(1);
   });
 });
+
+describe("setting theo thread: POST /webhook/zalo-oa/setting", () => {
+  const TOKEN = "setting-token";
+
+  /** Store giả có cùng semantics với Redis: key tồn tại = tắt. */
+  class FakeThreadSettings {
+    readonly muted = new Set<string>();
+    isReplyEnabled(channel: string, threadId: string): Promise<boolean> {
+      return Promise.resolve(!this.muted.has(`${channel}:${threadId}`));
+    }
+    setReplyEnabled(channel: string, threadId: string, enabled: boolean): Promise<void> {
+      const key = `${channel}:${threadId}`;
+      if (enabled) this.muted.delete(key);
+      else this.muted.add(key);
+      return Promise.resolve();
+    }
+  }
+
+  function setup(over: { settingsToken?: string | undefined } = { settingsToken: TOKEN }) {
+    const published: Envelope[] = [];
+    const history: HistoryEntry[] = [];
+    const seen = new Set<string>();
+    const settings = new FakeThreadSettings();
+    const deps: IngestDeps = {
+      broker: {
+        publish(envelope) {
+          published.push(envelope);
+          return Promise.resolve();
+        },
+      },
+      history: {
+        append(entry) {
+          history.push(entry);
+          return Promise.resolve();
+        },
+      },
+      dedupe: {
+        firstSee(channel, msgId) {
+          const key = `${channel}:${msgId}`;
+          if (seen.has(key)) return Promise.resolve(false);
+          seen.add(key);
+          return Promise.resolve(true);
+        },
+        release(channel, msgId) {
+          seen.delete(`${channel}:${msgId}`);
+          return Promise.resolve();
+        },
+      },
+      settings,
+      settingsToken: over.settingsToken,
+    };
+    const gateway = createGateway(new ChannelFactory().register(ingestor), deps);
+    return { gateway, published, history, settings };
+  }
+
+  function setting(body: unknown, headers: Record<string, string> = { authorization: `Bearer ${TOKEN}` }) {
+    return new Request(`http://x/webhook/${CHANNEL}/setting`, {
+      method: "POST",
+      body: typeof body === "string" ? body : JSON.stringify(body),
+      headers,
+    });
+  }
+
+  function customerMessage(gateway: ReturnType<typeof setup>["gateway"], msgId: string) {
+    const raw = JSON.stringify(
+      userSendText({ message: { text: "alo", msg_id: msgId } }),
+    );
+    return gateway.handle(
+      new Request(`http://x/webhook/${CHANNEL}`, {
+        method: "POST",
+        body: raw,
+        headers: signedHeaders(raw),
+      }),
+    );
+  }
+
+  test("enabled:false → tin của thread vẫn vào history nhưng KHÔNG vào queue", async () => {
+    const { gateway, published, history } = setup();
+    const res = await gateway.handle(setting({ threadId: USER_ID, setting: { enabled: false } }));
+    expect(res.status).toBe(200);
+
+    expect((await customerMessage(gateway, "m1")).status).toBe(200);
+    expect(published).toHaveLength(0);
+    expect(history).toHaveLength(1);
+  });
+
+  test("enabled:true sau đó → trả lời lại", async () => {
+    const { gateway, published } = setup();
+    await gateway.handle(setting({ threadId: USER_ID, setting: { enabled: false } }));
+    await gateway.handle(setting({ threadId: USER_ID, setting: { enabled: true } }));
+
+    await customerMessage(gateway, "m2");
+    expect(published).toHaveLength(1);
+  });
+
+  test("tắt thread A không ảnh hưởng thread khác", async () => {
+    const { gateway, published } = setup();
+    await gateway.handle(setting({ threadId: "thread-khac", setting: { enabled: false } }));
+
+    await customerMessage(gateway, "m3");
+    expect(published).toHaveLength(1);
+  });
+
+  test("thiếu / sai token → 401, không đổi trạng thái", async () => {
+    const { gateway, settings } = setup();
+    const body = { threadId: USER_ID, setting: { enabled: false } };
+    expect((await gateway.handle(setting(body, {}))).status).toBe(401);
+    expect((await gateway.handle(setting(body, { authorization: "Bearer sai" }))).status).toBe(401);
+    expect(settings.muted.size).toBe(0);
+  });
+
+  test("chưa cấu hình token → 404 (mặc định đóng)", async () => {
+    const { gateway } = setup({ settingsToken: undefined });
+    const res = await gateway.handle(setting({ threadId: USER_ID, setting: { enabled: false } }));
+    expect(res.status).toBe(404);
+  });
+
+  test("body sai shape → 400", async () => {
+    const { gateway } = setup();
+    for (const bad of [
+      "{",
+      { setting: { enabled: false } },
+      { threadId: "", setting: { enabled: false } },
+      { threadId: USER_ID },
+      { threadId: USER_ID, setting: { enabled: "false" } },
+    ]) {
+      expect((await gateway.handle(setting(bad))).status).toBe(400);
+    }
+  });
+
+  test("GET → 405; path con lạ → 404", async () => {
+    const { gateway } = setup();
+    const get = new Request(`http://x/webhook/${CHANNEL}/setting`, {
+      headers: { authorization: `Bearer ${TOKEN}` },
+    });
+    expect((await gateway.handle(get)).status).toBe(405);
+    expect((await gateway.handle(new Request(`http://x/webhook/${CHANNEL}/khac`))).status).toBe(404);
+  });
+});

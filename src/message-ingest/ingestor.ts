@@ -48,6 +48,8 @@ export interface Ingestor {
    * phải echo, null = từ chối (403). Platform không bắt tay kiểu này thì không khai → GET 405.
    */
   handshake?(params: URLSearchParams): string | null;
+  /** Opt-in cho `POST /webhook/:channel/setting` (tắt/bật reply theo thread). Không khai = 404. */
+  readonly supportsThreadSettings?: true;
 }
 
 /**

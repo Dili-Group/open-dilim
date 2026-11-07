@@ -383,6 +383,22 @@ export const MESSAGE_LOG = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// thread_settings — setting theo thread (channel, thread_id). Hiện một cờ: reply_enabled.
+// Chỉ tạo bằng migration 0015 viết tay (không nằm trong buildInitSql/0001). Không có row =
+// mặc định bật. Bền ở Postgres: tắt thread là quyết định của người, restart/flush Redis không
+// được làm agent trả lời lại khách.
+// ─────────────────────────────────────────────────────────────────────────────
+export const THREAD_SETTINGS = {
+  table: "thread_settings",
+  col: {
+    channel: "channel",
+    threadId: "thread_id",           // OA 1-1: = conversationId = sender.id của khách
+    replyEnabled: "reply_enabled",
+    updatedAt: "updated_at",
+  },
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // kb-digest — tổng kết cuối ngày theo group + đề xuất knowledge base có kiểm duyệt.
 // Poller headless đọc message_log, rút vấn đề/giải pháp/đề xuất KB bằng con nhẹ, gửi digest về
 // group kiểm duyệt; entry KB chỉ vào bảng memory (scope org) sau khi nhân viên /duyet-kb.

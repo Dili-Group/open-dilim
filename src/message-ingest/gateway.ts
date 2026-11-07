@@ -5,24 +5,31 @@
 //   dedupe.firstSee → (trùng: bỏ) → history.append (MỌI tin) → addressed? broker.publish
 //   fail giữa chừng → dedupe.release (retry reprocess) → 5xx cho channel retry.
 
+import { timingSafeEqual } from "node:crypto";
 import { captureError } from "../observability/sentry.ts";
 import type { Envelope, HistoryEntry } from "../types/index.ts";
+import { isRecord } from "./adapters/payload.ts";
 import type { IngestDeps } from "./deps.ts";
 import type { ChannelFactory } from "./factory.ts";
-import { isSupersedable, type ParsedMessage } from "./ingestor.ts";
+import { isSupersedable, type Ingestor, type ParsedMessage } from "./ingestor.ts";
 
 const WEBHOOK_PREFIX = "/webhook/";
+const SETTING_SEGMENT = "setting";
+const BEARER_PREFIX = "Bearer ";
 
 /** Gateway = closure ôm factory + deps. Channel-agnostic. `handle` test được không cần mở port. */
 export function createGateway(factory: ChannelFactory, deps: IngestDeps) {
   async function handle(req: Request): Promise<Response> {
     const url = new URL(req.url);
-    const channel = channelFromPath(url.pathname);
-    if (channel === null) return json(404, { error: "not_found" });
+    const route = routeFromPath(url.pathname);
+    if (route === null) return json(404, { error: "not_found" });
+    const { channel } = route;
 
     // Adapter chỉ register khi kênh đã cấu hình → miss = kênh lạ HOẶC chưa bật. 404 cả hai.
     const ingestor = factory.get(channel);
     if (ingestor === undefined) return json(404, { error: "unknown_channel" });
+
+    if (route.isSetting) return handleSetting(req, channel, ingestor);
 
     if (req.method === "GET" && ingestor.handshake !== undefined) {
       const challenge = ingestor.handshake(url.searchParams);
@@ -64,7 +71,61 @@ export function createGateway(factory: ChannelFactory, deps: IngestDeps) {
     return anyFailed ? json(500, { error: "ingest_failed" }) : json(200, { ok: true });
   }
 
+  /**
+   * `POST /webhook/:channel/setting` — bật/tắt trả lời theo thread. KHÁC webhook: người gọi là hệ
+   * thống của mình chứ không phải platform, nên không có chữ ký platform để verify → Bearer token.
+   * Thiếu token/store hoặc adapter không opt-in → 404 như kênh chưa bật (mặc định đóng).
+   */
+  async function handleSetting(
+    req: Request,
+    channel: string,
+    ingestor: Ingestor,
+  ): Promise<Response> {
+    const { settings, settingsToken } = deps;
+    if (ingestor.supportsThreadSettings !== true || settings === undefined || settingsToken === undefined) {
+      return json(404, { error: "not_found" });
+    }
+    if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
+    if (!hasBearerToken(req.headers, settingsToken)) return json(401, { error: "unauthorized" });
+
+    let body: unknown;
+    try {
+      body = JSON.parse(await req.text());
+    } catch {
+      return json(400, { error: "invalid_json" });
+    }
+    const parsed = parseSettingBody(body);
+    if (parsed === null) return json(400, { error: "invalid_setting_body" });
+
+    try {
+      await settings.setReplyEnabled(channel, parsed.threadId, parsed.enabled);
+    } catch (err) {
+      console.error(`[ingest:${channel}] lưu setting thread lỗi:`, err);
+      captureError(err, "ingest.setting", { channel });
+      return json(500, { error: "setting_failed" });
+    }
+    return json(200, { ok: true, threadId: parsed.threadId, setting: { enabled: parsed.enabled } });
+  }
+
   return { handle };
+}
+
+/** Bearer token, so timing-safe. Sai độ dài = fail (timingSafeEqual ném nếu khác độ dài). */
+function hasBearerToken(headers: Headers, expected: string): boolean {
+  const header = headers.get("authorization");
+  if (header === null || !header.startsWith(BEARER_PREFIX)) return false;
+  const a = Buffer.from(header.slice(BEARER_PREFIX.length).trim(), "utf8");
+  const b = Buffer.from(expected, "utf8");
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** Body `{ threadId: string, setting: { enabled: boolean } }`. Sai shape → null. */
+function parseSettingBody(body: unknown): { threadId: string; enabled: boolean } | null {
+  if (!isRecord(body)) return null;
+  const { threadId, setting } = body;
+  if (typeof threadId !== "string" || threadId.trim() === "") return null;
+  if (!isRecord(setting) || typeof setting.enabled !== "boolean") return null;
+  return { threadId: threadId.trim(), enabled: setting.enabled };
 }
 
 /** true = xử lý xong (kể cả trùng bị bỏ). false = fail downstream → caller trả 5xx. */
@@ -80,7 +141,8 @@ async function processMessage(deps: IngestDeps, msg: ParsedMessage): Promise<boo
     try {
       // MỌI tin vào history (đúng thứ tự giờ nhận); chỉ tin nhắm agent mới vào queue.
       await deps.history.append(toHistoryEntry(envelope));
-      if (envelope.addressedToAgent) {
+      // Thread bị tắt reply: tin vẫn vào history (bật lại thì agent còn ngữ cảnh) nhưng không vào queue.
+      if (envelope.addressedToAgent && (await isReplyEnabled(deps, envelope))) {
         await deps.broker.publish(envelope);
         await markLatestTurn(deps, envelope);
       }
@@ -98,6 +160,11 @@ async function processMessage(deps: IngestDeps, msg: ParsedMessage): Promise<boo
     captureError(err, "ingest.process", { channel: msg.channel, msgId: msg.msgId });
     return false;
   }
+}
+
+async function isReplyEnabled(deps: IngestDeps, envelope: Envelope): Promise<boolean> {
+  if (deps.settings === undefined) return true;
+  return deps.settings.isReplyEnabled(envelope.channel, envelope.conversationId);
 }
 
 /**
@@ -215,13 +282,13 @@ function toHistoryEntry(e: Envelope): HistoryEntry {
   };
 }
 
-/** Tách channel từ `/webhook/:channel`. Path khác → null. */
-function channelFromPath(pathname: string): string | null {
+/** Tách `/webhook/:channel` hoặc `/webhook/:channel/setting`. Path khác → null. */
+function routeFromPath(pathname: string): { channel: string; isSetting: boolean } | null {
   if (!pathname.startsWith(WEBHOOK_PREFIX)) return null;
-  const channel = pathname.slice(WEBHOOK_PREFIX.length);
-  // Chỉ 1 segment (không cho /webhook/zalo/extra).
-  if (channel === "" || channel.includes("/")) return null;
-  return channel;
+  const [channel, extra, ...rest] = pathname.slice(WEBHOOK_PREFIX.length).split("/");
+  if (channel === undefined || channel === "" || rest.length > 0) return null;
+  if (extra === undefined) return { channel, isSetting: false };
+  return extra === SETTING_SEGMENT ? { channel, isSetting: true } : null;
 }
 
 function json(status: number, body: unknown): Response {

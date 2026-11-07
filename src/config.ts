@@ -430,6 +430,9 @@ export const CONFIG = {
   // API hệ vận hành — CHUNG cho cả agent-session (verify token, tra đại lý) lẫn nghiệp vụ
   // `/agent/*` (tra đơn, camera): cùng một backend, cùng một service token.
   // Vd DILIM_API_URL=https://api.dilisupplement.com/api (kèm cả tiền tố /api).
+  // Bearer token cho `POST /webhook/:channel/setting`. Thiếu = endpoint đóng (404).
+  settingsToken: optional("SETTINGS_API_TOKEN"),
+
   agentApi: {
     baseUrl: required("DILIM_API_URL"),
     serviceToken: required("SERVICE_TOKEN_AGENT_API"),
